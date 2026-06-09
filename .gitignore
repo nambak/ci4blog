@@ -1,84 +1,132 @@
-### JetBrains template
-# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
-# Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
+#-------------------------
+# Operating Specific Junk Files
+#-------------------------
 
-# User-specific stuff
-.idea/**/workspace.xml
-.idea/**/tasks.xml
-.idea/**/usage.statistics.xml
-.idea/**/dictionaries
-.idea/**/shelf
+# OS X
+.DS_Store
+.AppleDouble
+.LSOverride
 
-# AWS User-specific
-.idea/**/aws.xml
+# OS X Thumbnails
+._*
 
-# Generated files
-.idea/**/contentModel.xml
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Sensitive or high-churn files
-.idea/**/dataSources/
-.idea/**/dataSources.ids
-.idea/**/dataSources.local.xml
-.idea/**/sqlDataSources.xml
-.idea/**/dynamic.xml
-.idea/**/uiDesigner.xml
-.idea/**/dbnavigator.xml
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
 
-# Gradle
-.idea/**/gradle.xml
-.idea/**/libraries
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
 
-# Gradle and Maven with auto-import
-# When using Gradle or Maven with auto-import, you should exclude module files,
-# since they will be recreated, and may cause churn.  Uncomment if using
-# auto-import.
-# .idea/artifacts
-# .idea/compiler.xml
-# .idea/jarRepositories.xml
-# .idea/modules.xml
-# .idea/*.iml
-# .idea/modules
-# *.iml
-# *.ipr
+# Windows shortcuts
+*.lnk
 
-# CMake
-cmake-build-*/
+# Linux
+*~
 
-# Mongo Explorer plugin
-.idea/**/mongoSettings.xml
+# KDE directory preferences
+.directory
 
-# File-based project format
-*.iws
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
 
-# IntelliJ
-out/
+#-------------------------
+# Environment Files
+#-------------------------
+# These should never be under version control,
+# as it poses a security risk.
+.env
+.vagrant
+Vagrantfile
 
-# mpeltonen/sbt-idea plugin
-.idea_modules/
+#-------------------------
+# Temporary Files
+#-------------------------
+/writable/cache/*
+!/writable/cache/index.html
 
-# JIRA plugin
-atlassian-ide-plugin.xml
+/writable/logs/*
+!/writable/logs/index.html
 
-# Cursive Clojure plugin
-.idea/replstate.xml
+/writable/session/*
+!/writable/session/index.html
 
-# SonarLint plugin
-.idea/sonarlint/
+/writable/uploads/*
+!/writable/uploads/index.html
 
-# Crashlytics plugin (for Android Studio and IntelliJ)
-com_crashlytics_export_strings.xml
-crashlytics.properties
-crashlytics-build.properties
-fabric.properties
+/writable/debugbar/*
+!/writable/debugbar/index.html
 
-# Editor-based Rest Client
-.idea/httpRequests
+php_errors.log
 
-# Android studio 3.1+ serialized cache file
-.idea/caches/build_file_checksums.ser
+#-------------------------
+# User Guide Temp Files
+#-------------------------
+/user_guide_src/build/*
+/user_guide_src/cilexer/build/*
+/user_guide_src/cilexer/dist/*
+/user_guide_src/cilexer/pycilexer.egg-info/*
 
-/.idea/
+#-------------------------
+# Test Files
+#-------------------------
+/tests/coverage*
 
+# Don't save phpunit under version control.
+/phpunit
+
+#-------------------------
+# Composer
+#-------------------------
+vendor/
+
+#-------------------------
+# IDE / Development Files
+#-------------------------
+
+# Modules Testing
+_modules/*
+
+# phpenv local config
+.php-version
+
+# Jetbrains editors (PHPStorm, etc)
+.idea/
+*.iml
+
+# NetBeans
+/nbproject/
+/build/
+/nbbuild/
+/nbdist/
+/nbactions.xml
+/nb-configuration.xml
+/.nb-gradle/
+
+# Sublime Text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+.phpintel
+/api/
+
+# Visual Studio Code
+.vscode/
+
+/results/
+/phpunit.xml
+
+#-------------------------
+# Project Specific (강의 외 로컬 자료)
+#-------------------------
+# 강의 산출물(코드)만 커밋한다. 아래는 로컬 참고용이라 제외.
 docs/
 CLAUDE.md
-
