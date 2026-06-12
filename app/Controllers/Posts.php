@@ -6,14 +6,20 @@ use App\Models\PostModel;
 
 class Posts extends BaseController
 {
+    // 한 페이지에 보여 줄 글 수
+    private const PER_PAGE = 5;
+
     public function index(): string
     {
-        $posts = model(PostModel::class)
+        $model = model(PostModel::class);
+
+        $posts = $model
             ->orderBy('created_at', 'DESC')
-            ->findAll();
+            ->paginate(self::PER_PAGE);
 
         return view('posts/index', [
             'posts' => $posts,
+            'pager' => $model->pager,
         ]);
     }
 }

@@ -21,5 +21,7 @@
                 </li>
             <?php endforeach ?>
         </ul>
+
+        <?= $pager->links() ?>
     <?php endif ?>
 <?= $this->endSection() ?>
