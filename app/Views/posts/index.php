@@ -11,7 +11,7 @@
         <ul class="post-list">
             <?php foreach ($posts as $post): ?>
                 <li>
-                    <h2><?= esc($post->title) ?></h2>
+                    <h2><a href="<?= site_url('posts/' . $post->slug) ?>"><?= esc($post->title) ?></a></h2>
                     <p><?= esc($post->excerpt) ?></p>
                     <?php if ($post->created_at !== null): ?>
                         <time datetime="<?= esc($post->created_at->format('Y-m-d')) ?>">
