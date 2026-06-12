@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\PostModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Posts extends BaseController
 {
@@ -20,6 +21,22 @@ class Posts extends BaseController
         return view('posts/index', [
             'posts' => $posts,
             'pager' => $model->pager,
+        ]);
+    }
+
+    public function show(string $slug): string
+    {
+        $post = model(PostModel::class)
+            ->where('slug', $slug)
+            ->first();
+
+        // 없는 글은 404 로 응답한다.
+        if ($post === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        return view('posts/show', [
+            'post' => $post,
         ]);
     }
 }
