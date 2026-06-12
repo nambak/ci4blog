@@ -7,3 +7,5 @@ $routes->get('/', 'Home::index');
 $routes->get('about', 'Pages::about');
 $routes->get('posts', 'Posts::index');
 $routes->get('posts/(:segment)', 'Posts::show/$1');
+
+service('auth')->routes($routes);
