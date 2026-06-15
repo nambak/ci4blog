@@ -18,8 +18,9 @@ final class PostIndexTest extends CIUnitTestCase
     use FeatureTestTrait;
     use DatabaseTestTrait;
 
-    // App 네임스페이스의 마이그레이션을 매 테스트마다 새로 적용한다.
-    protected $namespace = 'App';
+    // 모든 네임스페이스의 마이그레이션을 매 테스트마다 새로 적용한다.
+    // (ep11부터 공통 헤더가 auth()를 호출하므로 Shield/Settings 테이블도 필요하다.)
+    protected $namespace = null;
     protected $refresh   = true;
     protected $seed      = 'App\Database\Seeds\PostSeeder';
 
