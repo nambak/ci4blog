@@ -78,4 +78,45 @@ class Posts extends BaseController
         // 저장 성공 시: 목록으로 이동한다.
         return redirect()->to('posts');
     }
+
+    /**
+     * 글 수정 폼을 보여 준다. 기존 값을 폼에 채운다.
+     */
+    public function edit(int $id): string
+    {
+        $post = model(PostModel::class)->find($id);
+
+        if ($post === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        return view('posts/edit', [
+            'post' => $post,
+        ]);
+    }
+
+    /**
+     * 수정된 값을 검증하고 저장한다.
+     */
+    public function update(int $id): RedirectResponse
+    {
+        $model = model(PostModel::class);
+        $post  = $model->find($id);
+
+        if ($post === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $data = $this->request->getPost(['title', 'body']);
+
+        // 검증 실패 시: 입력값을 들고 수정 폼으로 되돌아간다.
+        if (! $model->update($id, $data)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('errors', $model->errors());
+        }
+
+        // 수정 성공 시: 해당 글 상세로 이동한다.
+        return redirect()->to('posts/' . $post->slug);
+    }
 }
