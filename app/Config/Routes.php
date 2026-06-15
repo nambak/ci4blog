@@ -12,8 +12,9 @@ $routes->get('posts', 'Posts::index');
 $routes->group('', ['filter' => 'session'], static function ($routes) {
     $routes->get('posts/new', 'Posts::new');            // 글 작성 폼
     $routes->post('posts', 'Posts::create');            // 글 저장
-    $routes->get('posts/(:num)/edit', 'Posts::edit/$1'); // 글 수정 폼
-    $routes->post('posts/(:num)', 'Posts::update/$1');   // 글 수정 저장
+    $routes->get('posts/(:num)/edit', 'Posts::edit/$1');     // 글 수정 폼
+    $routes->post('posts/(:num)', 'Posts::update/$1');       // 글 수정 저장
+    $routes->post('posts/(:num)/delete', 'Posts::delete/$1'); // 글 삭제
 });
 
 $routes->get('posts/(:segment)', 'Posts::show/$1');

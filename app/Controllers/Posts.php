@@ -2,9 +2,11 @@
 
 namespace App\Controllers;
 
+use App\Entities\Post;
 use App\Models\PostModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
+use CodeIgniter\HTTP\ResponseInterface;
 
 class Posts extends BaseController
 {
@@ -118,5 +120,43 @@ class Posts extends BaseController
 
         // 수정 성공 시: 해당 글 상세로 이동한다.
         return redirect()->to('posts/' . $post->slug);
+    }
+
+    /**
+     * 글을 삭제한다. 작성자 본인 또는 관리자만 가능하다.
+     */
+    public function delete(int $id): ResponseInterface|RedirectResponse
+    {
+        $model = model(PostModel::class);
+        $post  = $model->find($id);
+
+        if ($post === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 컨트롤러 가드: 권한이 없으면 403 으로 막는다.
+        if (! $this->canModify($post)) {
+            return $this->response->setStatusCode(403, '삭제 권한이 없습니다.');
+        }
+
+        $model->delete($id);
+
+        return redirect()->to('posts');
+    }
+
+    /**
+     * 현재 사용자가 이 글을 수정/삭제할 수 있는지 판단한다.
+     * 작성자 본인이거나 admin 그룹이면 true.
+     */
+    private function canModify(Post $post): bool
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        return (int) $post->user_id === (int) $user->id
+            || $user->inGroup('admin');
     }
 }
