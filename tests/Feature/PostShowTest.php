@@ -18,7 +18,9 @@ final class PostShowTest extends CIUnitTestCase
     use FeatureTestTrait;
     use DatabaseTestTrait;
 
-    protected $namespace = 'App';
+    // ep11부터 공통 헤더가 auth()를 호출하므로 Shield/Settings 테이블도 필요하다.
+    // namespace 를 null 로 두면 모든 네임스페이스의 마이그레이션이 적용된다.
+    protected $namespace = null;
     protected $refresh   = true;
     protected $seed      = 'App\Database\Seeds\PostSeeder';
 
