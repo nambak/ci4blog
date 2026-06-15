@@ -7,6 +7,7 @@
         <span class="nav-spacer"></span>
 
         <?php if (auth()->loggedIn()): ?>
+            <a class="btn" href="<?= site_url('posts/new') ?>">글쓰기</a>
             <span class="nav-user"><?= esc(auth()->user()->username) ?>님</span>
             <a class="nav-link" href="<?= site_url('logout') ?>">로그아웃</a>
         <?php else: ?>
