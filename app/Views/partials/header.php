@@ -4,6 +4,7 @@
         <a href="<?= site_url('about') ?>">소개</a>
 
         <?php if (auth()->loggedIn()): ?>
+            <a href="<?= site_url('posts/new') ?>">글쓰기</a>
             <span>안녕하세요, <?= esc(auth()->user()->username) ?>님</span>
             <a href="<?= site_url('logout') ?>">로그아웃</a>
         <?php else: ?>
