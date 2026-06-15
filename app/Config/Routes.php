@@ -10,8 +10,10 @@ $routes->get('posts', 'Posts::index');
 // 로그인(세션 인증)이 필요한 쓰기 라우트는 이 그룹 안에 둔다.
 // 글 작성/수정/삭제 라우트가 ep12~ep15에서 여기에 채워진다.
 $routes->group('', ['filter' => 'session'], static function ($routes) {
-    $routes->get('posts/new', 'Posts::new');   // 글 작성 폼
-    $routes->post('posts', 'Posts::create');   // 글 저장
+    $routes->get('posts/new', 'Posts::new');            // 글 작성 폼
+    $routes->post('posts', 'Posts::create');            // 글 저장
+    $routes->get('posts/(:num)/edit', 'Posts::edit/$1'); // 글 수정 폼
+    $routes->post('posts/(:num)', 'Posts::update/$1');   // 글 수정 저장
 });
 
 $routes->get('posts/(:segment)', 'Posts::show/$1');
