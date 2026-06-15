@@ -61,6 +61,9 @@ class Posts extends BaseController
         // allowedFields 에 든 값만 추려서 받는다.
         $data = $this->request->getPost(['title', 'body']);
 
+        // 현재 로그인한 사용자를 작성자로 묶는다.
+        $data['user_id'] = auth()->id();
+
         // 임시 slug. posts.slug 가 NOT NULL UNIQUE 라 지금은 값을 채워 둔다.
         // ep17 에서 제목 기반 생성 + 중복 처리를 PostModel::beforeInsert 로 옮긴다.
         $data['slug'] = 'post-' . bin2hex(random_bytes(6));
