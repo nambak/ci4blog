@@ -24,6 +24,17 @@ final class PostStoreTest extends CIUnitTestCase
     protected $namespace = null;
     protected $refresh   = true;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // 앞선 테스트의 로그인 세션(actingAs)이 auth 싱글톤에 캐시된 채
+        // 새 나가지 않도록, 매 테스트 전에 세션/인증 상태를 비운다.
+        $_SESSION = [];
+        \Config\Services::resetSingle('session');
+        \Config\Services::resetSingle('auth');
+    }
+
     /**
      * 테스트용 사용자 한 명을 만들어 돌려준다.
      */

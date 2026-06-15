@@ -18,5 +18,19 @@
         </div>
     </article>
 
-    <p><a href="<?= site_url('posts') ?>">← 목록으로</a></p>
+    <?php // 작성자 본인 또는 관리자에게만 수정/삭제를 노출한다. ?>
+    <?php $canModify = auth()->loggedIn()
+        && ((int) $post->user_id === (int) auth()->id() || auth()->user()->inGroup('admin')); ?>
+    <?php if ($canModify): ?>
+        <p class="post-actions">
+            <a class="btn btn-ghost" href="<?= site_url('posts/' . $post->id . '/edit') ?>">수정</a>
+            <form action="<?= site_url('posts/' . $post->id . '/delete') ?>" method="post"
+                  onsubmit="return confirm('정말 삭제하시겠습니까?');" style="display:inline">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn btn-danger">삭제</button>
+            </form>
+        </p>
+    <?php endif ?>
+
+    <p><a class="nav-link" href="<?= site_url('posts') ?>">← 목록으로</a></p>
 <?= $this->endSection() ?>
