@@ -23,4 +23,21 @@ class PostModel extends Model
         'slug',
         'body',
     ];
+
+    // 저장 전 검증 규칙. insert/update 시 자동으로 적용된다.
+    protected $validationRules = [
+        'title' => 'required|max_length[255]',
+        'body'  => 'required',
+    ];
+
+    // 검증 실패 메시지(필요한 것만 한국어로 덮어쓴다).
+    protected $validationMessages = [
+        'title' => [
+            'required'   => '제목을 입력해 주세요.',
+            'max_length' => '제목은 255자를 넘을 수 없습니다.',
+        ],
+        'body' => [
+            'required' => '본문을 입력해 주세요.',
+        ],
+    ];
 }
