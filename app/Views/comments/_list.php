@@ -1,4 +1,4 @@
-<?php // 글 상세에 끼워 넣는 댓글 목록 부분 뷰. $comments(Comment[])를 받는다. ?>
+<?php // 글 상세에 끼워 넣는 댓글 목록 부분 뷰. $comments(Comment[])와 $post 를 받는다. ?>
 <section class="comments">
     <h2 class="comments-title">댓글 <?= count($comments) ?></h2>
 
@@ -14,6 +14,20 @@
                             <time datetime="<?= esc($comment->created_at->format('Y-m-d')) ?>">
                                 <?= esc($comment->created_at->format('Y-m-d')) ?>
                             </time>
+                        <?php endif ?>
+
+                        <?php // 댓글 작성자 본인·글 작성자·관리자에게만 삭제 버튼을 노출한다. ?>
+                        <?php $canDelete = auth()->loggedIn() && (
+                            (int) $comment->user_id === (int) auth()->id()
+                            || (int) $post->user_id === (int) auth()->id()
+                            || auth()->user()->inGroup('admin')
+                        ); ?>
+                        <?php if ($canDelete): ?>
+                            <form action="<?= site_url('comments/' . $comment->id . '/delete') ?>" method="post"
+                                  onsubmit="return confirm('댓글을 삭제하시겠습니까?');" style="display:inline">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="comment-delete">삭제</button>
+                            </form>
                         <?php endif ?>
                     </div>
                     <div class="comment-body"><?= nl2br(esc($comment->body)) ?></div>
