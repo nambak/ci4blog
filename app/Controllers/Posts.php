@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Entities\Post;
+use App\Models\CommentModel;
 use App\Models\PostModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
@@ -38,8 +39,12 @@ class Posts extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
+        // 이 글의 댓글을 작성자명과 함께 한 번에 로드한다(N+1 회피).
+        $comments = model(CommentModel::class)->forPost((int) $post->id);
+
         return view('posts/show', [
-            'post' => $post,
+            'post'     => $post,
+            'comments' => $comments,
         ]);
     }
 
