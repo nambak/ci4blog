@@ -2,10 +2,13 @@
 
 namespace App\Controllers;
 
+use App\Entities\Comment;
+use App\Entities\Post;
 use App\Models\CommentModel;
 use App\Models\PostModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
+use CodeIgniter\HTTP\ResponseInterface;
 
 class Comments extends BaseController
 {
@@ -38,5 +41,55 @@ class Comments extends BaseController
 
         return redirect()->to('posts/' . $post->slug)
             ->with('message', '댓글이 등록되었습니다.');
+    }
+
+    /**
+     * 댓글을 삭제한다. 댓글 작성자 본인·글 작성자·관리자만 가능하다.
+     */
+    public function delete(int $commentId): ResponseInterface|RedirectResponse
+    {
+        $model   = model(CommentModel::class);
+        $comment = $model->find($commentId);
+
+        if ($comment === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $post = model(PostModel::class)->find((int) $comment->post_id);
+
+        // 컨트롤러 가드: 권한이 없으면 403 으로 막는다.
+        if (! $this->canDelete($comment, $post)) {
+            return $this->response->setStatusCode(403, '삭제 권한이 없습니다.');
+        }
+
+        $model->delete($commentId);
+
+        $to = $post !== null ? 'posts/' . $post->slug : 'posts';
+
+        return redirect()->to($to)->with('message', '댓글이 삭제되었습니다.');
+    }
+
+    /**
+     * 댓글 작성자 본인이거나, 글 작성자이거나, 관리자면 삭제할 수 있다.
+     */
+    private function canDelete(Comment $comment, ?Post $post): bool
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        // 댓글 작성자 본인
+        if ((int) $comment->user_id === (int) $user->id) {
+            return true;
+        }
+
+        // 글 작성자(자기 글의 댓글을 정리할 수 있다)
+        if ($post !== null && (int) $post->user_id === (int) $user->id) {
+            return true;
+        }
+
+        return $user->inGroup('admin');
     }
 }
