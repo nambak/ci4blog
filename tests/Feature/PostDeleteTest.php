@@ -55,11 +55,11 @@ final class PostDeleteTest extends CIUnitTestCase
     {
         $model = model(PostModel::class);
         // 제목/본문에 '삭제'가 들어가면 버튼 노출 검사와 헷갈리므로 피한다.
+        // slug 는 ep17부터 PostModel 이 제목으로 자동 생성한다.
         $model->insert([
             'user_id' => $userId,
             'title'   => '권한 테스트 글',
             'body'    => '권한 테스트 본문',
-            'slug'    => 'post-to-delete',
         ]);
 
         return $model->getInsertID();
@@ -115,9 +115,10 @@ final class PostDeleteTest extends CIUnitTestCase
     public function testDeleteButtonVisibleToAuthor(): void
     {
         $author = $this->makeUser('author', 'author@example.com');
-        $this->makePost($author->id);
+        $id     = $this->makePost($author->id);
+        $slug   = model(PostModel::class)->find($id)->slug;
 
-        $result = $this->actingAs($author)->call('GET', 'posts/post-to-delete');
+        $result = $this->actingAs($author)->call('GET', 'posts/' . $slug);
 
         $result->assertSee('삭제');
     }
@@ -125,10 +126,11 @@ final class PostDeleteTest extends CIUnitTestCase
     public function testDeleteButtonHiddenFromNonAuthor(): void
     {
         $author = $this->makeUser('author', 'author@example.com');
-        $this->makePost($author->id);
-        $other = $this->makeUser('other', 'other@example.com');
+        $id     = $this->makePost($author->id);
+        $other  = $this->makeUser('other', 'other@example.com');
+        $slug   = model(PostModel::class)->find($id)->slug;
 
-        $result = $this->actingAs($other)->call('GET', 'posts/post-to-delete');
+        $result = $this->actingAs($other)->call('GET', 'posts/' . $slug);
 
         $result->assertDontSee('삭제');
     }
