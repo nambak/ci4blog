@@ -77,8 +77,8 @@ class Posts extends BaseController
                 ->with('errors', $model->errors());
         }
 
-        // 저장 성공 시: 목록으로 이동한다.
-        return redirect()->to('posts');
+        // 저장 성공 시: 목록으로 이동하며 플래시 메시지를 남긴다.
+        return redirect()->to('posts')->with('message', '글이 등록되었습니다.');
     }
 
     /**
@@ -118,8 +118,8 @@ class Posts extends BaseController
                 ->with('errors', $model->errors());
         }
 
-        // 수정 성공 시: 해당 글 상세로 이동한다.
-        return redirect()->to('posts/' . $post->slug);
+        // 수정 성공 시: 해당 글 상세로 이동하며 플래시 메시지를 남긴다.
+        return redirect()->to('posts/' . $post->slug)->with('message', '글이 수정되었습니다.');
     }
 
     /**
@@ -141,7 +141,7 @@ class Posts extends BaseController
 
         $model->delete($id);
 
-        return redirect()->to('posts');
+        return redirect()->to('posts')->with('message', '글이 삭제되었습니다.');
     }
 
     /**

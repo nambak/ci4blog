@@ -24,8 +24,9 @@
     <?php if ($canModify): ?>
         <p class="post-actions">
             <a class="btn btn-ghost" href="<?= site_url('posts/' . $post->id . '/edit') ?>">수정</a>
+            <?php // 삭제는 되돌릴 수 없으므로 제출 직전에 한 번 더 확인한다. ?>
             <form action="<?= site_url('posts/' . $post->id . '/delete') ?>" method="post"
-                  onsubmit="return confirm('정말 삭제하시겠습니까?');" style="display:inline">
+                  onsubmit="return confirm('삭제하면 되돌릴 수 없습니다. 정말 삭제하시겠습니까?');" style="display:inline">
                 <?= csrf_field() ?>
                 <button type="submit" class="btn btn-danger">삭제</button>
             </form>
