@@ -19,6 +19,16 @@ class CommentModel extends Model
         'body',
     ];
 
+    protected $validationRules = [
+        'body' => 'required',
+    ];
+
+    protected $validationMessages = [
+        'body' => [
+            'required' => '댓글 내용을 입력해 주세요.',
+        ],
+    ];
+
     /**
      * 특정 글의 댓글을 작성자명과 함께 오래된 순으로 가져온다.
      *
