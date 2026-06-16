@@ -85,6 +85,9 @@ input[type=text]:focus, textarea:focus { outline: none; border-color: var(--colo
 textarea { resize: vertical; line-height: 1.7; }
 .form-errors { list-style: none; margin: 0 0 18px; padding: 12px 16px; border-radius: var(--radius); background: rgba(191,97,106,.12); color: var(--color-danger); }
 
+/* flash message (1회성 성공 알림) */
+.flash { padding: 12px 16px; border-radius: var(--radius); margin-bottom: 20px; font-size: 14px; background: var(--color-accent-soft); color: var(--color-accent); }
+
 /* pagination (CI4 기본 pager 마크업: nav>ul.pagination) */
 .pagination { display: flex; gap: 6px; justify-content: center; margin-top: 36px; list-style: none; padding: 0; }
 .pagination li a, .pagination li.active span { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: var(--radius); border: 1px solid var(--color-line); text-decoration: none; color: var(--color-ink-2); font-size: 14px; }
