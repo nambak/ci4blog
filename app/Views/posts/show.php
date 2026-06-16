@@ -33,8 +33,15 @@
         </p>
     <?php endif ?>
 
-    <?php // 댓글 목록(부분 뷰). 저장 폼은 ep20 에서 추가한다. ?>
+    <?php // 댓글 목록(부분 뷰). ?>
     <?= $this->include('comments/_list', ['comments' => $comments]) ?>
+
+    <?php // 댓글 작성 폼은 로그인 사용자에게만 노출한다(비로그인은 로그인 유도). ?>
+    <?php if (auth()->loggedIn()): ?>
+        <?= $this->include('comments/_form', ['post' => $post]) ?>
+    <?php else: ?>
+        <p class="comment-login"><a class="nav-link" href="<?= site_url('login') ?>">로그인</a> 후 댓글을 남길 수 있습니다.</p>
+    <?php endif ?>
 
     <p><a class="nav-link" href="<?= site_url('posts') ?>">← 목록으로</a></p>
 <?= $this->endSection() ?>
