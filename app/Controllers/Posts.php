@@ -66,9 +66,7 @@ class Posts extends BaseController
         // 현재 로그인한 사용자를 작성자로 묶는다.
         $data['user_id'] = auth()->id();
 
-        // 임시 slug. posts.slug 가 NOT NULL UNIQUE 라 지금은 값을 채워 둔다.
-        // ep17 에서 제목 기반 생성 + 중복 처리를 PostModel::beforeInsert 로 옮긴다.
-        $data['slug'] = 'post-' . bin2hex(random_bytes(6));
+        // slug 는 PostModel 의 beforeInsert 콜백이 제목으로 자동 생성한다.
 
         // 검증 실패 시: 입력값을 그대로 들고 폼으로 되돌아간다.
         if (! $model->insert($data)) {

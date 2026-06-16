@@ -81,7 +81,8 @@ class App extends BaseConfig
     | DO NOT CHANGE THIS UNLESS YOU FULLY UNDERSTAND THE REPERCUSSIONS!!
     |
     */
-    public string $permittedURIChars = 'a-z 0-9~%.:_\-';
+    // 한글 slug(예: /posts/코드이그나이터-블로그)를 허용하려고 완성형 한글(가-힣)을 추가한다.
+    public string $permittedURIChars = 'a-z 0-9~%.:_\-가-힣';
 
     /**
      * --------------------------------------------------------------------------

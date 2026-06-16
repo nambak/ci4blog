@@ -17,6 +17,8 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
     $routes->post('posts/(:num)/delete', 'Posts::delete/$1'); // 글 삭제
 });
 
+// 글 상세는 slug 기반(:segment). 위의 (:num) 쓰기 라우트보다 아래에 둬
+// 'posts/5' 같은 숫자 경로가 먼저 매칭되도록 한다.
 $routes->get('posts/(:segment)', 'Posts::show/$1');
 
 service('auth')->routes($routes);
