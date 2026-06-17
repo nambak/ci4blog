@@ -25,6 +25,7 @@
 
         <div>
             <label for="body">본문</label>
+            <p class="field-hint">마크다운으로 작성할 수 있습니다 — <code># 제목</code>, <code>**굵게**</code>, <code>[링크](https://…)</code></p>
             <textarea name="body" id="body" rows="12"><?= esc(old('body', $post->body)) ?></textarea>
         </div>
 
