@@ -16,13 +16,8 @@
                             </time>
                         <?php endif ?>
 
-                        <?php // 댓글 작성자 본인·글 작성자·관리자에게만 삭제 버튼을 노출한다. ?>
-                        <?php $canDelete = auth()->loggedIn() && (
-                            (int) $comment->user_id === (int) auth()->id()
-                            || (int) $post->user_id === (int) auth()->id()
-                            || auth()->user()->inGroup('admin')
-                        ); ?>
-                        <?php if ($canDelete): ?>
+                        <?php // 댓글 작성자 본인·글 작성자·관리자에게만 삭제 버튼을 노출한다(acl 헬퍼). ?>
+                        <?php if (is_owner_or_admin($comment->user_id) || is_owner_or_admin($post->user_id)): ?>
                             <form action="<?= site_url('comments/' . $comment->id . '/delete') ?>" method="post"
                                   onsubmit="return confirm('댓글을 삭제하시겠습니까?');" style="display:inline">
                                 <?= csrf_field() ?>

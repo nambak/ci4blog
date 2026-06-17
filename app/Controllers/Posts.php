@@ -130,12 +130,17 @@ class Posts extends BaseController
     /**
      * 글 수정 폼을 보여 준다. 기존 값을 폼에 채운다.
      */
-    public function edit(int $id): string
+    public function edit(int $id): string|ResponseInterface
     {
         $post = model(PostModel::class)->find($id);
 
         if ($post === null) {
             throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 작성자 본인 또는 관리자만 수정할 수 있다.
+        if (! $this->canModify($post)) {
+            return $this->response->setStatusCode(403, '수정 권한이 없습니다.');
         }
 
         return view('posts/edit', [
@@ -146,13 +151,18 @@ class Posts extends BaseController
     /**
      * 수정된 값을 검증하고 저장한다.
      */
-    public function update(int $id): RedirectResponse
+    public function update(int $id): RedirectResponse|ResponseInterface
     {
         $model = model(PostModel::class);
         $post  = $model->find($id);
 
         if ($post === null) {
             throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 작성자 본인 또는 관리자만 수정할 수 있다.
+        if (! $this->canModify($post)) {
+            return $this->response->setStatusCode(403, '수정 권한이 없습니다.');
         }
 
         $data = $this->request->getPost(['title', 'body']);
@@ -280,17 +290,10 @@ class Posts extends BaseController
 
     /**
      * 현재 사용자가 이 글을 수정/삭제할 수 있는지 판단한다.
-     * 작성자 본인이거나 admin 그룹이면 true.
+     * 공통 규칙(작성자 본인 또는 admin)은 acl 헬퍼로 모았다.
      */
     private function canModify(Post $post): bool
     {
-        $user = auth()->user();
-
-        if ($user === null) {
-            return false;
-        }
-
-        return (int) $post->user_id === (int) $user->id
-            || $user->inGroup('admin');
+        return is_owner_or_admin($post->user_id);
     }
 }
