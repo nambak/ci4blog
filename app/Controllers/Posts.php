@@ -16,9 +16,10 @@ class Posts extends BaseController
     private const PER_PAGE = 5;
 
     /**
-     * 글 목록. 카테고리 슬러그가 주어지면 그 카테고리 글만 거른다.
+     * 글 목록. 카테고리 슬러그가 주어지면 그 카테고리 글만 거르고,
+     * 검색어(q)가 주어지면 제목·본문을 like 로 찾는다.
      *
-     * `posts` → 전체, `categories/{slug}` → 해당 카테고리.
+     * `posts` → 전체, `categories/{slug}` → 해당 카테고리, `?q=...` → 검색.
      */
     public function index(?string $categorySlug = null): string
     {
@@ -34,6 +35,16 @@ class Posts extends BaseController
             $model->where('category_id', $activeCategory->id);
         }
 
+        // 검색어가 있으면 제목 OR 본문에서 찾는다. 다른 조건(카테고리)과 AND 로 묶이도록
+        // like 묶음을 groupStart/End 로 감싼다.
+        $search = trim((string) $this->request->getGet('q'));
+        if ($search !== '') {
+            $model->groupStart()
+                ->like('title', $search)
+                ->orLike('body', $search)
+                ->groupEnd();
+        }
+
         $posts = $model
             ->orderBy('created_at', 'DESC')
             ->paginate(self::PER_PAGE);
@@ -43,6 +54,7 @@ class Posts extends BaseController
             'pager'          => $model->pager,
             'categories'     => model(CategoryModel::class)->menu(),
             'activeCategory' => $activeCategory,
+            'search'         => $search,
         ]);
     }
 
