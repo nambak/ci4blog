@@ -6,6 +6,10 @@
     <article class="post">
         <h1><?= esc($post->title) ?></h1>
 
+        <?php if ($post->image !== null && $post->image !== ''): ?>
+            <img class="post-cover" src="<?= site_url('uploads/' . $post->image) ?>" alt="<?= esc($post->title) ?>">
+        <?php endif ?>
+
         <?php if ($post->created_at !== null): ?>
             <time datetime="<?= esc($post->created_at->format('Y-m-d')) ?>">
                 <?= esc($post->created_at->format('Y-m-d')) ?>

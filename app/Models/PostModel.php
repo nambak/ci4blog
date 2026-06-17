@@ -23,6 +23,7 @@ class PostModel extends Model
         'title',
         'slug',
         'body',
+        'image',
     ];
 
     // 저장 전 검증 규칙. insert/update 시 자동으로 적용된다.
