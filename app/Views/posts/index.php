@@ -3,7 +3,11 @@
 <?= $this->section('title') ?>글 목록<?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
-    <h1 class="page-title">글 목록</h1>
+    <h1 class="page-title">
+        <?= isset($activeCategory) && $activeCategory !== null ? esc($activeCategory->name) : '글 목록' ?>
+    </h1>
+
+    <?= $this->include('partials/category_menu') ?>
 
     <?php if (empty($posts)): ?>
         <p>아직 작성된 글이 없습니다.</p>

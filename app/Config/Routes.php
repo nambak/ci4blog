@@ -6,6 +6,8 @@ use CodeIgniter\Router\RouteCollection;
 $routes->get('/', 'Home::index');
 $routes->get('about', 'Pages::about');
 $routes->get('posts', 'Posts::index');
+// 카테고리별 글 목록. 목록 화면(index)을 슬러그로 거른다.
+$routes->get('categories/(:segment)', 'Posts::index/$1');
 
 // 로그인(세션 인증)이 필요한 쓰기 라우트는 이 그룹 안에 둔다.
 // 글 작성/수정/삭제 라우트가 ep12~ep15에서 여기에 채워진다.
