@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Entities\Post;
+use App\Models\CategoryModel;
 use App\Models\CommentModel;
 use App\Models\PostModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
@@ -14,17 +15,34 @@ class Posts extends BaseController
     // 한 페이지에 보여 줄 글 수
     private const PER_PAGE = 5;
 
-    public function index(): string
+    /**
+     * 글 목록. 카테고리 슬러그가 주어지면 그 카테고리 글만 거른다.
+     *
+     * `posts` → 전체, `categories/{slug}` → 해당 카테고리.
+     */
+    public function index(?string $categorySlug = null): string
     {
         $model = model(PostModel::class);
+
+        // 없는 카테고리는 404. (필터가 빈 목록으로 조용히 떨어지지 않게)
+        $activeCategory = null;
+        if ($categorySlug !== null) {
+            $activeCategory = model(CategoryModel::class)->where('slug', $categorySlug)->first();
+            if ($activeCategory === null) {
+                throw PageNotFoundException::forPageNotFound();
+            }
+            $model->where('category_id', $activeCategory->id);
+        }
 
         $posts = $model
             ->orderBy('created_at', 'DESC')
             ->paginate(self::PER_PAGE);
 
         return view('posts/index', [
-            'posts' => $posts,
-            'pager' => $model->pager,
+            'posts'          => $posts,
+            'pager'          => $model->pager,
+            'categories'     => model(CategoryModel::class)->menu(),
+            'activeCategory' => $activeCategory,
         ]);
     }
 
