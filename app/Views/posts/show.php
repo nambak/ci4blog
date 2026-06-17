@@ -12,9 +12,10 @@
             </time>
         <?php endif ?>
 
-        <?php // 본문은 지금은 평문이다. 마크다운 렌더링은 ep26에서 다룬다. ?>
-        <div class="post-body">
-            <?= nl2br(esc($post->body)) ?>
+        <?php // 본문은 마크다운 원문으로 저장하고, 표시할 때 HTML 로 변환한다.
+              // 변환은 엔티티(body_html)가 XSS 안전 설정으로 처리하므로 여기선 그대로 출력한다. ?>
+        <div class="post-body prose">
+            <?= $post->body_html ?>
         </div>
     </article>
 
