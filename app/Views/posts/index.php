@@ -9,7 +9,8 @@
 
     <?= $this->include('partials/category_menu') ?>
 
-    <form class="search-form" method="get" action="<?= site_url('posts') ?>" role="search">
+    <?php // 카테고리 페이지에서 검색해도 카테고리가 풀리지 않도록 현재 카테고리로 보낸다. ?>
+    <form class="search-form" method="get" action="<?= esc(isset($activeCategory) && $activeCategory !== null ? $activeCategory->url : site_url('posts')) ?>" role="search">
         <input type="search" name="q" value="<?= esc($search ?? '', 'attr') ?>"
                placeholder="제목·본문 검색" aria-label="검색어">
         <button class="btn" type="submit">검색</button>
