@@ -15,13 +15,19 @@
         </ul>
     <?php endif ?>
 
-    <form class="form" action="<?= site_url('posts') ?>" method="post">
+    <form class="form" action="<?= site_url('posts') ?>" method="post" enctype="multipart/form-data">
         <?= csrf_field() ?>
 
         <div>
             <label for="title">제목</label>
             <?php // old() 로 직전 입력값을 되살린다(withInput 과 짝). ?>
             <input type="text" name="title" id="title" value="<?= esc(old('title')) ?>">
+        </div>
+
+        <div>
+            <label for="image">대표 이미지 <small>(선택)</small></label>
+            <p class="field-hint">JPG·PNG·WebP, 2MB 이하. 목록에는 썸네일로 보입니다.</p>
+            <input type="file" name="image" id="image" accept="image/png,image/jpeg,image/webp">
         </div>
 
         <div>

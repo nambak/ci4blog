@@ -101,10 +101,23 @@ class Posts extends BaseController
         // 현재 로그인한 사용자를 작성자로 묶는다.
         $data['user_id'] = auth()->id();
 
+        // 대표 이미지(선택). 검증 실패면 false, 미업로드면 null, 성공이면 파일명.
+        $image = $this->saveUploadedImage();
+        if ($image === false) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+        if ($image !== null) {
+            $data['image'] = $image;
+        }
+
         // slug 는 PostModel 의 beforeInsert 콜백이 제목으로 자동 생성한다.
 
-        // 검증 실패 시: 입력값을 그대로 들고 폼으로 되돌아간다.
+        // 검증 실패 시: 방금 옮긴 이미지 파일을 되돌리고(고아 방지) 폼으로 돌아간다.
         if (! $model->insert($data)) {
+            if ($image !== null) {
+                $this->deleteImageFiles($image);
+            }
+
             return redirect()->back()
                 ->withInput()
                 ->with('errors', $model->errors());
@@ -144,15 +157,103 @@ class Posts extends BaseController
 
         $data = $this->request->getPost(['title', 'body']);
 
-        // 검증 실패 시: 입력값을 들고 수정 폼으로 되돌아간다.
+        // 새 대표 이미지가 올라오면 교체한다. 단 기존 파일은 DB 반영이
+        // 성공한 뒤에 지운다(실패 시 기존 이미지 참조가 깨지지 않도록).
+        $image    = $this->saveUploadedImage();
+        $oldImage = $post->image;
+        if ($image === false) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+        if ($image !== null) {
+            $data['image'] = $image;
+        }
+
+        // 검증 실패 시: 방금 옮긴 새 파일을 되돌리고 입력값을 들고 폼으로 돌아간다.
         if (! $model->update($id, $data)) {
+            if ($image !== null) {
+                $this->deleteImageFiles($image);
+            }
+
             return redirect()->back()
                 ->withInput()
                 ->with('errors', $model->errors());
         }
 
+        // 반영 성공 후에야 기존 이미지를 정리한다.
+        if ($image !== null) {
+            $this->deleteImageFiles($oldImage);
+        }
+
         // 수정 성공 시: 해당 글 상세로 이동하며 플래시 메시지를 남긴다.
         return redirect()->to('posts/' . $post->slug)->with('message', '글이 수정되었습니다.');
+    }
+
+    /**
+     * 업로드된 대표 이미지를 검증·저장하고 저장 파일명을 돌려준다.
+     *
+     * @return string|false|null 저장 파일명 / 검증 실패(false) / 업로드 없음(null)
+     */
+    private function saveUploadedImage(): string|false|null
+    {
+        $file = $this->request->getFile('image');
+
+        // 파일을 고르지 않았으면 이미지 없이 진행한다.
+        if ($file === null || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+
+        // 이미지 형식·용량 검증(2MB 이하).
+        if (! $this->validate([
+            'image' => 'is_image[image]|mime_in[image,image/jpg,image/jpeg,image/png,image/webp]|max_size[image,2048]',
+        ])) {
+            return false;
+        }
+
+        $dir  = WRITEPATH . 'uploads';
+        $name = $file->getRandomName();
+        $file->move($dir, $name);
+
+        // 목록용 썸네일(400x250 크롭). 원본은 상세에서 사용.
+        service('image')
+            ->withFile($dir . '/' . $name)
+            ->fit(400, 250, 'center')
+            ->save($dir . '/thumb_' . $name);
+
+        return $name;
+    }
+
+    /**
+     * 글에 딸린 이미지 원본과 썸네일을 파일시스템에서 지운다.
+     */
+    private function deleteImageFiles(?string $name): void
+    {
+        if ($name === null || $name === '') {
+            return;
+        }
+
+        foreach ([$name, 'thumb_' . $name] as $f) {
+            $path = WRITEPATH . 'uploads/' . $f;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+
+    /**
+     * writable/uploads 의 이미지를 스트리밍한다(웹 루트 밖이라 컨트롤러로 서빙).
+     */
+    public function image(string $name): ResponseInterface
+    {
+        $name = basename($name); // 경로 탈출 방지
+        $path = WRITEPATH . 'uploads/' . $name;
+
+        if (! is_file($path)) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', mime_content_type($path) ?: 'application/octet-stream')
+            ->setBody((string) file_get_contents($path));
     }
 
     /**
