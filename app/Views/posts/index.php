@@ -9,8 +9,18 @@
 
     <?= $this->include('partials/category_menu') ?>
 
+    <form class="search-form" method="get" action="<?= site_url('posts') ?>" role="search">
+        <input type="search" name="q" value="<?= esc($search ?? '', 'attr') ?>"
+               placeholder="제목·본문 검색" aria-label="검색어">
+        <button class="btn" type="submit">검색</button>
+    </form>
+
     <?php if (empty($posts)): ?>
-        <p>아직 작성된 글이 없습니다.</p>
+        <?php if (! empty($search)): ?>
+            <p class="empty">'<?= esc($search) ?>'에 대한 검색 결과가 없습니다.</p>
+        <?php else: ?>
+            <p class="empty">아직 작성된 글이 없습니다.</p>
+        <?php endif ?>
     <?php else: ?>
         <ul class="post-list">
             <?php foreach ($posts as $post): ?>
