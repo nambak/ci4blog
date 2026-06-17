@@ -19,6 +19,7 @@ class PostModel extends Model
     // 대량 할당을 허용할 필드. id 와 타임스탬프는 제외한다.
     protected $allowedFields = [
         'user_id',
+        'category_id',
         'title',
         'slug',
         'body',
