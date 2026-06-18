@@ -64,6 +64,50 @@ composer test
 ./vendor/bin/phpunit
 ```
 
+## 배포 (production)
+
+운영 환경은 개발과 두 가지가 다릅니다 — **디버그를 끄고**(`CI_ENVIRONMENT = production`), **설정은 `.env` 로 주입**합니다. 코드(`app/Config/*`)의 기본값은 그대로 두고, 서버의 `.env` 가 그 위를 덮습니다.
+
+```bash
+# 1) 코드 받기 & 운영용 의존성만 설치(dev 패키지 제외)
+git pull --ff-only origin main
+composer install --no-dev --optimize-autoloader
+
+# 2) 운영 .env 작성
+cp env.production.example .env
+#    app.baseURL = 'https://내도메인/'
+#    database.default.* = 운영 DB 접속 정보(비밀번호는 .env 에만)
+php spark key:generate          # encryption.key 생성
+
+# 3) 마이그레이션
+php spark migrate --all
+
+# 4) 캐시 정리(설정/라우트 변경 후)
+php spark cache:clear
+```
+
+### 체크리스트
+
+- [ ] `.env` 의 `CI_ENVIRONMENT = production` — 디버그 툴바·상세 에러 페이지가 꺼졌는지 확인
+- [ ] `app.baseURL` 이 실제 도메인(끝에 `/`)이고 HTTPS 인지
+- [ ] `app.forceGlobalSecureRequests = true` (HTTPS 강제), `app.indexPage = ''` (깨끗한 URL)
+- [ ] `encryption.key` 가 채워졌는지(`php spark key:generate`)
+- [ ] 웹 서버의 **document root 가 `public/`** 인지 (그 위 디렉터리가 공개되면 안 됨)
+- [ ] `.env` 와 운영 비밀값이 저장소·CI 에 올라가지 않는지
+
+### writable/ 권한
+
+`writable/` 아래(`cache`, `logs`, `session`, `uploads`)는 **웹 서버가 쓸 수 있어야** 합니다. 소유자를 웹 서버 사용자로 두거나 그룹 쓰기를 허용합니다.
+
+```bash
+# 예: 웹 서버가 www-data 인 경우
+sudo chown -R www-data:www-data writable/
+sudo find writable/ -type d -exec chmod 775 {} \;
+sudo find writable/ -type f -exec chmod 664 {} \;
+```
+
+> 업로드 이미지는 웹 루트 밖(`writable/uploads/`)에 저장되고 `Posts::image` 컨트롤러로 서빙되므로, `writable/` 가 외부에서 직접 접근되지 않습니다.
+
 ## 프로젝트 구조
 
 ```text
