@@ -129,6 +129,12 @@ final class PostUpdateTest extends CIUnitTestCase
 
         $result->assertStatus(403);
         $this->dontSeeInDatabase('posts', ['title' => '침입자 수정']);
+        // 같은 글이 원래 값을 그대로 유지하는지도 확인한다.
+        $this->seeInDatabase('posts', [
+            'id'    => $id,
+            'title' => '원래 제목',
+            'body'  => '원래 본문',
+        ]);
     }
 
     public function testUpdateValidationFailsWithEmptyTitle(): void
