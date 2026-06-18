@@ -74,22 +74,9 @@ class Comments extends BaseController
      */
     private function canDelete(Comment $comment, ?Post $post): bool
     {
-        $user = auth()->user();
-
-        if ($user === null) {
-            return false;
-        }
-
-        // 댓글 작성자 본인
-        if ((int) $comment->user_id === (int) $user->id) {
-            return true;
-        }
-
-        // 글 작성자(자기 글의 댓글을 정리할 수 있다)
-        if ($post !== null && (int) $post->user_id === (int) $user->id) {
-            return true;
-        }
-
-        return $user->inGroup('admin');
+        // 댓글 작성자 본인, 또는 글 작성자(자기 글의 댓글 정리), 또는 관리자.
+        // "본인 또는 관리자" 판정은 acl 헬퍼로 모았다(관리자는 어느 쪽이든 true).
+        return is_owner_or_admin($comment->user_id)
+            || ($post !== null && is_owner_or_admin($post->user_id));
     }
 }

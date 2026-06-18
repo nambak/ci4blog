@@ -37,13 +37,13 @@ final class PostUpdateTest extends CIUnitTestCase
         \Config\Services::resetSingle('auth');
     }
 
-    private function makeUser(): User
+    private function makeUser(string $username = 'editor', string $email = 'editor@example.com'): User
     {
         $users = auth()->getProvider();
 
         $user = new User([
-            'username' => 'editor',
-            'email'    => 'editor@example.com',
+            'username' => $username,
+            'email'    => $email,
             'password' => 'secret-password-123',
         ]);
         $users->save($user);
@@ -103,6 +103,37 @@ final class PostUpdateTest extends CIUnitTestCase
         $this->seeInDatabase('posts', [
             'id'    => $id,
             'title' => '수정된 제목',
+        ]);
+    }
+
+    public function testNonOwnerCannotSeeEditForm(): void
+    {
+        $owner    = $this->makeUser();
+        $id       = $this->makePost($owner->id);
+        $intruder = $this->makeUser('intruder', 'intruder@example.com');
+
+        // 남의 글 수정 폼은 403 으로 막힌다.
+        $this->actingAs($intruder)->call('GET', "posts/{$id}/edit")->assertStatus(403);
+    }
+
+    public function testNonOwnerCannotUpdatePost(): void
+    {
+        $owner    = $this->makeUser();
+        $id       = $this->makePost($owner->id);
+        $intruder = $this->makeUser('intruder', 'intruder@example.com');
+
+        $result = $this->actingAs($intruder)->call('POST', "posts/{$id}", [
+            'title' => '침입자 수정',
+            'body'  => '바뀌면 안 된다.',
+        ]);
+
+        $result->assertStatus(403);
+        $this->dontSeeInDatabase('posts', ['title' => '침입자 수정']);
+        // 같은 글이 원래 값을 그대로 유지하는지도 확인한다.
+        $this->seeInDatabase('posts', [
+            'id'    => $id,
+            'title' => '원래 제목',
+            'body'  => '원래 본문',
         ]);
     }
 

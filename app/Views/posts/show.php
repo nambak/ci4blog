@@ -23,10 +23,8 @@
         </div>
     </article>
 
-    <?php // 작성자 본인 또는 관리자에게만 수정/삭제를 노출한다. ?>
-    <?php $canModify = auth()->loggedIn()
-        && ((int) $post->user_id === (int) auth()->id() || auth()->user()->inGroup('admin')); ?>
-    <?php if ($canModify): ?>
+    <?php // 작성자 본인 또는 관리자에게만 수정/삭제를 노출한다(acl 헬퍼). ?>
+    <?php if (is_owner_or_admin($post->user_id)): ?>
         <p class="post-actions">
             <a class="btn btn-ghost" href="<?= site_url('posts/' . $post->id . '/edit') ?>">수정</a>
             <?php // 삭제는 되돌릴 수 없으므로 제출 직전에 한 번 더 확인한다. ?>
