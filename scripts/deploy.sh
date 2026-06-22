@@ -18,22 +18,26 @@ set -euo pipefail
 # 프로젝트 루트로 이동 (스크립트 위치 기준)
 cd "$(dirname "$0")/.."
 
-echo "▶ 1/5 최신 코드 받기"
+echo "▶ 1/6 최신 코드 받기"
 git fetch --all --prune
 git checkout main          # 배포 브랜치 (필요시 변경)
 git pull --ff-only origin main
 
-echo "▶ 2/5 의존성 설치 (production)"
+echo "▶ 2/6 의존성 설치 (production)"
 composer install --no-dev --optimize-autoloader --no-interaction
 
-echo "▶ 3/5 DB 마이그레이션"
+echo "▶ 3/6 DB 마이그레이션"
 php spark migrate --all
 
-echo "▶ 4/5 강의 글 발행 (slug 기준 멱등 upsert)"
+echo "▶ 4/6 강의 글 발행 (slug 기준 멱등 upsert)"
 # 작성자 계정을 고정하려면 --author=<user_id> 를 붙인다(예: 강의용 관리자 id).
 php spark posts:import
 
-echo "▶ 5/5 캐시 정리"
+echo "▶ 5/6 캐시 정리"
 php spark cache:clear || true
+
+echo "▶ 6/6 writable 권한 보정 (php-fpm www-data 소유 유지)"
+# ubuntu 로 실행되며 만들어진 SQLite WAL·캐시·로그 파일을 www-data 소유로 되돌린다.
+sudo chown -R www-data:www-data writable/
 
 echo "✅ 배포 완료"
