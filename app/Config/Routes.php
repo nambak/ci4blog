@@ -3,7 +3,7 @@
 use CodeIgniter\Router\RouteCollection;
 
 /** @var RouteCollection $routes */
-$routes->get('/', 'Home::index');
+$routes->get('/', 'Posts::index');
 $routes->get('about', 'Pages::about');
 $routes->get('posts', 'Posts::index');
 // 카테고리별 글 목록. 목록 화면(index)을 슬러그로 거른다.
