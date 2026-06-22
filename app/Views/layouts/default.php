@@ -11,7 +11,7 @@
 <body>
     <?= $this->include('partials/header') ?>
 
-    <main class="container">
+    <main class="page-main">
         <?php // 직전 요청에서 남긴 1회성 플래시 메시지(성공 알림 등)를 보여 준다. ?>
         <?php if (session()->getFlashdata('message') !== null): ?>
             <div class="flash"><?= esc(session()->getFlashdata('message')) ?></div>

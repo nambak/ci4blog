@@ -1,18 +1,30 @@
-<header class="site-header">
-    <nav class="nav container">
-        <a class="brand" href="<?= site_url('/') ?>"><span class="dot">·</span> <?= esc(config('Blog')->title) ?></a>
-        <a class="nav-link" href="<?= site_url('posts') ?>">글</a>
-        <a class="nav-link" href="<?= site_url('about') ?>">소개</a>
-
-        <span class="nav-spacer"></span>
-
+<?php
+/**
+ * 공통 헤더. 홈 디자인(docs/design/source/Home)을 사이트 전체에 적용한 것.
+ * 풀폭(1100px) 바 + 검색 + 로그인 상태 분기.
+ */
+?>
+<header class="home-header">
+    <div class="home-bar">
+        <a class="home-brand" href="<?= site_url('/') ?>"><span class="dot">·</span> <?= esc(config('Blog')->title) ?></a>
+        <nav class="home-nav">
+            <a class="nav-link" href="<?= site_url('/') ?>">홈</a>
+            <a class="nav-link" href="<?= site_url('posts') ?>">아카이브</a>
+            <a class="nav-link" href="<?= site_url('about') ?>">About</a>
+        </nav>
+        <span class="home-bar-spacer"></span>
+        <form class="home-search" method="get" action="<?= site_url('posts') ?>" role="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+            </svg>
+            <input name="q" placeholder="검색" aria-label="검색어">
+        </form>
         <?php if (auth()->loggedIn()): ?>
             <a class="btn" href="<?= site_url('posts/new') ?>">글쓰기</a>
             <span class="nav-user"><?= esc(auth()->user()->username) ?>님</span>
             <a class="nav-link" href="<?= site_url('logout') ?>">로그아웃</a>
         <?php else: ?>
             <a class="nav-link" href="<?= site_url('login') ?>">로그인</a>
-            <a class="btn btn-ghost" href="<?= site_url('register') ?>">회원가입</a>
         <?php endif ?>
-    </nav>
+    </div>
 </header>

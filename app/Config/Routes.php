@@ -3,7 +3,7 @@
 use CodeIgniter\Router\RouteCollection;
 
 /** @var RouteCollection $routes */
-$routes->get('/', 'Posts::index');
+$routes->get('/', 'Home::index');
 $routes->get('about', 'Pages::about');
 $routes->get('posts', 'Posts::index');
 // 카테고리별 글 목록. 목록 화면(index)을 슬러그로 거른다.
@@ -27,4 +27,5 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
 // 'posts/5' 같은 숫자 경로가 먼저 매칭되도록 한다.
 $routes->get('posts/(:segment)', 'Posts::show/$1');
 
-service('auth')->routes($routes);
+// 공개 회원가입은 막는다(관리자만 shield:user create 로 계정 생성).
+service('auth')->routes($routes, ['except' => ['register']]);

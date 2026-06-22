@@ -50,4 +50,45 @@ class Post extends Entity
 
         return $excerpt;
     }
+
+    /**
+     * 본문 길이로 추정한 읽기 시간(분). 한국어 기준 분당 약 500자.
+     * 뷰에서 $post->read_time 으로 접근한다(최소 1분).
+     */
+    public function getReadTime(): int
+    {
+        $chars = mb_strlen(preg_replace('/\s+/u', '', (string) ($this->attributes['body'] ?? '')));
+
+        return max(1, (int) ceil($chars / 500));
+    }
+
+    /**
+     * 대표 이미지가 없을 때 커버에 깔 그라데이션. 글 id 로 팔레트에서 고정 선택해
+     * 같은 글은 항상 같은 색을 갖도록 한다(Nord Aurora/Frost 계열).
+     * 뷰에서 background:<?= $post->cover_gradient ?> 로 쓴다.
+     */
+    public function getCoverGradient(): string
+    {
+        $palette = [
+            'linear-gradient(135deg,#88C0D0 0%,#5E81AC 60%,#2E3440 100%)',
+            'linear-gradient(135deg,#EBCB8B 0%,#D08770 100%)',
+            'linear-gradient(135deg,#8FBCBB 0%,#5E81AC 100%)',
+            'linear-gradient(135deg,#D8DEE9 0%,#2E3440 100%)',
+            'linear-gradient(135deg,#D08770 0%,#BF616A 100%)',
+            'linear-gradient(135deg,#A3BE8C 0%,#5E81AC 100%)',
+            'linear-gradient(135deg,#B48EAD 0%,#5E81AC 100%)',
+        ];
+
+        return $palette[((int) ($this->attributes['id'] ?? 0)) % count($palette)];
+    }
+
+    /**
+     * 커버에 얹을 글자(제목 첫 글자, 대문자). 뷰에서 $post->cover_initial.
+     */
+    public function getCoverInitial(): string
+    {
+        $title = trim((string) ($this->attributes['title'] ?? ''));
+
+        return $title === '' ? '·' : mb_strtoupper(mb_substr($title, 0, 1));
+    }
 }

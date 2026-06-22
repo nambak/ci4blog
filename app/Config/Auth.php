@@ -157,7 +157,9 @@ class Auth extends ShieldAuth
      * --------------------------------------------------------------------
      * Determines whether users can register for the site.
      */
-    public bool $allowRegistration = true;
+    // 공개 회원가입을 막는다(관리자만 `php spark shield:user create` 로 계정 생성).
+    // 로그인 뷰의 회원가입 링크도 이 값에 따라 숨겨진다. Routes 에서 register 라우트도 제외함.
+    public bool $allowRegistration = false;
 
     /**
      * --------------------------------------------------------------------
