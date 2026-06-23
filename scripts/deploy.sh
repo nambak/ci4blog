@@ -27,17 +27,20 @@ echo "▶ 2/6 의존성 설치 (production)"
 composer install --no-dev --optimize-autoloader --no-interaction
 
 echo "▶ 3/6 DB 마이그레이션"
-php spark migrate --all
+# spark 는 www-data 로 실행한다. writable/ 이 php-fpm(www-data) 소유라
+# ubuntu 로 돌리면 로그·캐시·SQLite 쓰기 권한이 없어 부팅부터 실패한다.
+sudo -u www-data php spark migrate --all
 
 echo "▶ 4/6 강의 글 발행 (slug 기준 멱등 upsert)"
 # 작성자 계정을 고정하려면 --author=<user_id> 를 붙인다(예: 강의용 관리자 id).
-php spark posts:import
+sudo -u www-data php spark posts:import
 
 echo "▶ 5/6 캐시 정리"
-php spark cache:clear || true
+sudo -u www-data php spark cache:clear || true
 
 echo "▶ 6/6 writable 권한 보정 (php-fpm www-data 소유 유지)"
-# ubuntu 로 실행되며 만들어진 SQLite WAL·캐시·로그 파일을 www-data 소유로 되돌린다.
+# spark 를 www-data 로 실행하므로 보통 이미 www-data 소유지만,
+# 혹시 남은 ubuntu 소유 파일이 있으면 보정하는 안전망이다.
 sudo chown -R www-data:www-data writable/
 
 echo "✅ 배포 완료"
