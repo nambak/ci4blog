@@ -28,7 +28,10 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Run tests
-        run: composer test
+        # CI 러너엔 커버리지 드라이버(Xdebug/pcov)가 없다. phpunit.dist.xml 은
+        # failOnWarning=true + <coverage> 설정이라, 드라이버 부재 경고가 실패로
+        # 승격된다. 커버리지를 끄고 테스트 게이트로만 사용한다.
+        run: composer test -- --no-coverage
 
   deploy:
     name: Deploy
