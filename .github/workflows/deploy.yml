@@ -1,0 +1,48 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 동시에 두 배포가 겹치지 않게 한다(취소하지 않고 직렬화).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, mbstring, sqlite3, curl, gd
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run tests
+        run: composer test
+
+  deploy:
+    name: Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            cd /var/www/ci4blog
+            ./scripts/deploy.sh
