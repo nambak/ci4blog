@@ -72,9 +72,24 @@ class Posts extends BaseController
         // 이 글의 댓글을 작성자명과 함께 한 번에 로드한다(N+1 회피).
         $comments = model(CommentModel::class)->forPost((int) $post->id);
 
+        // 바이라인(작성자 아바타 행)용 작성자명. 홈 히어로와 같은 방식으로
+        // users 테이블에서 username 만 직접 읽는다(엔티티 의존 없이).
+        $authorName = null;
+        if ($post->user_id !== null) {
+            $row        = db_connect()->table('users')->select('username')->where('id', $post->user_id)->get()->getRow();
+            $authorName = $row->username ?? null;
+        }
+
+        // 제목 위 카테고리 칩. 없는 글(미분류)은 null.
+        $category = $post->category_id !== null
+            ? model(CategoryModel::class)->find($post->category_id)
+            : null;
+
         return view('posts/show', [
-            'post'     => $post,
-            'comments' => $comments,
+            'post'       => $post,
+            'comments'   => $comments,
+            'authorName' => $authorName,
+            'category'   => $category,
         ]);
     }
 

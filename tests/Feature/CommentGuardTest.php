@@ -66,7 +66,7 @@ final class CommentGuardTest extends CIUnitTestCase
         $result = $this->call('GET', 'posts/' . $slug);
 
         $result->assertStatus(200);
-        $result->assertDontSee('댓글 등록');
+        $result->assertDontSee('남기기');
     }
 
     public function testLoggedInUserSeesCommentForm(): void
@@ -77,6 +77,6 @@ final class CommentGuardTest extends CIUnitTestCase
         $result = $this->actingAs($user)->call('GET', 'posts/' . $slug);
 
         $result->assertStatus(200);
-        $result->assertSee('댓글 등록');
+        $result->assertSee('남기기');
     }
 }

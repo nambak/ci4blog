@@ -11,6 +11,15 @@
         </ul>
     <?php endif ?>
 
-    <textarea name="body" rows="3" placeholder="댓글을 남겨 보세요"><?= esc(old('body')) ?></textarea>
-    <button type="submit" class="btn">댓글 등록</button>
+    <?php $me = (string) (auth()->user()->username ?? ''); ?>
+    <div class="comment-composer">
+        <span class="composer-avatar"><?= esc($me === '' ? '·' : mb_strtoupper(mb_substr($me, 0, 1))) ?></span>
+        <div class="composer-main">
+            <textarea name="body" rows="3" placeholder="이 글에 대한 생각을 남겨주세요…"><?= esc(old('body')) ?></textarea>
+            <div class="composer-foot">
+                <span class="composer-hint">줄바꿈은 Enter</span>
+                <button type="submit" class="btn">남기기</button>
+            </div>
+        </div>
+    </div>
 </form>
