@@ -7,6 +7,8 @@
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3760455502657641"
          crossorigin="anonymous"></script>
     <title><?= $this->renderSection('title') ?> · <?= esc(config('Blog')->title) ?></title>
+    <?php // apex(unwanted.me)에서도 같은 글을 서빙하므로, 정본 URL은 항상 baseURL(blog.unwanted.me) 기준으로 고정해 중복 콘텐츠를 막는다. ?>
+    <link rel="canonical" href="<?= base_url(uri_string()) ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
     <?php // 파일 수정 시각을 버전 파라미터로 붙여, CSS 수정이 브라우저 캐시에 막히지 않게 한다. ?>
