@@ -12,6 +12,19 @@ class Admin extends BaseController
 {
     public function index(): string
     {
-        return view('admin/dashboard');
+        $posts      = model(\App\Models\PostModel::class);
+        $comments   = model(\App\Models\CommentModel::class);
+        $categories = model(\App\Models\CategoryModel::class);
+
+        $stats = [
+            'posts'          => $posts->countAllResults(false),
+            'comments'       => $comments->countAllResults(),
+            'categories'     => $categories->countAllResults(),
+            'postsThisMonth' => $posts->where('created_at >=', date('Y-m-01 00:00:00'))->countAllResults(),
+        ];
+
+        return view('admin/dashboard', [
+            'stats' => $stats,
+        ]);
     }
 }

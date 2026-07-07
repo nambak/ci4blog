@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\CategoryModel;
+use App\Models\CommentModel;
+use App\Models\PostModel;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
@@ -79,5 +82,35 @@ final class AdminDashboardTest extends CIUnitTestCase
 
         $result->assertStatus(200);
         $result->assertSee('대시보드');
+    }
+
+    public function testDashboardShowsKpiCounts(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $posts      = model(PostModel::class);
+        $comments   = model(CommentModel::class);
+        $categories = model(CategoryModel::class);
+
+        // 글 3개(모두 이번 달), 카테고리 2개, 댓글 4개를 심는다.
+        $categories->insert(['name' => '일상', 'slug' => 'daily']);
+        $categories->insert(['name' => '개발', 'slug' => 'dev']);
+
+        $postIds = [];
+        foreach (['가', '나', '다'] as $i => $t) {
+            $posts->insert(['user_id' => $admin->id, 'title' => "글{$t}", 'body' => '본문']);
+            $postIds[] = $posts->getInsertID();
+        }
+        foreach (range(1, 4) as $n) {
+            $comments->insert(['post_id' => $postIds[0], 'user_id' => $admin->id, 'body' => "댓글{$n}"]);
+        }
+
+        $result = $this->actingAs($admin)->call('GET', 'admin');
+
+        $result->assertStatus(200);
+        $result->assertSee('3', '#kpi-posts');       // 전체 글
+        $result->assertSee('4', '#kpi-comments');    // 전체 댓글
+        $result->assertSee('2', '#kpi-categories');  // 카테고리
+        $result->assertSee('3', '#kpi-month');       // 이번 달 새 글
     }
 }
