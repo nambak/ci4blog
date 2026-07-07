@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Entities\Post;
+use App\Models\Concerns\GeneratesSlug;
 use CodeIgniter\Model;
 
 class PostModel extends Model
 {
+    use GeneratesSlug;
+
     protected $table      = 'posts';
     protected $primaryKey = 'id';
 
@@ -72,46 +75,5 @@ class PostModel extends Model
         $data['data']['slug'] = $this->uniqueSlug($base, $excludeId);
 
         return $data;
-    }
-
-    /**
-     * 제목을 URL 안전한 slug 로 바꾼다.
-     * 한국어 제목은 url_title()이 빈 문자열이 되므로, 글자/숫자(한글 포함)는
-     * 살리고 공백은 하이픈으로 바꾼다. 결과가 비면 'post' 로 대체한다.
-     */
-    private function slugify(string $title): string
-    {
-        $slug = mb_strtolower(trim($title));
-        $slug = preg_replace('/\s+/u', '-', $slug);             // 공백 → 하이픈
-        // 허용: 소문자 영문·숫자·완성형 한글·하이픈 (Config\App::$permittedURIChars 와 동일 집합)
-        $slug = preg_replace('/[^a-z0-9가-힣\-]+/u', '', $slug);
-        $slug = preg_replace('/-+/', '-', $slug);               // 연속 하이픈 축약
-        $slug = trim($slug, '-');
-
-        return $slug !== '' ? $slug : 'post';
-    }
-
-    /**
-     * slug 가 이미 있으면 -2, -3 … 을 붙여 유일하게 만든다.
-     */
-    private function uniqueSlug(string $base, ?int $excludeId = null): string
-    {
-        $slug   = $base;
-        $suffix = 2;
-
-        while (true) {
-            $builder = $this->where('slug', $slug);
-            if ($excludeId !== null) {
-                $builder->where('id !=', $excludeId);
-            }
-
-            // countAllResults() 는 기본적으로 쿼리 빌더를 초기화하므로
-            // 다음 루프의 조건이 누적되지 않는다.
-            if ($builder->countAllResults() === 0) {
-                return $slug;
-            }
-
-            $slug = $base . '-' . $suffix++;
-        }
     }
 }

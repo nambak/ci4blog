@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Entities\Category;
+use App\Models\Concerns\GeneratesSlug;
 use CodeIgniter\Model;
 
 class CategoryModel extends Model
 {
+    use GeneratesSlug;
+
     protected $table      = 'categories';
     protected $primaryKey = 'id';
 
@@ -20,7 +23,7 @@ class CategoryModel extends Model
 
     protected $validationRules = [
         'name' => 'required|max_length[100]',
-        'slug' => 'required|max_length[100]|is_unique[categories.slug,id,{id}]',
+        'slug' => 'permit_empty|max_length[100]|is_unique[categories.slug,id,{id}]',
     ];
 
     protected $validationMessages = [
@@ -28,10 +31,33 @@ class CategoryModel extends Model
             'required' => '카테고리 이름을 입력해 주세요.',
         ],
         'slug' => [
-            'required'  => '카테고리 슬러그를 입력해 주세요.',
             'is_unique' => '이미 사용 중인 슬러그입니다.',
         ],
     ];
+
+    protected $beforeInsert = ['generateSlug'];
+    protected $beforeUpdate = ['generateSlug'];
+
+    /**
+     * 콜백: slug 가 비었으면 name 으로 자동 생성한다.
+     * 사용자가 slug 를 직접 채웠으면 그대로 둔다(유일성은 검증 규칙이 확인).
+     */
+    protected function generateSlug(array $data): array
+    {
+        if (! empty($data['data']['slug'])) {
+            return $data;
+        }
+        if (! isset($data['data']['name'])) {
+            return $data;
+        }
+
+        $base      = $this->slugify((string) $data['data']['name'], 'category');
+        $excludeId = isset($data['id'][0]) ? (int) $data['id'][0] : null;
+
+        $data['data']['slug'] = $this->uniqueSlug($base, $excludeId);
+
+        return $data;
+    }
 
     /**
      * 메뉴·필터에서 쓰는 전체 카테고리 목록(이름순).
