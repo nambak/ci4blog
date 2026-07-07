@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CategoryModel;
 use App\Models\PostModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
@@ -124,9 +125,10 @@ final class AdminCategoriesTest extends CIUnitTestCase
 
     public function testEditMissingCategoryReturns404(): void
     {
-        $admin  = $this->makeAdmin();
-        $result = $this->actingAs($admin)->call('GET', 'admin/categories/9999/edit');
+        $admin = $this->makeAdmin();
 
-        $result->assertStatus(404);
+        // 404 는 Feature 테스트에서 응답이 아니라 예외로 전파된다(기존 PostShowTest 관례).
+        $this->expectException(PageNotFoundException::class);
+        $this->actingAs($admin)->call('GET', 'admin/categories/9999/edit');
     }
 }
