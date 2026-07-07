@@ -24,6 +24,18 @@
         </div>
 
         <div>
+            <label for="category_id">카테고리 <small>(선택)</small></label>
+            <?php // old() 가 없으면 기존 글의 category_id 로 미리 선택한다. ?>
+            <?php $selectedCategory = old('category_id', $post->category_id); ?>
+            <select name="category_id" id="category_id">
+                <option value="">— 카테고리 없음 —</option>
+                <?php foreach ($categories as $category): ?>
+                    <option value="<?= esc($category->id) ?>"<?= (string) $selectedCategory === (string) $category->id ? ' selected' : '' ?>><?= esc($category->name) ?></option>
+                <?php endforeach ?>
+            </select>
+        </div>
+
+        <div>
             <label for="image">대표 이미지 <small>(선택)</small></label>
             <?php if ($post->image !== null && $post->image !== ''): ?>
                 <p><img class="image-current" src="<?= site_url('uploads/thumb_' . $post->image) ?>" alt="현재 대표 이미지"></p>

@@ -100,7 +100,9 @@ class Posts extends BaseController
      */
     public function new(): string
     {
-        return view('posts/create');
+        return view('posts/create', [
+            'categories' => model(CategoryModel::class)->menu(),
+        ]);
     }
 
     /**
@@ -111,7 +113,10 @@ class Posts extends BaseController
         $model = model(PostModel::class);
 
         // allowedFields 에 든 값만 추려서 받는다.
-        $data = $this->request->getPost(['title', 'body']);
+        $data = $this->request->getPost(['title', 'body', 'category_id']);
+
+        // 카테고리는 선택 사항. 안 고르면 빈 문자열로 오므로 null 로 정규화한다.
+        $data['category_id'] = $this->normalizeCategoryId($data['category_id'] ?? null);
 
         // 현재 로그인한 사용자를 작성자로 묶는다.
         $data['user_id'] = auth()->id();
@@ -159,7 +164,8 @@ class Posts extends BaseController
         }
 
         return view('posts/edit', [
-            'post' => $post,
+            'post'       => $post,
+            'categories' => model(CategoryModel::class)->menu(),
         ]);
     }
 
@@ -180,7 +186,10 @@ class Posts extends BaseController
             return $this->response->setStatusCode(403, '수정 권한이 없습니다.');
         }
 
-        $data = $this->request->getPost(['title', 'body']);
+        $data = $this->request->getPost(['title', 'body', 'category_id']);
+
+        // 카테고리는 선택 사항. 안 고르면 빈 문자열로 오므로 null 로 정규화한다.
+        $data['category_id'] = $this->normalizeCategoryId($data['category_id'] ?? null);
 
         // 새 대표 이미지가 올라오면 교체한다. 단 기존 파일은 DB 반영이
         // 성공한 뒤에 지운다(실패 시 기존 이미지 참조가 깨지지 않도록).
@@ -211,6 +220,20 @@ class Posts extends BaseController
 
         // 수정 성공 시: 해당 글 상세로 이동하며 플래시 메시지를 남긴다.
         return redirect()->to('posts/' . $post->slug)->with('message', '글이 수정되었습니다.');
+    }
+
+    /**
+     * 폼에서 넘어온 category_id 를 저장용 값으로 정규화한다.
+     * 미선택(빈 문자열/공백)은 null, 그 외에는 정수로 돌려준다.
+     * 실존 여부 검증은 PostModel 의 is_not_unique 규칙이 맡는다.
+     */
+    private function normalizeCategoryId(mixed $value): ?int
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     /**

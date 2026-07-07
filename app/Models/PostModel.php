@@ -28,8 +28,10 @@ class PostModel extends Model
 
     // 저장 전 검증 규칙. insert/update 시 자동으로 적용된다.
     protected $validationRules = [
-        'title' => 'required|max_length[255]',
-        'body'  => 'required',
+        'title'       => 'required|max_length[255]',
+        'body'        => 'required',
+        // 카테고리는 선택 사항(permit_empty). 고른 경우엔 실존하는 카테고리 id 여야 한다.
+        'category_id' => 'permit_empty|is_natural_no_zero|is_not_unique[categories.id]',
     ];
 
     // 검증 실패 메시지(필요한 것만 한국어로 덮어쓴다).
@@ -40,6 +42,10 @@ class PostModel extends Model
         ],
         'body' => [
             'required' => '본문을 입력해 주세요.',
+        ],
+        'category_id' => [
+            'is_natural_no_zero' => '올바른 카테고리를 선택해 주세요.',
+            'is_not_unique'      => '존재하지 않는 카테고리입니다.',
         ],
     ];
 

@@ -25,6 +25,17 @@
         </div>
 
         <div>
+            <label for="category_id">카테고리 <small>(선택)</small></label>
+            <?php // 미선택은 빈 값 → 컨트롤러가 null 로 저장. 검증 실패 시 old() 로 선택 복원. ?>
+            <select name="category_id" id="category_id">
+                <option value="">— 카테고리 없음 —</option>
+                <?php foreach ($categories as $category): ?>
+                    <option value="<?= esc($category->id) ?>"<?= (string) old('category_id') === (string) $category->id ? ' selected' : '' ?>><?= esc($category->name) ?></option>
+                <?php endforeach ?>
+            </select>
+        </div>
+
+        <div>
             <label for="image">대표 이미지 <small>(선택)</small></label>
             <p class="field-hint">JPG·PNG·WebP, 2MB 이하. 목록에는 썸네일로 보입니다.</p>
             <input type="file" name="image" id="image" accept="image/png,image/jpeg,image/webp">
