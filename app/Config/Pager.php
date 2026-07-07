@@ -21,6 +21,8 @@ class Pager extends BaseConfig
      * @var array<string, string>
      */
     public array $templates = [
+        // 블로그 목록용 커스텀 템플릿(현재 페이지 강조 + 이전/다음 항상 노출).
+        'blog'           => 'App\Views\partials\pager',
         'default_full'   => 'CodeIgniter\Pager\Views\default_full',
         'default_simple' => 'CodeIgniter\Pager\Views\default_simple',
         'default_head'   => 'CodeIgniter\Pager\Views\default_head',

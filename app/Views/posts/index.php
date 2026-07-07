@@ -45,6 +45,6 @@
             <?php endforeach ?>
         </ul>
 
-        <?= $pager->links() ?>
+        <?= $pager->links('default', 'blog') ?>
     <?php endif ?>
 <?= $this->endSection() ?>

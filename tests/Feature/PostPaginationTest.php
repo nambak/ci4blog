@@ -61,4 +61,35 @@ final class PostPaginationTest extends CIUnitTestCase
         // (5건/페이지였다면 2페이지는 PAGE-02~06 이라 PAGE-01 이 없다.)
         $this->call('GET', 'posts', ['page' => '2'])->assertSee('PAGE-01');
     }
+
+    public function testPagerMarksCurrentPage(): void
+    {
+        // 현재 페이지는 aria-current="page" 로 표시돼 위치를 알 수 있어야 한다.
+        $body = $this->call('GET', 'posts', ['page' => '2'])->getBody();
+        $this->assertStringContainsString('aria-current="page"', $body);
+    }
+
+    public function testPagerUsesKoreanPrevNextLabels(): void
+    {
+        // 이전/다음 컨트롤은 한국어 라벨을 쓴다(기본 템플릿의 영어 Next/Last 아님).
+        $res = $this->call('GET', 'posts', ['page' => '2']);
+        $res->assertSee('이전');
+        $res->assertSee('다음');
+    }
+
+    public function testPrevDisabledOnFirstPage(): void
+    {
+        // 1페이지에서는 '이전'이 비활성(disabled)이어야 한다.
+        $body = $this->call('GET', 'posts')->getBody();
+        $this->assertStringContainsString('page-prev disabled', $body);
+        $this->assertStringNotContainsString('page-next disabled', $body); // 다음은 살아 있음
+    }
+
+    public function testNextDisabledOnLastPage(): void
+    {
+        // 마지막(2)페이지에서는 '다음'이 비활성이어야 한다.
+        $body = $this->call('GET', 'posts', ['page' => '2'])->getBody();
+        $this->assertStringContainsString('page-next disabled', $body);
+        $this->assertStringNotContainsString('page-prev disabled', $body); // 이전은 살아 있음
+    }
 }
