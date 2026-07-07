@@ -113,4 +113,37 @@ final class AdminDashboardTest extends CIUnitTestCase
         $result->assertSee('2', '#kpi-categories');  // 카테고리
         $result->assertSee('3', '#kpi-month');       // 이번 달 새 글
     }
+
+    public function testDashboardShowsRecentAndDistribution(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $posts      = model(PostModel::class);
+        $comments   = model(CommentModel::class);
+        $categories = model(CategoryModel::class);
+
+        $categories->insert(['name' => '여행기록', 'slug' => 'travel']);
+        $catId = $categories->getInsertID();
+
+        $posts->insert([
+            'user_id'     => $admin->id,
+            'category_id' => $catId,
+            'title'       => '유일무이한제목ABC',
+            'body'        => '본문',
+        ]);
+        $postId = $posts->getInsertID();
+
+        $comments->insert([
+            'post_id' => $postId,
+            'user_id' => $admin->id,
+            'body'    => '독특한댓글내용XYZ',
+        ]);
+
+        $result = $this->actingAs($admin)->call('GET', 'admin');
+
+        $result->assertStatus(200);
+        $result->assertSee('유일무이한제목ABC');   // 최근 글 패널
+        $result->assertSee('독특한댓글내용XYZ');   // 최근 댓글 패널
+        $result->assertSee('여행기록');            // 카테고리 분포 패널
+    }
 }
