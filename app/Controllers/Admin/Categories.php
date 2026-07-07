@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Models\CategoryModel;
 use App\Models\PostModel;
+use CodeIgniter\HTTP\RedirectResponse;
 
 /**
  * 관리자 카테고리 관리.
@@ -26,5 +27,19 @@ class Categories extends BaseController
             'uncategorized' => $uncategorized,
             'search'        => $search,
         ]);
+    }
+
+    public function create(): RedirectResponse
+    {
+        $model = model(CategoryModel::class);
+
+        // name, slug 만 받는다(slug 비면 모델이 name 으로 자동 생성).
+        $data = $this->request->getPost(['name', 'slug']);
+
+        if (! $model->insert($data)) {
+            return redirect()->back()->withInput()->with('errors', $model->errors());
+        }
+
+        return redirect()->to('admin/categories')->with('message', '카테고리가 추가되었습니다.');
     }
 }

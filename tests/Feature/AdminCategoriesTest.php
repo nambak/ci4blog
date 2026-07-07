@@ -80,4 +80,29 @@ final class AdminCategoriesTest extends CIUnitTestCase
         $result->assertSee('미분류');       // 미분류 읽기 전용 행
         $result->assertSee('카테고리', 'h1'); // 페이지 제목
     }
+
+    public function testAdminCreatesCategoryWithAutoSlug(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $result = $this->actingAs($admin)->call('POST', 'admin/categories', [
+            'name' => '개발 노트',
+            'slug' => '',
+        ]);
+
+        $result->assertRedirect();
+        $this->seeInDatabase('categories', ['name' => '개발 노트', 'slug' => '개발-노트']);
+    }
+
+    public function testCreateRejectsEmptyName(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $result = $this->actingAs($admin)->call('POST', 'admin/categories', [
+            'name' => '',
+        ]);
+
+        $result->assertRedirect();
+        $this->dontSeeInDatabase('categories', ['slug' => 'category']);
+    }
 }
