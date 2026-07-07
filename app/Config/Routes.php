@@ -27,5 +27,9 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
 // 'posts/5' 같은 숫자 경로가 먼저 매칭되도록 한다.
 $routes->get('posts/(:segment)', 'Posts::show/$1');
 
+$routes->group('admin', ['filter' => 'group:admin,superadmin'], static function ($routes) {
+    $routes->get('/', 'Admin::index'); // 관리자 대시보드
+});
+
 // 공개 회원가입은 막는다(관리자만 shield:user create 로 계정 생성).
 service('auth')->routes($routes, ['except' => ['register']]);
