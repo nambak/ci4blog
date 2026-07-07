@@ -97,7 +97,7 @@ final class AdminDashboardTest extends CIUnitTestCase
         $categories->insert(['name' => '개발', 'slug' => 'dev']);
 
         $postIds = [];
-        foreach (['가', '나', '다'] as $i => $t) {
+        foreach (['가', '나', '다'] as $t) {
             $posts->insert(['user_id' => $admin->id, 'title' => "글{$t}", 'body' => '본문']);
             $postIds[] = $posts->getInsertID();
         }

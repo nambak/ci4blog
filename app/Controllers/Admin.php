@@ -40,6 +40,8 @@ class Admin extends BaseController
         // 대비로 category_id와 name을 함께 group by 한다.
         // select() 안에 괄호(함수 호출)가 있으면 CI4가 식별자 프리픽스를 건너뛰므로
         // (DBPrefix 미적용) 테이블명을 prefixTable()로 직접 채워 넣는다.
+        // NOTE: 이 우회는 CI4의 BaseConnection::protectIdentifiers()가 괄호를 만나면
+        //       원문을 그대로 둔다는 동작에 의존한다. CI4 업그레이드 시 재검증할 것.
         $db = db_connect();
 
         $categoryDist = model(\App\Models\PostModel::class)
