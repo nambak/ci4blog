@@ -78,8 +78,24 @@ final class AdminCategoriesTest extends CIUnitTestCase
 
         $result->assertStatus(200);
         $result->assertSee('여행기록');
+        $result->assertSee('1개 글');       // 정확한 글 수(여행기록: 1건)
         $result->assertSee('미분류');       // 미분류 읽기 전용 행
         $result->assertSee('카테고리', 'h1'); // 페이지 제목
+    }
+
+    public function testListSearchFiltersByName(): void
+    {
+        $admin      = $this->makeAdmin();
+        $categories = model(CategoryModel::class);
+
+        $categories->insert(['name' => '여행기록']);
+        $categories->insert(['name' => '개발일지']);
+
+        $result = $this->actingAs($admin)->call('GET', 'admin/categories?q=여행');
+
+        $result->assertStatus(200);
+        $result->assertSee('여행기록');
+        $result->assertDontSee('개발일지');
     }
 
     public function testAdminCreatesCategoryWithAutoSlug(): void

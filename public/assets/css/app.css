@@ -267,7 +267,7 @@ textarea { resize: vertical; line-height: 1.7; }
     gap: 16px;
 }
 .card { background: var(--color-paper); border: 1px solid var(--color-line); border-radius: var(--radius-lg); overflow: hidden; }
-.card-head { padding: 14px 18px; border-bottom: 1px solid var(--color-line); }
+.card-head { padding: 14px 18px; border-bottom: 1px solid var(--color-line); display: flex; align-items: center; justify-content: space-between; }
 .card-head h2 { font-size: 15px; font-weight: 700; color: var(--color-ink); margin: 0; }
 .card-empty { padding: 18px; color: var(--color-ink-4); font-size: 14px; }
 
@@ -291,7 +291,6 @@ textarea { resize: vertical; line-height: 1.7; }
 }
 
 /* 카테고리 관리 */
-.card-head { display: flex; align-items: center; justify-content: space-between; }
 .card-link { font-size: 13px; font-weight: 600; color: var(--color-accent); text-decoration: none; }
 .card-link:hover { opacity: .8; }
 
