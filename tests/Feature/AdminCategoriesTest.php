@@ -131,4 +131,34 @@ final class AdminCategoriesTest extends CIUnitTestCase
         $this->expectException(PageNotFoundException::class);
         $this->actingAs($admin)->call('GET', 'admin/categories/9999/edit');
     }
+
+    public function testDeleteMovesPostsToUncategorized(): void
+    {
+        $admin      = $this->makeAdmin();
+        $categories = model(CategoryModel::class);
+        $posts      = model(PostModel::class);
+
+        $categories->insert(['name' => '지울분류']);
+        $catId = $categories->getInsertID();
+        $posts->insert(['user_id' => $admin->id, 'category_id' => $catId, 'title' => '딸린글', 'body' => '본문']);
+        $postId = $posts->getInsertID();
+
+        $result = $this->actingAs($admin)->call('POST', "admin/categories/{$catId}/delete");
+
+        $result->assertRedirect();
+        $this->dontSeeInDatabase('categories', ['id' => $catId]);
+        // 딸린 글은 지워지지 않고 미분류(NULL)로 남는다.
+        $this->seeInDatabase('posts', ['id' => $postId]);
+        $this->assertNull($posts->find($postId)->category_id);
+    }
+
+    public function testDeleteMissingCategoryReturns404(): void
+    {
+        $admin = $this->makeAdmin();
+
+        // 404 는 Feature 테스트에서 예외로 전파된다(기존 PostShowTest 관례). 파일 상단에
+        // `use CodeIgniter\Exceptions\PageNotFoundException;` 가 이미 있어야 한다(Task 4에서 추가).
+        $this->expectException(PageNotFoundException::class);
+        $this->actingAs($admin)->call('POST', 'admin/categories/9999/delete');
+    }
 }

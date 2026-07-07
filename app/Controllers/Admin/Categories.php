@@ -77,4 +77,24 @@ class Categories extends BaseController
 
         return redirect()->to('admin/categories')->with('message', '카테고리를 수정했습니다.');
     }
+
+    public function delete(int $id): RedirectResponse
+    {
+        $model    = model(CategoryModel::class);
+        $category = $model->find($id);
+
+        if ($category === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // posts 에 FK 가 없으므로 앱에서 처리: 이 카테고리의 글을 미분류(NULL)로.
+        db_connect()->table('posts')
+            ->where('category_id', $id)
+            ->update(['category_id' => null]);
+
+        $model->delete($id);
+
+        return redirect()->to('admin/categories')
+            ->with('message', '카테고리를 삭제했습니다. 이 카테고리의 글은 미분류로 옮겨졌습니다.');
+    }
 }
