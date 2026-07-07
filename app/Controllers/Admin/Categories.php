@@ -66,8 +66,10 @@ class Categories extends BaseController
 
         $data = $this->request->getPost(['name', 'slug']);
 
-        // 유일성 검증에서 {id} 플레이스홀더를 실제 ID로 교체
-        $model->setValidationRule('slug', 'permit_empty|max_length[100]|is_unique[categories.slug,id,' . $id . ']');
+        // is_unique[...,{id}] 가 자기 자신을 제외하도록 id 를 넘긴다.
+        // {id} 는 validate() 에 전달된 data 배열의 'id' 키로 채워진다(update()의 $id 인자로는 자동 주입되지 않음).
+        // id 는 $allowedFields 밖이라 doProtectFields()가 SQL 반영 전에 제거한다.
+        $data['id'] = $id;
 
         if (! $model->update($id, $data)) {
             return redirect()->back()->withInput()->with('errors', $model->errors());

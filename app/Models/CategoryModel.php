@@ -22,6 +22,8 @@ class CategoryModel extends Model
     ];
 
     protected $validationRules = [
+        // {id} 플레이스홀더(slug 규칙)를 채우려면 CI4가 'id' 자체의 규칙도 요구한다.
+        'id'   => 'permit_empty',
         'name' => 'required|max_length[100]',
         'slug' => 'permit_empty|max_length[100]|is_unique[categories.slug,id,{id}]',
     ];
