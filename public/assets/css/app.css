@@ -90,12 +90,12 @@ input[type=file] { font-size: 14px; color: var(--color-ink-2); }
 .byline-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--color-accent-bright), var(--color-accent)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; flex: none; }
 .byline-name { font-size: 14px; font-weight: 600; }
 .byline-meta { font-size: 13px; color: var(--color-ink-3); }
-.post-body { font-size: 18px; line-height: 1.8; color: var(--color-prose); margin-top: 24px; }
+.post-body { font-size: 16px; line-height: 1.8; color: var(--color-prose); margin-top: 24px; }
 .post-actions { display: flex; gap: 10px; align-items: center; max-width: 720px; margin: 32px auto 0; }
 .post-back { max-width: 720px; margin: 24px auto 0; }
 
 /* prose (마크다운 본문, ep26 대비) */
-.prose { font-size: 18px; line-height: 1.8; color: var(--color-prose); }
+.prose { font-size: 16px; line-height: 1.8; color: var(--color-prose); overflow-wrap: break-word; word-break: break-word; }
 .prose p { margin: 24px 0; }
 .prose h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 48px 0 18px; color: var(--color-ink); }
 .prose blockquote { margin: 32px 0; padding-left: 24px; border-left: 3px solid var(--color-accent); font-size: 20px; line-height: 1.6; font-style: italic; }

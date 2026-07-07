@@ -36,13 +36,15 @@ class Post extends Entity
     /**
      * 목록에서 보여 줄 짧은 미리보기.
      *
-     * 본문의 줄바꿈을 공백으로 합치고 앞부분만 잘라 준다.
+     * 원문을 그대로 자르면 #, **, [](…) 같은 마크다운 기호가 노출되므로,
+     * 본문을 HTML 로 변환한 뒤 태그를 걷어내 순수 텍스트만 남긴다.
+     * 그 뒤 줄바꿈을 공백으로 합치고 앞부분만 잘라 준다.
      * 뷰에서 $post->excerpt 로 접근한다.
      */
     public function getExcerpt(int $limit = 80): string
     {
-        $body    = preg_replace('/\s+/u', ' ', trim((string) $this->attributes['body']));
-        $excerpt = (string) $body;
+        $text    = html_entity_decode(strip_tags($this->getBodyHtml()), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $excerpt = preg_replace('/\s+/u', ' ', trim($text));
 
         if (mb_strlen($excerpt) > $limit) {
             $excerpt = mb_substr($excerpt, 0, $limit) . '…';
