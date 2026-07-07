@@ -284,6 +284,8 @@ textarea { resize: vertical; line-height: 1.7; }
 .dash-dist-name { font-size: 14px; color: var(--color-ink); }
 .dash-dist-cnt { font-size: 13px; font-weight: 700; color: var(--color-accent); }
 
+.dash-actions { display: flex; gap: 10px; margin-top: 20px; }
+
 @media (max-width: 720px) {
     .dash-cols { grid-template-columns: 1fr; }
 }

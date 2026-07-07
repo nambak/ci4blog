@@ -146,4 +146,22 @@ final class AdminDashboardTest extends CIUnitTestCase
         $result->assertSee('독특한댓글내용XYZ');   // 최근 댓글 패널
         $result->assertSee('여행기록');            // 카테고리 분포 패널
     }
+
+    public function testAdminSeesAdminNavLink(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $result = $this->actingAs($admin)->call('GET', '/');
+
+        $result->assertSee('관리자');
+    }
+
+    public function testNormalUserDoesNotSeeAdminNavLink(): void
+    {
+        $user = $this->makeUser('member', 'member@example.com');
+
+        $result = $this->actingAs($user)->call('GET', '/');
+
+        $result->assertDontSee('관리자');
+    }
 }

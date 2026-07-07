@@ -74,5 +74,10 @@
                 <?php endif ?>
             </section>
         </div>
+
+        <section class="dash-actions" aria-label="빠른 작업">
+            <a class="btn" href="<?= site_url('posts/new') ?>">새 글 쓰기</a>
+            <a class="btn btn-ghost" href="<?= site_url('posts') ?>">아카이브 보기</a>
+        </section>
     </div>
 <?= $this->endSection() ?>

@@ -11,6 +11,9 @@
             <a class="nav-link" href="<?= site_url('/') ?>">홈</a>
             <a class="nav-link" href="<?= site_url('posts') ?>">아카이브</a>
             <a class="nav-link" href="<?= site_url('about') ?>">About</a>
+            <?php if (auth()->loggedIn() && auth()->user()->inGroup('admin', 'superadmin')): ?>
+                <a class="nav-link" href="<?= site_url('admin') ?>">관리자</a>
+            <?php endif ?>
         </nav>
         <span class="home-bar-spacer"></span>
         <form class="home-search" method="get" action="<?= site_url('posts') ?>" role="search">
