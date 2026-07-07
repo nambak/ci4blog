@@ -298,6 +298,7 @@ textarea { resize: vertical; line-height: 1.7; }
 .cat-form { padding: 16px 18px; display: grid; gap: 12px; }
 .cat-form label { display: block; font-size: 13px; color: var(--color-ink-3); margin-bottom: 4px; }
 .cat-form input { width: 100%; padding: 8px 10px; border: 1px solid var(--color-line); border-radius: var(--radius); background: var(--color-paper); color: var(--color-ink); }
+.cat-form > .btn { justify-self: center; }
 
 .cat-search { display: flex; gap: 8px; margin: 0 0 16px; }
 .cat-search input { flex: 1; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: var(--radius); background: var(--color-paper); }
