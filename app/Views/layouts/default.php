@@ -7,6 +7,11 @@
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3760455502657641"
          crossorigin="anonymous"></script>
     <title><?= $this->renderSection('title') ?> · <?= esc(config('Blog')->title) ?></title>
+    <?php // 파비콘: SVG 우선, PNG 폴백, iOS 홈화면용 apple-touch-icon. ?>
+    <link rel="icon" href="<?= base_url('favicon/favicon.svg') ?>" type="image/svg+xml">
+    <link rel="icon" href="<?= base_url('favicon/favicon-32.png') ?>" sizes="32x32" type="image/png">
+    <link rel="icon" href="<?= base_url('favicon/favicon-16.png') ?>" sizes="16x16" type="image/png">
+    <link rel="apple-touch-icon" href="<?= base_url('favicon/apple-touch-icon.png') ?>">
     <?php // apex(unwanted.me)에서도 같은 글을 서빙하므로, 정본 URL은 항상 baseURL(blog.unwanted.me) 기준으로 고정해 중복 콘텐츠를 막는다. ?>
     <link rel="canonical" href="<?= base_url(uri_string()) ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
