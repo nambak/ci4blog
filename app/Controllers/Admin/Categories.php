@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Models\CategoryModel;
 use App\Models\PostModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
 
 /**
@@ -41,5 +42,37 @@ class Categories extends BaseController
         }
 
         return redirect()->to('admin/categories')->with('message', '카테고리가 추가되었습니다.');
+    }
+
+    public function edit(int $id): string
+    {
+        $category = model(CategoryModel::class)->find($id);
+
+        if ($category === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        return view('admin/categories/edit', ['category' => $category]);
+    }
+
+    public function update(int $id): RedirectResponse
+    {
+        $model    = model(CategoryModel::class);
+        $category = $model->find($id);
+
+        if ($category === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $data = $this->request->getPost(['name', 'slug']);
+
+        // 유일성 검증에서 {id} 플레이스홀더를 실제 ID로 교체
+        $model->setValidationRule('slug', 'permit_empty|max_length[100]|is_unique[categories.slug,id,' . $id . ']');
+
+        if (! $model->update($id, $data)) {
+            return redirect()->back()->withInput()->with('errors', $model->errors());
+        }
+
+        return redirect()->to('admin/categories')->with('message', '카테고리를 수정했습니다.');
     }
 }

@@ -105,4 +105,28 @@ final class AdminCategoriesTest extends CIUnitTestCase
         $result->assertRedirect();
         $this->dontSeeInDatabase('categories', ['slug' => 'category']);
     }
+
+    public function testAdminUpdatesCategoryName(): void
+    {
+        $admin      = $this->makeAdmin();
+        $categories = model(CategoryModel::class);
+        $categories->insert(['name' => '옛이름']);
+        $id = $categories->getInsertID();
+
+        $result = $this->actingAs($admin)->call('POST', "admin/categories/{$id}", [
+            'name' => '새이름',
+            'slug' => $categories->find($id)->slug,
+        ]);
+
+        $result->assertRedirect();
+        $this->seeInDatabase('categories', ['id' => $id, 'name' => '새이름']);
+    }
+
+    public function testEditMissingCategoryReturns404(): void
+    {
+        $admin  = $this->makeAdmin();
+        $result = $this->actingAs($admin)->call('GET', 'admin/categories/9999/edit');
+
+        $result->assertStatus(404);
+    }
 }
