@@ -11,7 +11,8 @@ use CodeIgniter\Test\FeatureTestTrait;
  *
  * 마이그레이션으로 posts 테이블을 만들고 PostSeeder로 더미 글 6건을 채운 뒤,
  * /posts 가 모델에서 읽어 온 글들을 페이지 단위로 그려 주는지 검증한다.
- * (한 페이지 5건 기준: 1페이지=최신 5건, 2페이지=가장 오래된 1건)
+ * (한 페이지 10건 기준: 시더 6건은 최신·최고참 모두 1페이지에 담긴다.
+ *  정확한 10-경계는 PostPaginationTest 가 따로 검증한다.)
  */
 final class PostIndexTest extends CIUnitTestCase
 {
@@ -47,16 +48,10 @@ final class PostIndexTest extends CIUnitTestCase
         $this->call('GET', 'posts')->assertSee(self::NEWEST_TITLE);
     }
 
-    public function testFirstPageExcludesOldestPost(): void
+    public function testFirstPageShowsOldestPostSinceSixFitInTen(): void
     {
-        // 한 페이지 5건이면 6번째(가장 오래된) 글은 1페이지에 없어야 한다
-        $this->call('GET', 'posts')->assertDontSee(self::OLDEST_TITLE);
-    }
-
-    public function testSecondPageShowsOldestPost(): void
-    {
-        // 페이지 번호는 GET 파라미터로 넘긴다. 실제 HTTP 쿼리스트링처럼
-        // 문자열로 줘야 페이저(Superglobals::get)가 올바르게 인식한다.
-        $this->call('GET', 'posts', ['page' => '2'])->assertSee(self::OLDEST_TITLE);
+        // 한 페이지 10건이면 시더 6건이 모두 1페이지에 담기므로
+        // 가장 오래된 글도 1페이지에서 보여야 한다. (5건/페이지였다면 2페이지로 밀린다.)
+        $this->call('GET', 'posts')->assertSee(self::OLDEST_TITLE);
     }
 }

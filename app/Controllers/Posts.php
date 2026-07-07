@@ -13,7 +13,7 @@ use CodeIgniter\HTTP\ResponseInterface;
 class Posts extends BaseController
 {
     // 한 페이지에 보여 줄 글 수
-    private const PER_PAGE = 5;
+    private const PER_PAGE = 10;
 
     /**
      * 글 목록. 카테고리 슬러그가 주어지면 그 카테고리 글만 거르고,
