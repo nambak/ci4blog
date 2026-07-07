@@ -68,4 +68,27 @@ class CategoryModel extends Model
     {
         return $this->orderBy('name', 'ASC')->findAll();
     }
+
+    /**
+     * 관리 목록용: 카테고리별 글 수를 함께 반환한다(이름순).
+     * select 에 괄호(COUNT)가 있으면 CI4가 식별자 프리픽스를 건너뛰므로
+     * posts 테이블명만 prefixTable()로 직접 채워 넣는다(대시보드와 동일한 함정).
+     *
+     * @return Category[]  각 항목에 post_count(int) 속성이 붙는다.
+     */
+    public function withPostCounts(?string $search = null): array
+    {
+        $db = db_connect();
+
+        $this->select('categories.*, COUNT(' . $db->prefixTable('posts') . '.id) AS post_count')
+            ->join('posts', 'posts.category_id = categories.id', 'left')
+            ->groupBy('categories.id')
+            ->orderBy('categories.name', 'ASC');
+
+        if ($search !== null && $search !== '') {
+            $this->like('categories.name', $search);
+        }
+
+        return $this->findAll();
+    }
 }
