@@ -153,4 +153,32 @@ final class ProfileTest extends CIUnitTestCase
         $reloaded = auth()->getProvider()->findById($user->id);
         $this->assertSame('renamed', $reloaded->username); // 사용자명은 바뀜
     }
+
+    public function testDeleteAvatarClearsColumn(): void
+    {
+        $user         = $this->makeUser('me', 'me@example.com');
+        $users        = auth()->getProvider();
+        $user->avatar = 'nonexistent.png'; // 파일 없어도 컬럼만 비우면 됨
+        $users->save($user);
+
+        $result = $this->actingAs($user)->call('POST', 'profile/avatar/delete');
+
+        $result->assertRedirect();
+        $reloaded = $users->findById($user->id);
+        $this->assertNull($reloaded->avatar);
+    }
+
+    public function testUpdateWithoutFileKeepsAvatar(): void
+    {
+        $user         = $this->makeUser('me', 'me@example.com');
+        $users        = auth()->getProvider();
+        $user->avatar = 'keep_me.png';
+        $users->save($user);
+
+        $result = $this->actingAs($user)->call('POST', 'profile', ['username' => 'renamed']);
+
+        $result->assertRedirect();
+        $reloaded = $users->findById($user->id);
+        $this->assertSame('keep_me.png', $reloaded->avatar); // 파일 미첨부 시 유지
+    }
 }

@@ -71,9 +71,75 @@ class Profile extends BaseController
             $user->setPassword($newPassword);
         }
 
+        // 아바타 업로드(선택). 파일이 없으면 기존 값을 유지한다.
+        $newAvatar = $this->saveUploadedAvatar();
+        if ($newAvatar === false) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+        if ($newAvatar !== null) {
+            $oldAvatar      = $user->avatar;
+            $user->avatar   = $newAvatar;
+            // 새 파일 저장이 확정됐으니 기존 파일 정리(있으면).
+            $this->deleteAvatarFile($oldAvatar);
+        }
+
         $user->username = $data['username'];
         $users->save($user);
 
         return redirect()->to('profile')->with('message', '프로필을 저장했습니다.');
+    }
+
+    public function deleteAvatar(): RedirectResponse
+    {
+        $users = model(UserModel::class);
+        $user  = $users->findById(auth()->id());
+
+        $this->deleteAvatarFile($user->avatar);
+        $user->avatar = null;
+        $users->save($user);
+
+        return redirect()->to('profile')->with('message', '프로필 사진을 삭제했습니다.');
+    }
+
+    /**
+     * 업로드된 아바타를 검증·저장하고 저장 파일명을 돌려준다.
+     * 글 이미지와 같은 writable/uploads 에 저장한다(서빙: uploads/(:segment)).
+     *
+     * @return string|false|null 저장 파일명 / 검증 실패(false) / 업로드 없음(null)
+     */
+    private function saveUploadedAvatar(): string|false|null
+    {
+        $file = $this->request->getFile('avatar');
+
+        if ($file === null || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+
+        if (! $this->validate([
+            'avatar' => 'is_image[avatar]|mime_in[avatar,image/jpg,image/jpeg,image/png,image/gif]|max_size[avatar,2048]',
+        ])) {
+            return false;
+        }
+
+        $dir  = WRITEPATH . 'uploads';
+        $name = $file->getRandomName();
+        $file->move($dir, $name);
+
+        return $name;
+    }
+
+    /**
+     * 아바타 파일을 파일시스템에서 지운다(있을 때만).
+     */
+    private function deleteAvatarFile(?string $name): void
+    {
+        if ($name === null || $name === '') {
+            return;
+        }
+
+        $path = WRITEPATH . 'uploads/' . basename($name);
+        if (is_file($path)) {
+            @unlink($path);
+        }
     }
 }
