@@ -32,7 +32,7 @@ main.container { padding-top: 32px; padding-bottom: 48px; }
 .nav-link { font-size: 14px; font-weight: 500; color: var(--color-ink-2); text-decoration: none; }
 .nav-link:hover { color: var(--color-ink); }
 .nav-spacer { margin-left: auto; }
-.nav-user { font-size: 13px; color: var(--color-ink-3); }
+.nav-user { display: inline-flex; align-items: center; gap: .4rem; text-decoration: none; font-size: 13px; color: var(--color-ink-3); }
 
 /* buttons */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius-pill); background: var(--color-accent); color: #fff; font-size: 13px; font-weight: 500; line-height: 1; border: none; cursor: pointer; text-decoration: none; transition: opacity .15s; }
@@ -87,7 +87,6 @@ input[type=file] { font-size: 14px; color: var(--color-ink-2); }
 .post-chip-row { margin-bottom: 18px; }
 .post > h1 { font-size: 44px; font-weight: 700; line-height: 1.2; letter-spacing: -0.025em; margin: 0 0 22px; }
 .post-byline { display: flex; align-items: center; gap: 12px; padding-bottom: 32px; border-bottom: 1px solid var(--color-line); }
-.byline-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--color-accent-bright), var(--color-accent)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; flex: none; }
 .byline-name { font-size: 14px; font-weight: 600; }
 .byline-meta { font-size: 13px; color: var(--color-ink-3); }
 .post-body { font-size: 16px; line-height: 1.8; color: var(--color-prose); margin-top: 24px; }
@@ -131,7 +130,6 @@ textarea { resize: vertical; line-height: 1.7; }
 .comments-empty { color: var(--color-ink-3); }
 .comment-list { list-style: none; padding: 0; margin: 0; }
 .comment { display: flex; gap: 14px; padding: 24px 0; border-top: 1px solid var(--color-line); }
-.comment-avatar { width: 38px; height: 38px; border-radius: 50%; color: var(--color-ink-2); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; flex: none; }
 .comment-main { flex: 1; min-width: 0; }
 .comment-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
 .comment-author { font-weight: 600; font-size: 14px; color: var(--color-ink); }
@@ -312,3 +310,25 @@ textarea { resize: vertical; line-height: 1.7; }
 .cat-actions { display: flex; gap: 6px; align-items: center; }
 .cat-actions form { margin: 0; }
 .cat-uncategorized .cat-name { color: var(--color-ink-3); }
+
+/* ── 프로필 수정 ── */
+.profile-wrap { max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+.profile-head h1 { margin: 0 0 .25rem; }
+.profile-sub { color: #6b7280; margin: 0 0 1.5rem; }
+.profile-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+.profile-card h2 { font-size: 1rem; margin: 0 0 .75rem; }
+.profile-card .field { display: block; margin-bottom: .9rem; }
+.profile-card .field > span { display: block; font-size: .85rem; color: #374151; margin-bottom: .3rem; }
+.profile-card input[type="text"],
+.profile-card input[type="password"] { width: 100%; padding: .5rem .6rem; border: 1px solid #d1d5db; border-radius: 8px; }
+.field-note, .avatar-hint { color: #6b7280; font-size: .8rem; }
+.avatar-row { display: flex; align-items: center; gap: 1rem; }
+.profile-actions { margin-top: .5rem; }
+.form-message { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; border-radius: 8px; padding: .75rem 1rem; }
+
+/* ── 아바타 ── */
+.avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; object-fit: cover; overflow: hidden; flex: 0 0 auto; }
+.avatar-initial { color: #374151; font-weight: 600; }
+.avatar-sm { width: 28px; height: 28px; font-size: .8rem; }
+.avatar-md { width: 44px; height: 44px; font-size: 1rem; }
+.avatar-lg { width: 72px; height: 72px; font-size: 1.5rem; }
