@@ -181,4 +181,14 @@ final class ProfileTest extends CIUnitTestCase
         $reloaded = $users->findById($user->id);
         $this->assertSame('keep_me.png', $reloaded->avatar); // 파일 미첨부 시 유지
     }
+
+    public function testHeaderShowsProfileLinkWhenLoggedIn(): void
+    {
+        $user   = $this->makeUser('me', 'me@example.com');
+        $result = $this->actingAs($user)->call('GET', '/');
+
+        $result->assertOK();
+        $result->assertSee('프로필', 'html');
+        $result->assertSeeElement('a[href=' . site_url('profile') . ']');
+    }
 }
