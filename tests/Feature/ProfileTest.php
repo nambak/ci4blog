@@ -66,4 +66,42 @@ final class ProfileTest extends CIUnitTestCase
         $result->assertSee('nambak');
         $result->assertSee('프로필', 'html');
     }
+
+    public function testUpdatesUsername(): void
+    {
+        $user   = $this->makeUser('oldname', 'me@example.com');
+        $result = $this->actingAs($user)->call('POST', 'profile', [
+            'username' => 'newname',
+        ]);
+
+        $result->assertRedirect();
+        $reloaded = auth()->getProvider()->findById($user->id);
+        $this->assertSame('newname', $reloaded->username);
+    }
+
+    public function testRejectsDuplicateUsername(): void
+    {
+        $this->makeUser('taken', 'taken@example.com');
+        $user = $this->makeUser('me', 'me@example.com');
+
+        $result = $this->actingAs($user)->call('POST', 'profile', [
+            'username' => 'taken',
+        ]);
+
+        $result->assertRedirect();
+        $reloaded = auth()->getProvider()->findById($user->id);
+        $this->assertSame('me', $reloaded->username); // 변경 안 됨
+    }
+
+    public function testRejectsEmptyUsername(): void
+    {
+        $user   = $this->makeUser('me', 'me@example.com');
+        $result = $this->actingAs($user)->call('POST', 'profile', [
+            'username' => '',
+        ]);
+
+        $result->assertRedirect();
+        $reloaded = auth()->getProvider()->findById($user->id);
+        $this->assertSame('me', $reloaded->username);
+    }
 }
