@@ -94,6 +94,11 @@ class Categories extends BaseController
         $model->delete($id);
         $db->transComplete();
 
+        // 롤백된 경우까지 성공 메시지가 나가지 않도록 결과를 확인한다.
+        if ($db->transStatus() === false) {
+            return redirect()->back()->with('errors', ['카테고리 삭제 중 오류가 발생했습니다.']);
+        }
+
         return redirect()->to('admin/categories')
             ->with('message', '카테고리를 삭제했습니다. 이 카테고리의 글은 미분류로 옮겨졌습니다.');
     }
