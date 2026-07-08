@@ -104,4 +104,53 @@ final class ProfileTest extends CIUnitTestCase
         $reloaded = auth()->getProvider()->findById($user->id);
         $this->assertSame('me', $reloaded->username);
     }
+
+    public function testChangesPasswordWithCorrectCurrent(): void
+    {
+        $user = $this->makeUser('me', 'me@example.com'); // 비번: secret-password-123
+
+        $result = $this->actingAs($user)->call('POST', 'profile', [
+            'username'             => 'me',
+            'current_password'     => 'secret-password-123',
+            'new_password'         => 'brand-new-pass-456',
+            'new_password_confirm' => 'brand-new-pass-456',
+        ]);
+
+        $result->assertRedirect();
+        $check = auth('session')->check(['email' => 'me@example.com', 'password' => 'brand-new-pass-456']);
+        $this->assertTrue($check->isOK());
+    }
+
+    public function testRejectsWrongCurrentPassword(): void
+    {
+        $user = $this->makeUser('me', 'me@example.com');
+
+        $result = $this->actingAs($user)->call('POST', 'profile', [
+            'username'             => 'me',
+            'current_password'     => 'WRONG-current',
+            'new_password'         => 'brand-new-pass-456',
+            'new_password_confirm' => 'brand-new-pass-456',
+        ]);
+
+        $result->assertRedirect();
+        // 기존 비번은 그대로 유효
+        $check = auth('session')->check(['email' => 'me@example.com', 'password' => 'secret-password-123']);
+        $this->assertTrue($check->isOK());
+    }
+
+    public function testBlankNewPasswordLeavesPasswordUnchanged(): void
+    {
+        $user = $this->makeUser('me', 'me@example.com');
+
+        $result = $this->actingAs($user)->call('POST', 'profile', [
+            'username'     => 'renamed',
+            'new_password' => '',
+        ]);
+
+        $result->assertRedirect();
+        $check = auth('session')->check(['email' => 'me@example.com', 'password' => 'secret-password-123']);
+        $this->assertTrue($check->isOK()); // 비번 유지
+        $reloaded = auth()->getProvider()->findById($user->id);
+        $this->assertSame('renamed', $reloaded->username); // 사용자명은 바뀜
+    }
 }

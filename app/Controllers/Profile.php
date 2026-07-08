@@ -44,6 +44,33 @@ class Profile extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
+        // 비밀번호 변경(선택). new_password 가 비어 있으면 건드리지 않는다.
+        $newPassword = (string) $this->request->getPost('new_password');
+        if ($newPassword !== '') {
+            // 1) 현재 비밀번호 확인(로그인시키지 않고 검증만).
+            $check = auth('session')->check([
+                'email'    => $user->email,
+                'password' => (string) $this->request->getPost('current_password'),
+            ]);
+            if (! $check->isOK()) {
+                return redirect()->back()->withInput()
+                    ->with('errors', ['현재 비밀번호가 올바르지 않습니다.']);
+            }
+
+            // 2) 새 비밀번호 확인란 일치 + 최소 길이.
+            $confirm = (string) $this->request->getPost('new_password_confirm');
+            if ($newPassword !== $confirm) {
+                return redirect()->back()->withInput()
+                    ->with('errors', ['새 비밀번호가 서로 일치하지 않습니다.']);
+            }
+            if (mb_strlen($newPassword) < 8) {
+                return redirect()->back()->withInput()
+                    ->with('errors', ['새 비밀번호는 8자 이상이어야 합니다.']);
+            }
+
+            $user->setPassword($newPassword);
+        }
+
         $user->username = $data['username'];
         $users->save($user);
 
