@@ -13,7 +13,7 @@
         <?php // 작성자 아바타 + 날짜·읽기 시간 바이라인(디자인 목업의 author row). ?>
         <div class="post-byline">
             <?php if ($authorName !== null): ?>
-                <span class="byline-avatar"><?= esc(mb_strtoupper(mb_substr($authorName, 0, 1))) ?></span>
+                <?= view('partials/avatar', ['avatar' => $authorAvatar, 'name' => $authorName, 'size' => 'md']) ?>
                 <div>
                     <div class="byline-name"><?= esc($authorName) ?></div>
                     <div class="byline-meta">

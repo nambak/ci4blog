@@ -39,7 +39,7 @@ class CommentModel extends Model
     public function forPost(int $postId): array
     {
         return $this
-            ->select('comments.*, users.username')
+            ->select('comments.*, users.username, users.avatar')
             ->join('users', 'users.id = comments.user_id', 'left')
             ->where('comments.post_id', $postId)
             ->orderBy('comments.created_at', 'ASC')

@@ -74,10 +74,12 @@ class Posts extends BaseController
 
         // 바이라인(작성자 아바타 행)용 작성자명. 홈 히어로와 같은 방식으로
         // users 테이블에서 username 만 직접 읽는다(엔티티 의존 없이).
-        $authorName = null;
+        $authorName   = null;
+        $authorAvatar = null;
         if ($post->user_id !== null) {
-            $row        = db_connect()->table('users')->select('username')->where('id', $post->user_id)->get()->getRow();
-            $authorName = $row->username ?? null;
+            $row          = db_connect()->table('users')->select('username, avatar')->where('id', $post->user_id)->get()->getRow();
+            $authorName   = $row->username ?? null;
+            $authorAvatar = $row->avatar ?? null;
         }
 
         // 제목 위 카테고리 칩. 없는 글(미분류)은 null.
@@ -86,10 +88,11 @@ class Posts extends BaseController
             : null;
 
         return view('posts/show', [
-            'post'       => $post,
-            'comments'   => $comments,
-            'authorName' => $authorName,
-            'category'   => $category,
+            'post'         => $post,
+            'comments'     => $comments,
+            'authorName'   => $authorName,
+            'authorAvatar' => $authorAvatar,
+            'category'     => $category,
         ]);
     }
 

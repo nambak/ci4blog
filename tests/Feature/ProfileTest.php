@@ -191,4 +191,45 @@ final class ProfileTest extends CIUnitTestCase
         $result->assertSee('프로필', 'html');
         $result->assertSeeElement('a[href=' . site_url('profile') . ']');
     }
+
+    public function testPostShowRendersAuthorAvatar(): void
+    {
+        $user         = $this->makeUser('writer', 'writer@example.com');
+        $users        = auth()->getProvider();
+        $user->avatar = 'writer_pic.png';
+        $users->save($user);
+
+        $posts = model(\App\Models\PostModel::class);
+        $posts->insert(['user_id' => $user->id, 'category_id' => null, 'title' => '아바타글', 'body' => '본문']);
+        $slug = $posts->find($posts->getInsertID())->slug;
+
+        $result = $this->call('GET', 'posts/' . $slug);
+
+        $result->assertOK();
+        // assertSee(text, selector)의 selector 는 CSS 선택자로, 매치된 요소의 텍스트 내용만 검사한다.
+        // 아바타 경로는 <img src="..."> 속성값이라 텍스트 노드가 아니므로 selector 없이 전체 HTML 에서 찾는다.
+        $result->assertSee('writer_pic.png'); // 바이라인 아바타 이미지 경로
+    }
+
+    public function testCommentRendersAuthorAvatar(): void
+    {
+        $user         = $this->makeUser('commenter', 'c@example.com');
+        $users        = auth()->getProvider();
+        $user->avatar = 'commenter_pic.png';
+        $users->save($user);
+
+        $posts = model(\App\Models\PostModel::class);
+        $posts->insert(['user_id' => $user->id, 'category_id' => null, 'title' => '댓글글', 'body' => '본문']);
+        $postId = $posts->getInsertID();
+        $slug   = $posts->find($postId)->slug;
+
+        model(\App\Models\CommentModel::class)->insert([
+            'post_id' => $postId, 'user_id' => $user->id, 'body' => '댓글내용',
+        ]);
+
+        $result = $this->call('GET', 'posts/' . $slug);
+
+        $result->assertOK();
+        $result->assertSee('commenter_pic.png'); // 댓글 아바타 이미지 경로(속성값이라 selector 없이 검사)
+    }
 }
