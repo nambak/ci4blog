@@ -49,4 +49,21 @@ final class ProfileTest extends CIUnitTestCase
         $reloaded = $users->findById($user->id);
         $this->assertSame('avatar_test.png', $reloaded->avatar);
     }
+
+    public function testGuestCannotAccessProfile(): void
+    {
+        $result = $this->call('GET', 'profile');
+
+        $result->assertRedirect();
+    }
+
+    public function testUserSeesOwnUsernameOnForm(): void
+    {
+        $user   = $this->makeUser('nambak', 'nambak@example.com');
+        $result = $this->actingAs($user)->call('GET', 'profile');
+
+        $result->assertOK();
+        $result->assertSee('nambak');
+        $result->assertSee('프로필', 'html');
+    }
 }
