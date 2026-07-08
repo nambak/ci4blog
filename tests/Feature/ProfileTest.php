@@ -79,6 +79,16 @@ final class ProfileTest extends CIUnitTestCase
         $this->assertSame('newname', $reloaded->username);
     }
 
+    public function testUserCanResubmitOwnUnchangedUsername(): void
+    {
+        $user   = $this->makeUser('sameuser', 'same@example.com');
+        $result = $this->actingAs($user)->call('POST', 'profile', ['username' => 'sameuser']);
+
+        $result->assertRedirect();
+        $reloaded = auth()->getProvider()->findById($user->id);
+        $this->assertSame('sameuser', $reloaded->username);
+    }
+
     public function testRejectsDuplicateUsername(): void
     {
         $this->makeUser('taken', 'taken@example.com');

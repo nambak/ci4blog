@@ -53,18 +53,18 @@ class Profile extends BaseController
                 'password' => (string) $this->request->getPost('current_password'),
             ]);
             if (! $check->isOK()) {
-                return redirect()->back()->withInput()
+                return redirect()->back()
                     ->with('errors', ['현재 비밀번호가 올바르지 않습니다.']);
             }
 
             // 2) 새 비밀번호 확인란 일치 + 최소 길이.
             $confirm = (string) $this->request->getPost('new_password_confirm');
             if ($newPassword !== $confirm) {
-                return redirect()->back()->withInput()
+                return redirect()->back()
                     ->with('errors', ['새 비밀번호가 서로 일치하지 않습니다.']);
             }
             if (mb_strlen($newPassword) < 8) {
-                return redirect()->back()->withInput()
+                return redirect()->back()
                     ->with('errors', ['새 비밀번호는 8자 이상이어야 합니다.']);
             }
 

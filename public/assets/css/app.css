@@ -314,21 +314,21 @@ textarea { resize: vertical; line-height: 1.7; }
 /* ── 프로필 수정 ── */
 .profile-wrap { max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
 .profile-head h1 { margin: 0 0 .25rem; }
-.profile-sub { color: #6b7280; margin: 0 0 1.5rem; }
-.profile-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+.profile-sub { color: var(--color-ink-3); margin: 0 0 1.5rem; }
+.profile-card { background: var(--color-paper); border: 1px solid var(--color-line); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
 .profile-card h2 { font-size: 1rem; margin: 0 0 .75rem; }
 .profile-card .field { display: block; margin-bottom: .9rem; }
-.profile-card .field > span { display: block; font-size: .85rem; color: #374151; margin-bottom: .3rem; }
+.profile-card .field > span { display: block; font-size: .85rem; color: var(--color-ink-2); margin-bottom: .3rem; }
 .profile-card input[type="text"],
-.profile-card input[type="password"] { width: 100%; padding: .5rem .6rem; border: 1px solid #d1d5db; border-radius: 8px; }
-.field-note, .avatar-hint { color: #6b7280; font-size: .8rem; }
+.profile-card input[type="password"] { width: 100%; padding: .5rem .6rem; border: 1px solid var(--color-line); border-radius: 8px; }
+.field-note, .avatar-hint { color: var(--color-ink-3); font-size: .8rem; }
 .avatar-row { display: flex; align-items: center; gap: 1rem; }
 .profile-actions { margin-top: .5rem; }
-.form-message { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; border-radius: 8px; padding: .75rem 1rem; }
+.form-message { background: rgba(163,190,140,.15); border: 1px solid rgba(163,190,140,.4); color: var(--color-success); border-radius: 8px; padding: .75rem 1rem; }
 
 /* ── 아바타 ── */
 .avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; object-fit: cover; overflow: hidden; flex: 0 0 auto; }
-.avatar-initial { color: #374151; font-weight: 600; }
+.avatar-initial { color: var(--color-ink-2); font-weight: 600; }
 .avatar-sm { width: 28px; height: 28px; font-size: .8rem; }
 .avatar-md { width: 44px; height: 44px; font-size: 1rem; }
 .avatar-lg { width: 72px; height: 72px; font-size: 1.5rem; }
