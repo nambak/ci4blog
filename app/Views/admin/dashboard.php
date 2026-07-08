@@ -59,7 +59,10 @@
             </section>
 
             <section class="card" aria-label="카테고리 분포">
-                <div class="card-head"><h2>카테고리 분포</h2></div>
+                <div class="card-head">
+                    <h2>카테고리 분포</h2>
+                    <a class="card-link" href="<?= site_url('admin/categories') ?>">카테고리 관리 →</a>
+                </div>
                 <?php if (empty($categoryDist)): ?>
                     <p class="card-empty">글이 없습니다.</p>
                 <?php else: ?>
