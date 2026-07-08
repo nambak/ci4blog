@@ -242,4 +242,44 @@ final class ProfileTest extends CIUnitTestCase
         $result->assertOK();
         $result->assertSee('commenter_pic.png'); // 댓글 아바타 이미지 경로(속성값이라 selector 없이 검사)
     }
+
+    public function testHomeHeroRendersAuthorAvatar(): void
+    {
+        $user         = $this->makeUser('herowriter', 'hero@example.com');
+        $users        = auth()->getProvider();
+        $user->avatar = 'hero_pic.png';
+        $users->save($user);
+
+        // 최신 글이 히어로(추천)로 노출된다. refresh 로 DB가 비어 있어 이 글이 곧 featured.
+        model(\App\Models\PostModel::class)->insert([
+            'user_id' => $user->id, 'category_id' => null, 'title' => '히어로글', 'body' => '본문',
+        ]);
+
+        $result = $this->call('GET', '/');
+
+        $result->assertOK();
+        $result->assertSee('hero_pic.png'); // 히어로 바이라인 아바타 이미지 경로
+    }
+
+    public function testCommentComposerRendersCurrentUserAvatar(): void
+    {
+        // 글 작성자는 아바타 없는 별도 사용자 — 바이라인이 이 아바타를 그리지 않게 격리.
+        $author = $this->makeUser('author', 'author@example.com');
+        $posts  = model(\App\Models\PostModel::class);
+        $posts->insert(['user_id' => $author->id, 'category_id' => null, 'title' => '작성글', 'body' => '본문']);
+        $slug = $posts->find($posts->getInsertID())->slug;
+
+        // 로그인한(댓글 달) 사용자만 아바타를 가진다.
+        $viewer         = $this->makeUser('composer', 'composer@example.com');
+        $users          = auth()->getProvider();
+        $viewer->avatar = 'composer_pic.png';
+        $users->save($viewer);
+
+        $result = $this->actingAs($viewer)->call('GET', 'posts/' . $slug);
+
+        $result->assertOK();
+        // 헤더 아바타(1) + 댓글 작성 폼 아바타(1) = 최소 2회. 폼 아바타가 빠지면 1회뿐이라 실패.
+        $count = substr_count($result->getBody(), 'composer_pic.png');
+        $this->assertGreaterThanOrEqual(2, $count, '댓글 작성 폼에 현재 사용자 아바타가 렌더되지 않았습니다.');
+    }
 }

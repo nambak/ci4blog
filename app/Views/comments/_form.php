@@ -13,7 +13,7 @@
 
     <?php $me = (string) (auth()->user()->username ?? ''); ?>
     <div class="comment-composer">
-        <span class="composer-avatar"><?= esc($me === '' ? '·' : mb_strtoupper(mb_substr($me, 0, 1))) ?></span>
+        <?= view('partials/avatar', ['avatar' => auth()->user()->avatar, 'name' => $me, 'size' => 'sm']) ?>
         <div class="composer-main">
             <textarea name="body" rows="3" placeholder="이 글에 대한 생각을 남겨주세요…"><?= esc(old('body')) ?></textarea>
             <div class="composer-foot">

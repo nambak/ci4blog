@@ -144,7 +144,6 @@ textarea { resize: vertical; line-height: 1.7; }
 /* comment composer (디자인 목업의 입력 박스) */
 .comment-composer { display: flex; gap: 12px; padding: 16px; border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-paper); transition: border-color .15s, box-shadow .15s; }
 .comment-composer:focus-within { border-color: var(--color-ink); box-shadow: 0 0 0 3px rgba(94,129,172,.08); }
-.composer-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--color-accent-bright), var(--color-accent)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex: none; }
 .composer-main { flex: 1; min-width: 0; }
 .comment-composer textarea { border: 0; outline: none; padding: 6px 0; background: transparent; resize: none; }
 .composer-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
@@ -198,7 +197,6 @@ textarea { resize: vertical; line-height: 1.7; }
 .hero-title a:hover { color: var(--color-accent); }
 .hero-excerpt { font-size: 17px; line-height: 1.7; color: var(--color-ink-2); margin: 0 0 24px; }
 .hero-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--color-ink-3); }
-.hero-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--color-accent-bright), var(--color-accent)); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
 .hero-author { color: var(--color-ink-2); font-weight: 500; }
 .hero-cover { aspect-ratio: 4 / 3; font-size: 96px; text-decoration: none; }
 .home-empty { padding-top: 56px; padding-bottom: 80px; }

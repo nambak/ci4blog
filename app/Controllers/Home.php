@@ -22,17 +22,20 @@ class Home extends BaseController
 
         // 히어로 작성자명만 따로 조회(그리드 카드는 작성자를 노출하지 않음).
         // Shield 의 users 테이블에서 username 만 직접 읽는다(엔티티 의존 없이).
-        $authorName = null;
+        $authorName   = null;
+        $authorAvatar = null;
         if ($featured !== null) {
-            $row        = db_connect()->table('users')->select('username')->where('id', $featured->user_id)->get()->getRow();
-            $authorName = $row->username ?? null;
+            $row          = db_connect()->table('users')->select('username, avatar')->where('id', $featured->user_id)->get()->getRow();
+            $authorName   = $row->username ?? null;
+            $authorAvatar = $row->avatar ?? null;
         }
 
         return view('home/index', [
-            'featured'   => $featured,
-            'authorName' => $authorName,
-            'posts'      => $posts,
-            'categories' => model(CategoryModel::class)->menu(),
+            'featured'     => $featured,
+            'authorName'   => $authorName,
+            'authorAvatar' => $authorAvatar,
+            'posts'        => $posts,
+            'categories'   => model(CategoryModel::class)->menu(),
         ]);
     }
 }
