@@ -23,7 +23,8 @@ class Posts extends BaseController
      */
     public function index(?string $categorySlug = null): string
     {
-        $model = model(PostModel::class);
+        // 공개 목록은 발행된 글만 보여 준다. 카테고리·검색 조건과 AND 로 묶인다.
+        $model = model(PostModel::class)->published();
 
         // 없는 카테고리는 404. (필터가 빈 목록으로 조용히 떨어지지 않게)
         $activeCategory = null;
@@ -66,6 +67,13 @@ class Posts extends BaseController
 
         // 없는 글은 404 로 응답한다.
         if ($post === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 비발행 글(초안·비공개)은 작성자 본인과 관리자에게만 미리보기로 열어 준다.
+        // 403 이 아니라 404 를 주는 건 의도적이다 — 403 은 그 슬러그의 글이
+        // 존재한다는 사실 자체를 흘린다.
+        if (! $post->isPublished() && ! $this->canModify($post)) {
             throw PageNotFoundException::forPageNotFound();
         }
 

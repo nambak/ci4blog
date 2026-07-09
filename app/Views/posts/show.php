@@ -4,6 +4,13 @@
 
 <?= $this->section('content') ?>
     <article class="post">
+        <?php // 본인·관리자에게만 보이는 미리보기 안내(공개 화면에는 이 글이 없다). ?>
+        <?php if (! $post->isPublished()): ?>
+            <div class="preview-banner">
+                이 글은 아직 발행되지 않았습니다 · <strong><?= esc($post->statusLabel()) ?></strong>
+            </div>
+        <?php endif ?>
+
         <?php if ($category !== null): ?>
             <div class="post-chip-row"><a class="chip" href="<?= esc($category->url) ?>"><?= esc($category->name) ?></a></div>
         <?php endif ?>
