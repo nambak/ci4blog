@@ -201,4 +201,138 @@ final class AdminPostsTest extends CIUnitTestCase
         $result->assertSee('1', '#kpi-published');
         $result->assertSee('1', '#kpi-draft');
     }
+
+    public function testGuestCannotPostBulk(): void
+    {
+        $id = $this->insertPost('공개된 글');
+
+        $this->call('POST', 'admin/posts/bulk', ['action' => 'delete', 'ids' => [$id]])->assertRedirect();
+        $this->seeInDatabase('posts', ['id' => $id]);
+    }
+
+    public function testNormalUserCannotPostBulk(): void
+    {
+        $user = $this->makeUser('member', 'member@example.com');
+        $id   = $this->insertPost('공개된 글');
+
+        $this->actingAs($user)->call('POST', 'admin/posts/bulk', ['action' => 'delete', 'ids' => [$id]])->assertRedirect();
+        $this->seeInDatabase('posts', ['id' => $id]);
+    }
+
+    public function testBulkPublish(): void
+    {
+        $admin = $this->makeAdmin();
+        $id    = $this->insertPost('초안 상태 글', Post::STATUS_DRAFT);
+
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', ['action' => 'publish', 'ids' => [$id]])->assertRedirect();
+        $this->seeInDatabase('posts', ['id' => $id, 'status' => 'published']);
+    }
+
+    public function testBulkDraft(): void
+    {
+        $admin = $this->makeAdmin();
+        $id    = $this->insertPost('공개된 글');
+
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', ['action' => 'draft', 'ids' => [$id]])->assertRedirect();
+        $this->seeInDatabase('posts', ['id' => $id, 'status' => 'draft']);
+    }
+
+    public function testBulkPrivate(): void
+    {
+        $admin = $this->makeAdmin();
+        $id    = $this->insertPost('공개된 글');
+
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', ['action' => 'private', 'ids' => [$id]])->assertRedirect();
+        $this->seeInDatabase('posts', ['id' => $id, 'status' => 'private']);
+    }
+
+    public function testBulkMoveToCategory(): void
+    {
+        $admin      = $this->makeAdmin();
+        $categories = model(CategoryModel::class);
+        $categories->insert(['name' => '옮길분류']);
+        $catId = $categories->getInsertID();
+
+        $id = $this->insertPost('옮길 글');
+
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', [
+            'action'      => 'move',
+            'ids'         => [$id],
+            'category_id' => (string) $catId,
+        ])->assertRedirect();
+
+        $this->seeInDatabase('posts', ['id' => $id, 'category_id' => $catId]);
+    }
+
+    public function testBulkMoveToUncategorized(): void
+    {
+        $admin      = $this->makeAdmin();
+        $categories = model(CategoryModel::class);
+        $categories->insert(['name' => '기존분류']);
+        $catId = $categories->getInsertID();
+
+        $id = $this->insertPost('옮길 글', Post::STATUS_PUBLISHED, $catId);
+
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', [
+            'action'      => 'move',
+            'ids'         => [$id],
+            'category_id' => '',
+        ])->assertRedirect();
+
+        $this->assertNull(model(PostModel::class)->find($id)->category_id);
+    }
+
+    public function testBulkDelete(): void
+    {
+        $admin = $this->makeAdmin();
+        $keep  = $this->insertPost('남길 글');
+        $drop1 = $this->insertPost('지울 글 1');
+        $drop2 = $this->insertPost('지울 글 2');
+
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', [
+            'action' => 'delete',
+            'ids'    => [$drop1, $drop2],
+        ])->assertRedirect();
+
+        $this->dontSeeInDatabase('posts', ['id' => $drop1]);
+        $this->dontSeeInDatabase('posts', ['id' => $drop2]);
+        $this->seeInDatabase('posts', ['id' => $keep]);
+    }
+
+    public function testBulkRejectsEmptyIds(): void
+    {
+        $admin = $this->makeAdmin();
+        $id    = $this->insertPost('공개된 글');
+
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', ['action' => 'delete'])->assertRedirect();
+
+        $this->seeInDatabase('posts', ['id' => $id]);
+        $this->assertSame(['선택된 글이 없습니다.'], session('errors'));
+    }
+
+    public function testBulkRejectsUnknownAction(): void
+    {
+        $admin = $this->makeAdmin();
+        $id    = $this->insertPost('공개된 글');
+
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', ['action' => 'archive', 'ids' => [$id]])->assertRedirect();
+
+        $this->seeInDatabase('posts', ['id' => $id, 'status' => 'published']);
+        $this->assertSame(['알 수 없는 작업입니다.'], session('errors'));
+    }
+
+    public function testBulkRejectsUnknownCategory(): void
+    {
+        $admin = $this->makeAdmin();
+        $id    = $this->insertPost('옮길 글');
+
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', [
+            'action'      => 'move',
+            'ids'         => [$id],
+            'category_id' => '9999',
+        ])->assertRedirect();
+
+        // 모델의 is_not_unique[categories.id] 검증이 막는다.
+        $this->assertNull(model(PostModel::class)->find($id)->category_id);
+    }
 }

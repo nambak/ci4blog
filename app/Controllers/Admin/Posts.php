@@ -7,6 +7,7 @@ use App\Entities\Post;
 use App\Models\CategoryModel;
 use App\Models\CommentModel;
 use App\Models\PostModel;
+use CodeIgniter\HTTP\RedirectResponse;
 
 /**
  * 관리자 게시글 관리.
@@ -82,5 +83,64 @@ class Posts extends BaseController
             // 지우지 말 것.
             'categories' => model(CategoryModel::class)->menu(),
         ]);
+    }
+
+    /**
+     * 일괄 작업. action 화이트리스트 밖이면 아무것도 하지 않는다.
+     *
+     * 작성자 확인은 하지 않는다 — 라우트 그룹의 admin 필터가 이미 전권을 전제한다.
+     */
+    public function bulk(): RedirectResponse
+    {
+        $action = (string) $this->request->getPost('action');
+
+        if (! in_array($action, ['publish', 'draft', 'private', 'move', 'delete'], true)) {
+            return redirect()->back()->with('errors', ['알 수 없는 작업입니다.']);
+        }
+
+        // 체크박스는 문자열로 온다. 정수로 바꾸고 0 이하를 걸러낸다.
+        $ids = array_values(array_filter(
+            array_map('intval', (array) ($this->request->getPost('ids') ?? [])),
+            static fn (int $id): bool => $id > 0
+        ));
+
+        if ($ids === []) {
+            return redirect()->back()->with('errors', ['선택된 글이 없습니다.']);
+        }
+
+        $model = model(PostModel::class);
+        $count = count($ids);
+
+        if ($action === 'delete') {
+            // comments 는 post_id 에 ON DELETE CASCADE 가 걸려 있어 함께 지워진다.
+            $model->delete($ids);
+
+            return redirect()->back()->with('message', "{$count}개 글을 삭제했습니다.");
+        }
+
+        if ($action === 'move') {
+            // 빈 값은 미분류(NULL). 실존 여부는 모델의 is_not_unique 규칙이 막는다.
+            $categoryId = trim((string) $this->request->getPost('category_id'));
+
+            if (! $model->update($ids, ['category_id' => $categoryId === '' ? null : (int) $categoryId])) {
+                return redirect()->back()->with('errors', $model->errors());
+            }
+
+            return redirect()->back()->with('message', "{$count}개 글의 카테고리를 옮겼습니다.");
+        }
+
+        // 남은 셋은 상태 변경이다. 저장할 값과 플래시 메시지의 동사를 함께 꺼낸다.
+        $statusMap = [
+            'publish' => [Post::STATUS_PUBLISHED, '발행'],
+            'draft'   => [Post::STATUS_DRAFT, '임시저장으로 변경'],
+            'private' => [Post::STATUS_PRIVATE, '비공개로 변경'],
+        ];
+        [$status, $verb] = $statusMap[$action];
+
+        if (! $model->update($ids, ['status' => $status])) {
+            return redirect()->back()->with('errors', $model->errors());
+        }
+
+        return redirect()->back()->with('message', "{$count}개 글을 {$verb}했습니다.");
     }
 }

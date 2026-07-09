@@ -83,52 +83,86 @@
             <?php if ($posts === []): ?>
                 <p class="card-empty">이 상태의 글이 없습니다.</p>
             <?php else: ?>
-                <table class="posts-table">
-                    <thead>
-                        <tr>
-                            <th class="col-title">제목</th>
-                            <th class="col-category">카테고리</th>
-                            <th class="col-status">상태</th>
-                            <th class="col-date">날짜</th>
-                            <th class="col-actions">작업</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($posts as $post): ?>
+                <form id="bulk-form" method="post" action="<?= site_url('admin/posts/bulk') ?>">
+                    <?= csrf_field() ?>
+
+                    <div class="bulkbar" id="bulkbar">
+                        <span class="bulkbar-count"><strong id="sel-count">0</strong>개 선택됨</span>
+                        <span class="bulkbar-sep">|</span>
+                        <button type="submit" class="bulk-btn" name="action" value="publish">발행</button>
+                        <button type="submit" class="bulk-btn" name="action" value="draft">임시저장</button>
+                        <button type="submit" class="bulk-btn" name="action" value="private">비공개</button>
+
+                        <span class="bulkbar-move">
+                            <select name="category_id" aria-label="옮길 카테고리">
+                                <option value="">— 미분류 —</option>
+                                <?php foreach ($categories as $category): ?>
+                                    <option value="<?= esc($category->id, 'attr') ?>"><?= esc($category->name) ?></option>
+                                <?php endforeach ?>
+                            </select>
+                            <button type="submit" class="bulk-btn" name="action" value="move">이동</button>
+                        </span>
+
+                        <button type="submit" class="bulk-btn bulk-btn-danger" name="action" value="delete"
+                                data-confirm="선택한 글을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?">삭제</button>
+                    </div>
+
+                    <table class="posts-table">
+                        <thead>
                             <tr>
-                                <td class="col-title">
-                                    <div class="posts-title-cell">
-                                        <?php if ($post->image !== null && $post->image !== ''): ?>
-                                            <img class="posts-cover" src="<?= site_url('uploads/thumb_' . $post->image) ?>" alt="">
-                                        <?php else: ?>
-                                            <div class="posts-cover cover" style="background:<?= $post->cover_gradient ?>"><?= esc($post->cover_initial) ?></div>
-                                        <?php endif ?>
-                                        <div class="posts-title-text">
-                                            <span class="posts-title"><?= esc($post->title) ?></span>
-                                            <span class="posts-meta">댓글 <?= esc((string) $post->comment_count) ?></span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="col-category">
-                                    <span class="chip"><?= esc($post->category_name ?? '미분류') ?></span>
-                                </td>
-                                <td class="col-status">
-                                    <span class="badge badge-<?= esc($post->status, 'attr') ?>"><?= esc($post->statusLabel()) ?></span>
-                                </td>
-                                <td class="col-date">
-                                    <?= $post->created_at !== null ? esc($post->created_at->format('Y.m.d')) : '—' ?>
-                                </td>
-                                <td class="col-actions">
-                                    <a class="posts-action" href="<?= site_url('posts/' . $post->id . '/edit') ?>">수정</a>
-                                    <a class="posts-action" href="<?= site_url('posts/' . $post->slug) ?>">보기</a>
-                                </td>
+                                <th class="col-check"><input type="checkbox" id="check-all" aria-label="전체 선택"></th>
+                                <th class="col-title">제목</th>
+                                <th class="col-category">카테고리</th>
+                                <th class="col-status">상태</th>
+                                <th class="col-date">날짜</th>
+                                <th class="col-actions">작업</th>
                             </tr>
-                        <?php endforeach ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($posts as $post): ?>
+                                <tr>
+                                    <td class="col-check">
+                                        <input type="checkbox" class="row-check" name="ids[]" value="<?= esc($post->id, 'attr') ?>"
+                                               aria-label="<?= esc($post->title, 'attr') ?> 선택">
+                                    </td>
+                                    <td class="col-title">
+                                        <div class="posts-title-cell">
+                                            <?php if ($post->image !== null && $post->image !== ''): ?>
+                                                <img class="posts-cover" src="<?= site_url('uploads/thumb_' . $post->image) ?>" alt="">
+                                            <?php else: ?>
+                                                <div class="posts-cover cover" style="background:<?= $post->cover_gradient ?>"><?= esc($post->cover_initial) ?></div>
+                                            <?php endif ?>
+                                            <div class="posts-title-text">
+                                                <span class="posts-title"><?= esc($post->title) ?></span>
+                                                <span class="posts-meta">댓글 <?= esc((string) $post->comment_count) ?></span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="col-category">
+                                        <span class="chip"><?= esc($post->category_name ?? '미분류') ?></span>
+                                    </td>
+                                    <td class="col-status">
+                                        <span class="badge badge-<?= esc($post->status, 'attr') ?>"><?= esc($post->statusLabel()) ?></span>
+                                    </td>
+                                    <td class="col-date">
+                                        <?= $post->created_at !== null ? esc($post->created_at->format('Y.m.d')) : '—' ?>
+                                    </td>
+                                    <td class="col-actions">
+                                        <a class="posts-action" href="<?= site_url('posts/' . $post->id . '/edit') ?>">수정</a>
+                                        <a class="posts-action" href="<?= site_url('posts/' . $post->slug) ?>">보기</a>
+                                    </td>
+                                </tr>
+                            <?php endforeach ?>
+                        </tbody>
+                    </table>
+                </form>
             <?php endif ?>
         </section>
 
         <?= $pager->links('default', 'blog') ?>
     </div>
+<?= $this->endSection() ?>
+
+<?= $this->section('scripts') ?>
+    <script src="<?= base_url('assets/js/admin-posts.js') ?>?v=<?= filemtime(FCPATH . 'assets/js/admin-posts.js') ?>" defer></script>
 <?= $this->endSection() ?>
