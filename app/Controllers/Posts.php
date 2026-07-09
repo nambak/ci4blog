@@ -259,7 +259,9 @@ class Posts extends BaseController
      */
     private function normalizeStatus(mixed $value): string
     {
-        $value = (string) $value;
+        // status[] 처럼 배열로 조작해 오면 (string) 캐스팅에서 경고가 나므로,
+        // 문자열이 아닌 값은 곧장 빈 문자열로 취급해 published 로 떨어뜨린다.
+        $value = is_string($value) ? $value : '';
 
         return in_array($value, Post::STATUSES, true) ? $value : Post::STATUS_PUBLISHED;
     }
