@@ -59,7 +59,10 @@ class Posts extends BaseController
             ->orderBy('posts.id', 'DESC')
             ->paginate(self::PER_PAGE);
 
-        // 페이지 링크가 현재 탭·검색어를 잃지 않도록 질의 문자열을 보존한다.
+        // CI4 Pager는 기본적으로 현재 $_GET 전체를 페이지 링크에 그대로 옮겨 담는다.
+        // 즉 이 only() 호출이 "보존을 켜는" 것이 아니라, 이미 보존되는 범위를
+        // status·q 두 키로 "좁히는" 것이다 — 관계없는 질의 파라미터가 페이지 링크에
+        // 새어 들어가지 않도록 막는 목적.
         $model->pager->only(['status', 'q']);
 
         return view('admin/posts/index', [
@@ -74,6 +77,9 @@ class Posts extends BaseController
             'commentsLast30' => model(CommentModel::class)
                 ->where('created_at >=', date('Y-m-d H:i:s', strtotime('-30 days')))
                 ->countAllResults(),
+            // 이 화면에서는 아직 쓰지 않지만, 바로 다음 작업(카테고리 일괄 이동 <select>)이
+            // 이 카테고리 목록을 그대로 재사용한다. 죽은 코드가 아니라 다음 작업의 준비물이니
+            // 지우지 말 것.
             'categories' => model(CategoryModel::class)->menu(),
         ]);
     }

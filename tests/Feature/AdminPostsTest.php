@@ -163,11 +163,27 @@ final class AdminPostsTest extends CIUnitTestCase
         $result = $this->actingAs($admin)->call('GET', 'admin/posts?status=draft&q=초안');
 
         $result->assertStatus(200);
-        // 페이저 링크는 href 속성 안에 있으므로 assertSee(텍스트 노드 검색)가 아니라
-        // 본문 문자열로 확인한다. 한글은 퍼센트 인코딩되므로 직접 인코딩해 비교한다.
+
+        // 탭 바(<a class="tab">)도 $tabUrl() 이 만든 링크 안에 status=draft·q=초안 을
+        // 그대로 담고 있어서, 본문 전체에서 부분 문자열만 찾으면 페이저가 완전히
+        // 고장 나도(예: only() 가 지운 것과 무관한 키만 남기도록 바뀌어도) 이 테스트는
+        // 계속 통과해 버린다. 그래서 페이저 자신이 렌더링하는
+        // app/Views/partials/pager.php 의 <nav class="pager">…</nav> 조각만 잘라내어
+        // 그 안에서만 검증한다.
         $body = $result->getBody();
-        $this->assertStringContainsString('status=draft', $body);
-        $this->assertStringContainsString('q=' . rawurlencode('초안'), $body);
+        $this->assertMatchesRegularExpression('/<nav class="pager"[^>]*>.*<\/nav>/s', $body);
+        preg_match('/<nav class="pager"[^>]*>.*<\/nav>/s', $body, $navMatch);
+        $pagerHtml = $navMatch[0];
+
+        // 페이저가 만든 링크 중 2페이지로 가는 것의 href 하나 안에
+        // page=2·status=draft·검색어가 모두 함께 들어 있어야 한다.
+        // 탭 바는 page= 를 절대 넣지 않으므로, 이 조합은 페이저만 만들 수 있다.
+        $this->assertMatchesRegularExpression('/href="[^"]*page=2[^"]*"/', $pagerHtml);
+        preg_match('/href="([^"]*page=2[^"]*)"/', $pagerHtml, $hrefMatch);
+        $pageTwoHref = $hrefMatch[1];
+
+        $this->assertStringContainsString('status=draft', $pageTwoHref);
+        $this->assertStringContainsString('q=' . rawurlencode('초안'), $pageTwoHref);
     }
 
     public function testStatCardsShowGlobalTotalsNotSearchScoped(): void
