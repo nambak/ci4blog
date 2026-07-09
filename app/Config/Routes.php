@@ -34,6 +34,8 @@ $routes->get('posts/(:segment)', 'Posts::show/$1');
 $routes->group('admin', ['filter' => 'group:admin,superadmin'], static function ($routes) {
     $routes->get('/', 'Admin::index'); // 관리자 대시보드
 
+    $routes->get('posts', 'Admin\Posts::index');   // 게시글 관리 목록
+
     $routes->get('categories', 'Admin\Categories::index');                 // 목록 + 추가 폼
     $routes->post('categories', 'Admin\Categories::create');               // 생성
     $routes->get('categories/(:num)/edit', 'Admin\Categories::edit/$1');   // 수정 폼
