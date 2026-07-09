@@ -24,6 +24,13 @@ class Comments extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
+        // 비발행 글(초안·비공개)은 상세와 같은 규칙으로 막는다. 이 가드가 없으면
+        // 숫자 id 만 아는 사용자가 남의 초안에 댓글을 달 수 있고, 성공 리다이렉트의
+        // Location 헤더로 비발행 글의 슬러그가 새어 나간다.
+        if (! $post->isPublished() && ! is_owner_or_admin($post->user_id)) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
         $model = model(CommentModel::class);
 
         $data = [
