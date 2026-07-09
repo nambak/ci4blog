@@ -8,10 +8,7 @@
         <ul class="comment-list">
             <?php foreach ($comments as $comment): ?>
                 <li class="comment">
-                    <?php // 아바타 색은 작성자명 해시로 고정 선택해 같은 사람은 항상 같은 색을 갖는다. ?>
-                    <span class="comment-avatar" style="background:hsl(<?= abs(crc32((string) $comment->authorName)) % 360 ?>,38%,82%)">
-                        <?= esc(mb_strtoupper(mb_substr((string) $comment->authorName, 0, 1))) ?>
-                    </span>
+                    <?= view('partials/avatar', ['avatar' => $comment->authorAvatar, 'name' => $comment->authorName, 'size' => 'sm']) ?>
 
                     <div class="comment-main">
                         <div class="comment-meta">

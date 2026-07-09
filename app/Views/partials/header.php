@@ -24,7 +24,11 @@
         </form>
         <?php if (auth()->loggedIn()): ?>
             <a class="btn" href="<?= site_url('posts/new') ?>">글쓰기</a>
-            <span class="nav-user"><?= esc(auth()->user()->username) ?>님</span>
+            <a class="nav-user" href="<?= site_url('profile') ?>">
+                <?= view('partials/avatar', ['avatar' => auth()->user()->avatar, 'name' => auth()->user()->username, 'size' => 'sm']) ?>
+                <span><?= esc(auth()->user()->username) ?>님</span>
+                <span style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">프로필</span>
+            </a>
             <a class="nav-link" href="<?= site_url('logout') ?>">로그아웃</a>
         <?php else: ?>
             <a class="nav-link" href="<?= site_url('login') ?>">로그인</a>

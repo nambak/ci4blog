@@ -21,6 +21,10 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
     $routes->post('posts/(:num)/delete', 'Posts::delete/$1'); // 글 삭제
     $routes->post('posts/(:num)/comments', 'Comments::store/$1'); // 댓글 저장
     $routes->post('comments/(:num)/delete', 'Comments::delete/$1'); // 댓글 삭제
+
+    $routes->get('profile', 'Profile::edit');                       // 프로필 수정 폼
+    $routes->post('profile', 'Profile::update');                    // 프로필 저장(사용자명·비번·아바타)
+    $routes->post('profile/avatar/delete', 'Profile::deleteAvatar'); // 아바타 삭제
 });
 
 // 글 상세는 slug 기반(:segment). 위의 (:num) 쓰기 라우트보다 아래에 둬

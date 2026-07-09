@@ -77,7 +77,7 @@ $siteTitle = config('Blog')->title;
                     <p class="hero-excerpt text-pretty"><?= esc($featured->getExcerpt(120)) ?></p>
                     <div class="hero-meta">
                         <?php if ($authorName !== null): ?>
-                            <span class="hero-avatar"><?= esc(mb_strtoupper(mb_substr($authorName, 0, 1))) ?></span>
+                            <?= view('partials/avatar', ['avatar' => $authorAvatar, 'name' => $authorName, 'size' => 'sm']) ?>
                             <span class="hero-author"><?= esc($authorName) ?></span>
                             <span>·</span>
                         <?php endif ?>
