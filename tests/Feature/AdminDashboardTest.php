@@ -164,4 +164,34 @@ final class AdminDashboardTest extends CIUnitTestCase
 
         $result->assertDontSee('관리자');
     }
+
+    public function testRecentPostsCardLinksToPostAdmin(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $result = $this->actingAs($admin)->call('GET', 'admin');
+
+        // 게시글 관리로 가는 길은 '최근 글' 카드 헤드의 card-link 다
+        // (카테고리 분포 카드가 '카테고리 관리 →'를 두는 것과 같은 자리).
+        $result->assertStatus(200);
+        $result->assertSee('게시글 관리 →');
+        $this->assertStringContainsString(
+            'class="card-link" href="' . site_url('admin/posts') . '"',
+            $result->getBody()
+        );
+    }
+
+    public function testHeaderHasNoPostAdminNavLink(): void
+    {
+        $admin = $this->makeAdmin();
+
+        // 헤더에는 '관리자' 하나만 둔다. 게시글 관리는 대시보드 안에서 들어간다.
+        $result = $this->actingAs($admin)->call('GET', '/');
+
+        $result->assertStatus(200);
+        $this->assertStringNotContainsString(
+            'class="nav-link" href="' . site_url('admin/posts') . '"',
+            $result->getBody()
+        );
+    }
 }

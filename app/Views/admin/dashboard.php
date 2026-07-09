@@ -27,7 +27,11 @@
 
         <div class="dash-cols">
             <section class="card" aria-label="최근 글">
-                <div class="card-head"><h2>최근 글</h2></div>
+                <?php // 게시글 관리로 가는 길은 이 카드 안에 둔다(카테고리 분포 카드와 같은 자리). ?>
+                <div class="card-head">
+                    <h2>최근 글</h2>
+                    <a class="card-link" href="<?= site_url('admin/posts') ?>">게시글 관리 →</a>
+                </div>
                 <?php if (empty($recentPosts)): ?>
                     <p class="card-empty">아직 글이 없습니다.</p>
                 <?php else: ?>
