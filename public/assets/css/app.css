@@ -398,3 +398,45 @@ textarea { resize: vertical; line-height: 1.7; }
 
 .col-check { width: 44px; }
 .col-check input { cursor: pointer; accent-color: var(--color-accent); }
+
+/* ── 관리자 댓글 목록 ─────────────────────────────────── */
+.ct-list { list-style: none; margin: 0; padding: 0; }
+
+.ct-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 1rem;
+    align-items: start;
+    padding: 1.125rem 1.25rem;
+    border-bottom: 1px solid var(--color-line-soft);
+}
+
+.ct-row:last-child { border-bottom: 0; }
+.ct-row.is-hidden { background: var(--color-paper-warm); }
+.ct-row.is-hidden .ct-body { color: var(--color-ink-3); text-decoration: line-through; }
+
+.ct-main { min-width: 0; }
+
+.ct-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.375rem; }
+.ct-author { font-weight: 600; font-size: 0.875rem; }
+.ct-time { font-size: 0.75rem; color: var(--color-ink-4); }
+
+.ct-post { font-size: 0.75rem; margin-bottom: 0.5rem; }
+.ct-post a { color: var(--color-ink-2); }
+
+.ct-body { margin: 0; font-size: 0.875rem; line-height: 1.6; }
+
+.ct-reply {
+    margin-top: 0.625rem;
+    padding-left: 0.875rem;
+    border-left: 2px solid var(--color-accent-soft);
+    font-size: 0.8125rem;
+    color: var(--color-ink-3);
+}
+
+.ct-reply-mark { color: var(--color-accent); font-weight: 600; }
+
+.badge-hidden { background: var(--color-line-soft); color: var(--color-ink-3); }
+
+.bulkbar-spacer { flex: 1; }
+.bulkbar-all { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; }

@@ -37,6 +37,10 @@ $routes->group('admin', ['filter' => 'group:admin,superadmin'], static function 
     $routes->get('posts', 'Admin\Posts::index');   // 게시글 관리 목록
     $routes->post('posts/bulk', 'Admin\Posts::bulk'); // 일괄 작업(발행·임시저장·비공개·이동·삭제)
 
+    $routes->get('comments', 'Admin\Comments::index');       // 댓글 관리 목록
+    $routes->post('comments/bulk', 'Admin\Comments::bulk');  // 일괄 작업(숨김·복원·삭제)
+    $routes->post('comments/(:num)/reply', 'Admin\Comments::reply/$1'); // 빠른 답글
+
     $routes->get('categories', 'Admin\Categories::index');                 // 목록 + 추가 폼
     $routes->post('categories', 'Admin\Categories::create');               // 생성
     $routes->get('categories/(:num)/edit', 'Admin\Categories::edit/$1');   // 수정 폼

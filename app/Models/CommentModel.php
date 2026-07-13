@@ -137,4 +137,42 @@ class CommentModel extends Model
 
         return parent::delete($id, $purge);
     }
+
+    /**
+     * 상태별 최상위 댓글 수. 관리 화면의 탭 카운트가 쓴다.
+     *
+     * **최상위만 센다** — 목록에 최상위만 행으로 서므로, 탭 숫자와 보이는 행 수가
+     * 어긋나지 않게 하기 위해서다. (통계 카드는 답글까지 포함한 전체 기준이라 값이 다를 수 있다.)
+     *
+     * $search 가 주어지면 본문·작성자명으로 좁힌 결과의 분포를 돌려준다.
+     *
+     * @return array{visible:int, hidden:int}
+     */
+    public function statusCounts(?string $search = null): array
+    {
+        $builder = $this->db->table($this->table)
+            ->select($this->table . '.status, COUNT(*) AS cnt')
+            ->join('users', 'users.id = ' . $this->table . '.user_id', 'left')
+            ->where($this->table . '.parent_id', null)
+            ->groupBy($this->table . '.status');
+
+        if ($search !== null && $search !== '') {
+            $builder->groupStart()
+                ->like($this->table . '.body', $search)
+                ->orLike('users.username', $search)
+                ->groupEnd();
+        }
+
+        // 0건인 상태는 GROUP BY 결과에 아예 없다. 두 상태를 0으로 깔고 덮어쓴다.
+        $counts = [
+            Comment::STATUS_VISIBLE => 0,
+            Comment::STATUS_HIDDEN  => 0,
+        ];
+
+        foreach ($builder->get()->getResultArray() as $row) {
+            $counts[$row['status']] = (int) $row['cnt'];
+        }
+
+        return $counts;
+    }
 }
