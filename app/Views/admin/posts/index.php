@@ -6,7 +6,9 @@
     <?php
     // 뷰에서는 `use` 임포트를 쓰지 않는다(뷰 파일은 View::render 안에서 include 된다).
     // 탭 키는 곧 status 질의 문자열이므로 리터럴로 충분하다('all' 은 필터 없음).
-    $total = array_sum($totals);
+    // 머리말은 검색과 무관한 전체 기준(통계 카드와 짝), 탭은 검색 결과 안의 분포다.
+    $total   = array_sum($totals);
+    $visible = array_sum($counts);
 
     /** 현재 검색어를 유지한 채 status 만 바꾼 URL. */
     $tabUrl = static function (string $tab) use ($search): string {
@@ -19,7 +21,7 @@
     };
 
     $tabs = [
-        'all'       => ['전체', $total],
+        'all'       => ['전체', $visible],
         'published' => ['발행됨', $counts['published']],
         'draft'     => ['임시저장', $counts['draft']],
         'private'   => ['비공개', $counts['private']],

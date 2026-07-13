@@ -186,6 +186,29 @@ final class AdminPostsTest extends CIUnitTestCase
         $this->assertStringContainsString('q=' . rawurlencode('초안'), $pageTwoHref);
     }
 
+    public function testAllTabCountIsSearchScoped(): void
+    {
+        $admin = $this->makeAdmin();
+        $this->insertPost('찾을 공개된 글');
+        $this->insertPost('다른 초안', Post::STATUS_DRAFT);
+
+        // 검색어에 걸리는 글은 1건뿐이므로, '전체' 탭도 1 이어야 한다
+        // (다른 탭들과 마찬가지로 탭 숫자는 보이는 행 수와 맞아야 한다).
+        $result = $this->actingAs($admin)->call('GET', 'admin/posts?q=찾을');
+
+        $result->assertStatus(200);
+
+        // 통계 카드(전체 기준)와 탭 카운트(검색 기준)가 같은 페이지에 함께 있으므로,
+        // 본문 전체에서 숫자를 찾으면 카드의 값에 만족되어 위양성이 난다.
+        // 탭 바 조각만 잘라내어 그 안의 '전체' 탭 링크만 검사한다.
+        preg_match('/<div class="posts-tabs">.*?<\/div>/s', $result->getBody(), $tabsMatch);
+        $this->assertNotEmpty($tabsMatch, '탭 바를 찾지 못했다.');
+
+        preg_match('/status=all[^"]*"[^>]*>\s*전체\s*<span class="tab-count">(\d+)<\/span>/s', $tabsMatch[0], $countMatch);
+        $this->assertNotEmpty($countMatch, "'전체' 탭의 카운트를 찾지 못했다.");
+        $this->assertSame('1', $countMatch[1]);
+    }
+
     public function testStatCardsShowGlobalTotalsNotSearchScoped(): void
     {
         $admin = $this->makeAdmin();
