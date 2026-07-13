@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Entities\Post;
 use App\Models\PostModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
@@ -101,5 +103,58 @@ final class CommentStoreTest extends CIUnitTestCase
 
         $result->assertRedirect();
         $this->dontSeeInDatabase('comments', ['post_id' => $postId]);
+    }
+
+    /**
+     * 비발행 글(초안·비공개)은 상세가 404 로 막힌다. 댓글 저장도 같은 규칙을 따라야
+     * 한다 — 그러지 않으면 남의 초안에 댓글을 달 수 있고, 리다이렉트 Location 헤더로
+     * 비발행 글의 슬러그가 새어 나간다.
+     */
+    public function testCannotCommentOnAnotherAuthorsDraft(): void
+    {
+        $owner = $this->makeUser();
+
+        $posts = model(PostModel::class);
+        $posts->insert([
+            'user_id' => $owner->id,
+            'title'   => '남의 초안',
+            'body'    => '본문',
+            'status'  => Post::STATUS_DRAFT,
+        ]);
+        $postId = $posts->getInsertID();
+
+        $users  = auth()->getProvider();
+        $other  = new User(['username' => 'intruder', 'email' => 'intruder@example.com', 'password' => 'secret-password-123']);
+        $users->save($other);
+        $other = $users->findById($users->getInsertID());
+
+        $this->expectException(PageNotFoundException::class);
+
+        try {
+            $this->actingAs($other)->call('POST', "posts/{$postId}/comments", ['body' => '몰래 다는 댓글']);
+        } finally {
+            // 예외가 나든 안 나든 댓글은 저장되지 않아야 한다.
+            $this->dontSeeInDatabase('comments', ['post_id' => $postId]);
+        }
+    }
+
+    public function testOwnerCanCommentOnOwnDraft(): void
+    {
+        $owner = $this->makeUser();
+
+        $posts = model(PostModel::class);
+        $posts->insert([
+            'user_id' => $owner->id,
+            'title'   => '내 초안',
+            'body'    => '본문',
+            'status'  => Post::STATUS_DRAFT,
+        ]);
+        $postId = $posts->getInsertID();
+
+        // 본인은 미리보기로 볼 수 있으므로 댓글도 달 수 있다.
+        $result = $this->actingAs($owner)->call('POST', "posts/{$postId}/comments", ['body' => '메모용 댓글']);
+
+        $result->assertRedirect();
+        $this->seeInDatabase('comments', ['post_id' => $postId, 'body' => '메모용 댓글']);
     }
 }

@@ -16,8 +16,8 @@ class Home extends BaseController
      */
     public function index(): string
     {
-        // 최신순으로 (히어로 1 + 최근 RECENT)건을 한 번에 가져온다.
-        $posts    = model(PostModel::class)->orderBy('created_at', 'DESC')->findAll(self::RECENT + 1);
+        // 최신순으로 (히어로 1 + 최근 RECENT)건을 한 번에 가져온다. 발행된 글만 노출한다.
+        $posts    = model(PostModel::class)->published()->orderBy('created_at', 'DESC')->findAll(self::RECENT + 1);
         $featured = array_shift($posts); // 맨 앞(최신)이 히어로, 나머지가 그리드
 
         // 히어로 작성자명만 따로 조회(그리드 카드는 작성자를 노출하지 않음).

@@ -13,6 +13,21 @@ use League\CommonMark\CommonMarkConverter;
  */
 class Post extends Entity
 {
+    /** 글 상태. DB 에는 이 문자열 그대로 저장된다. */
+    public const STATUS_DRAFT     = 'draft';
+    public const STATUS_PUBLISHED = 'published';
+    public const STATUS_PRIVATE   = 'private';
+
+    /** 검증(in_list)과 컨트롤러 정규화가 함께 쓰는 허용 값 목록. */
+    public const STATUSES = [self::STATUS_DRAFT, self::STATUS_PUBLISHED, self::STATUS_PRIVATE];
+
+    /** 배지에 노출할 한국어 라벨. */
+    private const STATUS_LABELS = [
+        self::STATUS_DRAFT     => '임시저장',
+        self::STATUS_PUBLISHED => '발행됨',
+        self::STATUS_PRIVATE   => '비공개',
+    ];
+
     // created_at / updated_at 을 Time 객체로 다룬다.
     protected $dates = ['created_at', 'updated_at'];
 
@@ -92,5 +107,21 @@ class Post extends Entity
         $title = trim((string) ($this->attributes['title'] ?? ''));
 
         return $title === '' ? '·' : mb_strtoupper(mb_substr($title, 0, 1));
+    }
+
+    /**
+     * 이 글이 공개 화면에 노출되는 상태인지. 상세 가드·미리보기 배너가 쓴다.
+     */
+    public function isPublished(): bool
+    {
+        return ($this->attributes['status'] ?? null) === self::STATUS_PUBLISHED;
+    }
+
+    /**
+     * 상태 배지에 찍을 한국어 라벨. 알 수 없는 값이면 그대로 노출하지 않고 뭉갠다.
+     */
+    public function statusLabel(): string
+    {
+        return self::STATUS_LABELS[$this->attributes['status'] ?? self::STATUS_PUBLISHED] ?? '알 수 없음';
     }
 }

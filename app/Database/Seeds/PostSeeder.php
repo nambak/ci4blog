@@ -2,6 +2,7 @@
 
 namespace App\Database\Seeds;
 
+use App\Entities\Post;
 use CodeIgniter\Database\Seeder;
 
 class PostSeeder extends Seeder
@@ -45,6 +46,20 @@ class PostSeeder extends Seeder
                 'category' => 'retrospect',
                 'body'     => "화면을 만들려면 보여 줄 데이터가 필요합니다.\n\n시더는 개발 단계에서 그럴듯한 더미 글을 한 번에 채워 줍니다. 덕분에 목록과 상세 화면을 실제 데이터처럼 다듬어 볼 수 있습니다.",
             ],
+            [
+                'title'    => '아직 다듬는 중인 초안',
+                'slug'     => 'draft-in-progress',
+                'category' => 'web',
+                'status'   => Post::STATUS_DRAFT,
+                'body'     => "여기까지 쓰다 멈춘 글입니다.\n\n관리 화면의 '임시저장' 탭에서 확인할 수 있고, 공개 목록에는 나오지 않습니다.",
+            ],
+            [
+                'title'    => '팀 내부 메모 (비공개)',
+                'slug'     => 'internal-memo',
+                'category' => 'retrospect',
+                'status'   => Post::STATUS_PRIVATE,
+                'body'     => "나만 보려고 남겨 둔 메모입니다.\n\n비공개 글은 슬러그를 알아도 작성자와 관리자만 열 수 있습니다.",
+            ],
         ];
 
         // 글은 카테고리에 의존한다. 단독으로 시드될 때(예: Feature 테스트)도 깨지지 않도록
@@ -80,6 +95,7 @@ class PostSeeder extends Seeder
                 'category_id' => $categoryIds[$post['category']],
                 'title'       => $post['title'],
                 'slug'        => $post['slug'],
+                'status'      => $post['status'] ?? Post::STATUS_PUBLISHED,
                 'body'        => $post['body'],
                 'created_at'  => $createdAt,
                 'updated_at'  => $createdAt,

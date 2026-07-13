@@ -32,5 +32,8 @@
     </main>
 
     <?= $this->include('partials/footer') ?>
+
+    <?php // 페이지별 스크립트. 이 섹션을 쓰지 않는 뷰에서는 아무것도 출력되지 않는다. ?>
+    <?= $this->renderSection('scripts') ?>
 </body>
 </html>

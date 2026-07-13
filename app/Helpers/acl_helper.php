@@ -11,9 +11,13 @@ use CodeIgniter\Shield\Entities\User;
 
 if (! function_exists('is_owner_or_admin')) {
     /**
-     * 현재 로그인 사용자가 해당 리소스의 작성자 본인이거나 admin 그룹인지 판정한다.
+     * 현재 로그인 사용자가 해당 리소스의 작성자 본인이거나 관리자(admin·superadmin)인지 판정한다.
      *
      * 비로그인이면 항상 false. $ownerId 가 null/0 이면(작성자 미상) 관리자만 true.
+     *
+     * superadmin 을 포함하는 이유: /admin 라우트 그룹이 이미 `group:admin,superadmin` 으로
+     * 둘을 같은 권한으로 다룬다. 여기서 superadmin 을 빠뜨리면 관리 목록에서는 보이는 글의
+     * 상세가 404 로 막히는 모순이 생긴다.
      *
      * @param int|string|null $ownerId 리소스 소유자의 user_id
      */
@@ -26,6 +30,6 @@ if (! function_exists('is_owner_or_admin')) {
             return false;
         }
 
-        return (int) $ownerId === (int) $user->id || $user->inGroup('admin');
+        return (int) $ownerId === (int) $user->id || $user->inGroup('admin', 'superadmin');
     }
 }

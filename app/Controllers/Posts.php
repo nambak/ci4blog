@@ -23,7 +23,8 @@ class Posts extends BaseController
      */
     public function index(?string $categorySlug = null): string
     {
-        $model = model(PostModel::class);
+        // 공개 목록은 발행된 글만 보여 준다. 카테고리·검색 조건과 AND 로 묶인다.
+        $model = model(PostModel::class)->published();
 
         // 없는 카테고리는 404. (필터가 빈 목록으로 조용히 떨어지지 않게)
         $activeCategory = null;
@@ -66,6 +67,13 @@ class Posts extends BaseController
 
         // 없는 글은 404 로 응답한다.
         if ($post === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 비발행 글(초안·비공개)은 작성자 본인과 관리자에게만 미리보기로 열어 준다.
+        // 403 이 아니라 404 를 주는 건 의도적이다 — 403 은 그 슬러그의 글이
+        // 존재한다는 사실 자체를 흘린다.
+        if (! $post->isPublished() && ! $this->canModify($post)) {
             throw PageNotFoundException::forPageNotFound();
         }
 
@@ -116,10 +124,13 @@ class Posts extends BaseController
         $model = model(PostModel::class);
 
         // allowedFields 에 든 값만 추려서 받는다.
-        $data = $this->request->getPost(['title', 'body', 'category_id']);
+        $data = $this->request->getPost(['title', 'body', 'category_id', 'status']);
 
         // 카테고리는 선택 사항. 안 고르면 빈 문자열로 오므로 null 로 정규화한다.
         $data['category_id'] = $this->normalizeCategoryId($data['category_id'] ?? null);
+
+        // 상태는 폼 셀렉트에서 온다. 없거나 이상한 값이면 발행으로 본다(기존 동작 유지).
+        $data['status'] = $this->normalizeStatus($data['status'] ?? null);
 
         // 현재 로그인한 사용자를 작성자로 묶는다.
         $data['user_id'] = auth()->id();
@@ -189,10 +200,13 @@ class Posts extends BaseController
             return $this->response->setStatusCode(403, '수정 권한이 없습니다.');
         }
 
-        $data = $this->request->getPost(['title', 'body', 'category_id']);
+        $data = $this->request->getPost(['title', 'body', 'category_id', 'status']);
 
         // 카테고리는 선택 사항. 안 고르면 빈 문자열로 오므로 null 로 정규화한다.
         $data['category_id'] = $this->normalizeCategoryId($data['category_id'] ?? null);
+
+        // 상태는 폼 셀렉트에서 온다. 없거나 이상한 값이면 발행으로 본다(기존 동작 유지).
+        $data['status'] = $this->normalizeStatus($data['status'] ?? null);
 
         // 새 대표 이미지가 올라오면 교체한다. 단 기존 파일은 DB 반영이
         // 성공한 뒤에 지운다(실패 시 기존 이미지 참조가 깨지지 않도록).
@@ -237,6 +251,19 @@ class Posts extends BaseController
         }
 
         return (int) $value;
+    }
+
+    /**
+     * 폼에서 넘어온 status 를 저장용 값으로 정규화한다.
+     * 미지정·허용 값 밖이면 published(기존 동작)로 떨어뜨린다.
+     */
+    private function normalizeStatus(mixed $value): string
+    {
+        // status[] 처럼 배열로 조작해 오면 (string) 캐스팅에서 경고가 나므로,
+        // 문자열이 아닌 값은 곧장 빈 문자열로 취급해 published 로 떨어뜨린다.
+        $value = is_string($value) ? $value : '';
+
+        return in_array($value, Post::STATUSES, true) ? $value : Post::STATUS_PUBLISHED;
     }
 
     /**

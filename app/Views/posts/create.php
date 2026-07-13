@@ -36,6 +36,17 @@
         </div>
 
         <div>
+            <label for="status">상태</label>
+            <p class="field-hint">임시저장·비공개 글은 목록에 나오지 않고, 나와 관리자만 볼 수 있습니다.</p>
+            <?php $selectedStatus = old('status', \App\Entities\Post::STATUS_PUBLISHED); ?>
+            <select name="status" id="status">
+                <option value="published"<?= $selectedStatus === 'published' ? ' selected' : '' ?>>발행됨</option>
+                <option value="draft"<?= $selectedStatus === 'draft' ? ' selected' : '' ?>>임시저장</option>
+                <option value="private"<?= $selectedStatus === 'private' ? ' selected' : '' ?>>비공개</option>
+            </select>
+        </div>
+
+        <div>
             <label for="image">대표 이미지 <small>(선택)</small></label>
             <p class="field-hint">JPG·PNG·WebP, 2MB 이하. 목록에는 썸네일로 보입니다.</p>
             <input type="file" name="image" id="image" accept="image/png,image/jpeg,image/webp">
