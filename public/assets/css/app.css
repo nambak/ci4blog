@@ -141,6 +141,10 @@ textarea { resize: vertical; line-height: 1.7; }
 .comment-delete { background: none; border: none; padding: 0; font-size: 12px; color: var(--color-ink-4); cursor: pointer; }
 .comment-delete:hover { color: var(--color-danger); }
 
+/* 답글: 부모 아래에 들여쓰기하고 왼쪽에 실선을 둔다(관리자 답글, 읽기 전용). */
+.comment-reply { margin-left: 2.5rem; padding-left: 1rem; border-left: 2px solid var(--color-line-soft); }
+.comment-reply-mark { color: var(--color-accent); font-weight: 600; margin-right: 0.25rem; }
+
 /* comment composer (디자인 목업의 입력 박스) */
 .comment-composer { display: flex; gap: 12px; padding: 16px; border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-paper); transition: border-color .15s, box-shadow .15s; }
 .comment-composer:focus-within { border-color: var(--color-ink); box-shadow: 0 0 0 3px rgba(94,129,172,.08); }

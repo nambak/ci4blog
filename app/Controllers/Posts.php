@@ -78,7 +78,8 @@ class Posts extends BaseController
         }
 
         // 이 글의 댓글을 작성자명과 함께 한 번에 로드한다(N+1 회피).
-        $comments = model(CommentModel::class)->forPost((int) $post->id);
+        $comments     = model(CommentModel::class)->forPost((int) $post->id);
+        $commentCount = model(CommentModel::class)->countForPost((int) $post->id);
 
         // 바이라인(작성자 아바타 행)용 작성자명. 홈 히어로와 같은 방식으로
         // users 테이블에서 username 만 직접 읽는다(엔티티 의존 없이).
@@ -98,6 +99,7 @@ class Posts extends BaseController
         return view('posts/show', [
             'post'         => $post,
             'comments'     => $comments,
+            'commentCount' => $commentCount,
             'authorName'   => $authorName,
             'authorAvatar' => $authorAvatar,
             'category'     => $category,
