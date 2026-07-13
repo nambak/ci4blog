@@ -136,6 +136,15 @@ final class AdminCommentsTest extends CIUnitTestCase
         $result->assertSee('관리자 답글');
         // 행은 하나뿐이다(답글이 별도 행으로 서지 않는다).
         $this->assertSame(1, substr_count($this->decodedBody($result), 'class="ct-row"'));
+
+        // '전체' 탭 카운트도 행 수와 같이 최상위 1건이어야 한다(답글까지 세면 2가 되어 어긋난다).
+        // 통계 카드가 같은 페이지에 있어 본문 전체에서 숫자를 찾으면 위양성이 나므로 탭 바만 잘라낸다.
+        preg_match('/<div class="posts-tabs">.*?<\/div>/s', $this->decodedBody($result), $tabsMatch);
+        $this->assertNotEmpty($tabsMatch, '탭 바를 찾지 못했다.');
+
+        preg_match('/status=all[^"]*"[^>]*>\s*전체\s*<span class="tab-count">(\d+)<\/span>/s', $tabsMatch[0], $countMatch);
+        $this->assertNotEmpty($countMatch, "'전체' 탭의 카운트를 찾지 못했다.");
+        $this->assertSame('1', $countMatch[1]);
     }
 
     public function testHiddenTabShowsOnlyHidden(): void
