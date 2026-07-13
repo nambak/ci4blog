@@ -329,10 +329,11 @@ final class AdminCommentsTest extends CIUnitTestCase
         $post  = $this->makePost($admin->id);
         $id    = $this->insertComment($post->id, $admin->id, '댓글');
 
-        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', ['action' => 'spam', 'ids' => [$id]]);
+        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', ['action' => 'spam', 'ids' => [$id]])->assertRedirect();
 
         // 데이터는 그대로다.
         $this->seeInDatabase('comments', ['id' => $id, 'status' => Comment::STATUS_VISIBLE]);
+        $this->assertSame(['알 수 없는 작업입니다.'], session('errors'));
     }
 
     public function testBulkRejectsEmptySelection(): void
@@ -341,8 +342,9 @@ final class AdminCommentsTest extends CIUnitTestCase
         $post  = $this->makePost($admin->id);
         $id    = $this->insertComment($post->id, $admin->id, '댓글');
 
-        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', ['action' => 'delete', 'ids' => []]);
+        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', ['action' => 'delete', 'ids' => []])->assertRedirect();
 
         $this->seeInDatabase('comments', ['id' => $id]);
+        $this->assertSame(['선택된 댓글이 없습니다.'], session('errors'));
     }
 }

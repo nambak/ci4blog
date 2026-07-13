@@ -155,9 +155,14 @@ class Comments extends BaseController
             return redirect()->back()->with('message', "{$count}개 댓글을 삭제했습니다.");
         }
 
-        [$status, $verb] = $action === 'hide'
-            ? [Comment::STATUS_HIDDEN, '숨김 처리']
-            : [Comment::STATUS_VISIBLE, '복원'];
+        // 남은 둘은 상태 변경이다. hide·restore 를 각각 명시적으로 매핑해,
+        // 화이트리스트가 뚫려도 알 수 없는 action 이 조용히 '복원'으로 흐르지 않게 한다
+        // (Admin\Posts::bulk() 의 $statusMap 패턴과 동일).
+        $statusMap = [
+            'hide'    => [Comment::STATUS_HIDDEN, '숨김 처리'],
+            'restore' => [Comment::STATUS_VISIBLE, '복원'],
+        ];
+        [$status, $verb] = $statusMap[$action];
 
         if (! $model->update($ids, ['status' => $status])) {
             return redirect()->back()->with('errors', $model->errors());
