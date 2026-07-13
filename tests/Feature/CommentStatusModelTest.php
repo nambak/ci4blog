@@ -98,4 +98,22 @@ final class CommentStatusModelTest extends CIUnitTestCase
 
         $this->dontSeeInDatabase('comments', ['id' => $replyId]);
     }
+
+    /**
+     * 답글은 설계상 1단계만 허용되지만(컨트롤러가 "답글에 답글"을 막는다), 데이터가 어떤
+     * 경로로든 2단계 이상 중첩되었을 때 delete()가 손자·증손 답글까지 지우는지 검증한다.
+     * MySQL 의 자기참조 ON DELETE CASCADE 는 재귀적으로 동작하므로, 애플리케이션 쪽 삭제도
+     * 재귀적이어야 두 환경의 동작이 같아진다.
+     */
+    public function testDeletingGrandparentDeletesNestedReplies(): void
+    {
+        $grandparentId = $this->insertComment();
+        $parentId      = $this->insertComment(['parent_id' => $grandparentId, 'body' => '답글 본문']);
+        $childId       = $this->insertComment(['parent_id' => $parentId, 'body' => '답글의 답글 본문']);
+
+        model(CommentModel::class)->delete($grandparentId);
+
+        $this->dontSeeInDatabase('comments', ['id' => $parentId]);
+        $this->dontSeeInDatabase('comments', ['id' => $childId]);
+    }
 }
