@@ -264,4 +264,85 @@ final class AdminCommentsTest extends CIUnitTestCase
         $this->assertStringContainsString('status=hidden', $hrefMatch[1]);
         $this->assertStringContainsString('q=' . rawurlencode('숨긴'), $hrefMatch[1]);
     }
+
+    public function testGuestCannotPostBulk(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $id    = $this->insertComment($post->id, $admin->id, '댓글');
+
+        $this->call('POST', 'admin/comments/bulk', ['action' => 'delete', 'ids' => [$id]])->assertRedirect();
+        $this->seeInDatabase('comments', ['id' => $id]);
+    }
+
+    public function testNormalUserCannotPostBulk(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $id    = $this->insertComment($post->id, $admin->id, '댓글');
+        $user  = $this->makeUser('normal', 'normal@example.com');
+
+        $this->actingAs($user)->call('POST', 'admin/comments/bulk', ['action' => 'delete', 'ids' => [$id]])->assertRedirect();
+        $this->seeInDatabase('comments', ['id' => $id]);
+    }
+
+    public function testBulkHide(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $id    = $this->insertComment($post->id, $admin->id, '댓글');
+
+        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', ['action' => 'hide', 'ids' => [$id]]);
+
+        $this->seeInDatabase('comments', ['id' => $id, 'status' => Comment::STATUS_HIDDEN]);
+    }
+
+    public function testBulkRestore(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $id    = $this->insertComment($post->id, $admin->id, '댓글', ['status' => Comment::STATUS_HIDDEN]);
+
+        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', ['action' => 'restore', 'ids' => [$id]]);
+
+        $this->seeInDatabase('comments', ['id' => $id, 'status' => Comment::STATUS_VISIBLE]);
+    }
+
+    public function testBulkDeleteAlsoDeletesReplies(): void
+    {
+        $admin    = $this->makeAdmin();
+        $post     = $this->makePost($admin->id);
+        $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
+        $replyId  = $this->insertComment($post->id, $admin->id, '답글', ['parent_id' => $parentId]);
+        $keepId   = $this->insertComment($post->id, $admin->id, '남을 댓글');
+
+        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', ['action' => 'delete', 'ids' => [$parentId]]);
+
+        $this->dontSeeInDatabase('comments', ['id' => $parentId]);
+        $this->dontSeeInDatabase('comments', ['id' => $replyId]);
+        $this->seeInDatabase('comments', ['id' => $keepId]);
+    }
+
+    public function testBulkRejectsUnknownAction(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $id    = $this->insertComment($post->id, $admin->id, '댓글');
+
+        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', ['action' => 'spam', 'ids' => [$id]]);
+
+        // 데이터는 그대로다.
+        $this->seeInDatabase('comments', ['id' => $id, 'status' => Comment::STATUS_VISIBLE]);
+    }
+
+    public function testBulkRejectsEmptySelection(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $id    = $this->insertComment($post->id, $admin->id, '댓글');
+
+        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', ['action' => 'delete', 'ids' => []]);
+
+        $this->seeInDatabase('comments', ['id' => $id]);
+    }
 }
