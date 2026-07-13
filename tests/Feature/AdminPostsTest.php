@@ -49,6 +49,23 @@ final class AdminPostsTest extends CIUnitTestCase
         return $admin;
     }
 
+    /**
+     * 응답 본문을 한글이 그대로 담긴 문자열로 돌려준다.
+     *
+     * CI4 의 TestResponse 는 본문을 DOMDocument 로 한 번 돌리는데, saveHTML() 이
+     * 비 ASCII 문자를 숫자 엔티티(`&#45796;`)로 바꿀지 UTF-8 그대로 둘지는
+     * libxml 버전에 달렸다. 실제로 로컬(macOS)에서는 한글이 유지되지만
+     * CI(ubuntu)에서는 엔티티로 인코딩돼 돌아와, 한글을 직접 찾는 단언이
+     * CI 에서만 깨졌다. 디코딩해서 양쪽 환경에서 같게 만든다.
+     *
+     * 텍스트만 볼 때는 `assertSee()` 가 DOMParser 를 거치므로 이 함정이 없다.
+     * 이 헬퍼는 HTML 구조(태그·속성)까지 정규식으로 봐야 할 때만 쓴다.
+     */
+    private function decodedBody(\CodeIgniter\Test\TestResponse $result): string
+    {
+        return html_entity_decode($result->getBody(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
     private function insertPost(string $title, string $status = Post::STATUS_PUBLISHED, ?int $categoryId = null): int
     {
         $posts = model(PostModel::class);
@@ -149,7 +166,7 @@ final class AdminPostsTest extends CIUnitTestCase
         $result->assertStatus(200);
         $result->assertSee('여행기록');
         // 댓글 수 1 이 행에 노출된다.
-        $this->assertStringContainsString('댓글 1', $result->getBody());
+        $this->assertStringContainsString('댓글 1', $this->decodedBody($result));
     }
 
     public function testPaginationKeepsStatusAndSearch(): void
@@ -201,7 +218,7 @@ final class AdminPostsTest extends CIUnitTestCase
         // 통계 카드(전체 기준)와 탭 카운트(검색 기준)가 같은 페이지에 함께 있으므로,
         // 본문 전체에서 숫자를 찾으면 카드의 값에 만족되어 위양성이 난다.
         // 탭 바 조각만 잘라내어 그 안의 '전체' 탭 링크만 검사한다.
-        preg_match('/<div class="posts-tabs">.*?<\/div>/s', $result->getBody(), $tabsMatch);
+        preg_match('/<div class="posts-tabs">.*?<\/div>/s', $this->decodedBody($result), $tabsMatch);
         $this->assertNotEmpty($tabsMatch, '탭 바를 찾지 못했다.');
 
         preg_match('/status=all[^"]*"[^>]*>\s*전체\s*<span class="tab-count">(\d+)<\/span>/s', $tabsMatch[0], $countMatch);
