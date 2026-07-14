@@ -6,6 +6,7 @@ use App\Entities\Comment;
 use App\Entities\Post;
 use App\Models\CommentModel;
 use App\Models\PostModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
 use CodeIgniter\Test\CIUnitTestCase;
@@ -346,5 +347,86 @@ final class AdminCommentsTest extends CIUnitTestCase
 
         $this->seeInDatabase('comments', ['id' => $id]);
         $this->assertSame(['선택된 댓글이 없습니다.'], session('errors'));
+    }
+
+    public function testReplyIsSavedUnderParent(): void
+    {
+        $admin    = $this->makeAdmin();
+        $post     = $this->makePost($admin->id);
+        $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
+
+        $this->actingAs($admin)->call('POST', 'admin/comments/' . $parentId . '/reply', ['body' => '관리자 답글입니다']);
+
+        $this->seeInDatabase('comments', [
+            'parent_id' => $parentId,
+            'post_id'   => $post->id,   // 요청이 아니라 부모에서 가져온다
+            'user_id'   => $admin->id,
+            'body'      => '관리자 답글입니다',
+            'status'    => Comment::STATUS_VISIBLE,
+        ]);
+    }
+
+    public function testReplyToReplyIsRejected(): void
+    {
+        $admin    = $this->makeAdmin();
+        $post     = $this->makePost($admin->id);
+        $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
+        $replyId  = $this->insertComment($post->id, $admin->id, '답글', ['parent_id' => $parentId]);
+
+        // 답글에는 답글을 달 수 없다(1단계 제한).
+        // 404 는 Feature 테스트에서 응답이 아니라 예외로 전파된다(AdminCategoriesTest 관례).
+        $this->expectException(PageNotFoundException::class);
+        $this->actingAs($admin)->call('POST', 'admin/comments/' . $replyId . '/reply', ['body' => '답글의 답글']);
+    }
+
+    public function testReplyToHiddenCommentIsRejected(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $id    = $this->insertComment($post->id, $admin->id, '숨긴 댓글', ['status' => Comment::STATUS_HIDDEN]);
+
+        // 404 는 Feature 테스트에서 응답이 아니라 예외로 전파된다(AdminCategoriesTest 관례).
+        $this->expectException(PageNotFoundException::class);
+        $this->actingAs($admin)->call('POST', 'admin/comments/' . $id . '/reply', ['body' => '숨긴 것에 답글']);
+    }
+
+    public function testEmptyReplyIsRejected(): void
+    {
+        $admin    = $this->makeAdmin();
+        $post     = $this->makePost($admin->id);
+        $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
+
+        $this->actingAs($admin)->call('POST', 'admin/comments/' . $parentId . '/reply', ['body' => '']);
+
+        $this->dontSeeInDatabase('comments', ['parent_id' => $parentId]);
+    }
+
+    public function testNormalUserCannotReply(): void
+    {
+        $admin    = $this->makeAdmin();
+        $post     = $this->makePost($admin->id);
+        $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
+        $user     = $this->makeUser('normal', 'normal@example.com');
+
+        $this->actingAs($user)->call('POST', 'admin/comments/' . $parentId . '/reply', ['body' => '침입 답글'])
+            ->assertRedirect();
+
+        $this->dontSeeInDatabase('comments', ['body' => '침입 답글']);
+    }
+
+    public function testReplyFormIsRenderedForEachRow(): void
+    {
+        $admin    = $this->makeAdmin();
+        $post     = $this->makePost($admin->id);
+        $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
+
+        $result = $this->actingAs($admin)->call('GET', 'admin/comments');
+
+        $result->assertStatus(200);
+        // 행마다 답글 폼이 실려 있어야 JS 없이도 답글을 달 수 있다.
+        $this->assertStringContainsString(
+            'action="' . site_url('admin/comments/' . $parentId . '/reply') . '"',
+            $this->decodedBody($result)
+        );
     }
 }

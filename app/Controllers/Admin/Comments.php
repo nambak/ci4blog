@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Entities\Comment;
 use App\Models\CommentModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
 
 /**
@@ -169,5 +170,44 @@ class Comments extends BaseController
         }
 
         return redirect()->back()->with('message', "{$count}개 댓글을 {$verb}했습니다.");
+    }
+
+    /**
+     * 부모 댓글에 관리자 답글을 단다.
+     *
+     * post_id 는 **부모에서 가져온다** — 요청에서 받으면 위조할 수 있다.
+     * 답글에는 답글을 달 수 없고(1단계 제한), 숨긴 댓글에도 달 수 없다(의미가 없다).
+     */
+    public function reply(int $commentId): RedirectResponse
+    {
+        $model  = model(CommentModel::class);
+        $parent = $model->find($commentId);
+
+        if ($parent === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 1단계 제한: 답글에는 답글을 달 수 없다.
+        if ($parent->isReply()) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 숨긴 댓글에 답글을 다는 것은 의미가 없다(공개 화면에 함께 안 보인다).
+        if ($parent->isHidden()) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $data = [
+            'post_id'   => (int) $parent->post_id,
+            'user_id'   => auth()->id(),
+            'parent_id' => $commentId,
+            'body'      => $this->request->getPost('body'),
+        ];
+
+        if (! $model->insert($data)) {
+            return redirect()->back()->withInput()->with('errors', $model->errors());
+        }
+
+        return redirect()->back()->with('message', '답글을 남겼습니다.');
     }
 }

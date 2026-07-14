@@ -131,6 +131,23 @@
                                         <span class="ct-reply-mark">↳ 내 답글</span> · <?= esc($reply->body) ?>
                                     </div>
                                 <?php endforeach ?>
+
+                                <?php // 빠른 답글. <details> 라 JS 없이 펼쳐진다.
+                                      // 숨긴 댓글에는 답글을 달 수 없으므로 폼을 아예 그리지 않는다. ?>
+                                <?php if (! $comment->isHidden()): ?>
+                                    <details class="ct-replybox">
+                                        <summary>답글</summary>
+                                        <form method="post" action="<?= site_url('admin/comments/' . $comment->id . '/reply') ?>">
+                                            <?= csrf_field() ?>
+                                            <textarea name="body" rows="3"
+                                                      placeholder="<?= esc($comment->authorName, 'attr') ?>님에게 답글…"
+                                                      aria-label="답글 내용"></textarea>
+                                            <div class="ct-replybox-foot">
+                                                <button type="submit" class="btn">답글 남기기</button>
+                                            </div>
+                                        </form>
+                                    </details>
+                                <?php endif ?>
                             </div>
                         </li>
                     <?php endforeach ?>

@@ -436,6 +436,28 @@ textarea { resize: vertical; line-height: 1.7; }
 
 .ct-reply-mark { color: var(--color-accent); font-weight: 600; }
 
+.ct-replybox { margin-top: 0.75rem; }
+.ct-replybox > summary {
+    cursor: pointer;
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: var(--color-ink-2);
+}
+.ct-replybox[open] > summary { margin-bottom: 0.5rem; }
+.ct-replybox textarea {
+    width: 100%;
+    padding: 0.625rem;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 0.875rem;
+    resize: vertical;
+}
+.ct-replybox-foot { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+
 .badge-hidden { background: var(--color-line-soft); color: var(--color-ink-3); }
 
 .bulkbar-spacer { flex: 1; }
