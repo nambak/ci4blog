@@ -353,9 +353,15 @@ final class AdminCommentsTest extends CIUnitTestCase
     {
         $admin    = $this->makeAdmin();
         $post     = $this->makePost($admin->id);
+        $other    = $this->makePost($admin->id, '남의 글');   // post_id 위조 시도용
         $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
 
-        $this->actingAs($admin)->call('POST', 'admin/comments/' . $parentId . '/reply', ['body' => '관리자 답글입니다']);
+        // post_id 를 요청에 함께 실어 위조를 시도한다 — 컨트롤러는 이를 무시하고
+        // 부모 댓글의 post_id 를 써야 한다.
+        $this->actingAs($admin)->call('POST', 'admin/comments/' . $parentId . '/reply', [
+            'body'    => '관리자 답글입니다',
+            'post_id' => $other->id,
+        ]);
 
         $this->seeInDatabase('comments', [
             'parent_id' => $parentId,
@@ -364,6 +370,7 @@ final class AdminCommentsTest extends CIUnitTestCase
             'body'      => '관리자 답글입니다',
             'status'    => Comment::STATUS_VISIBLE,
         ]);
+        $this->dontSeeInDatabase('comments', ['parent_id' => $parentId, 'post_id' => $other->id]);
     }
 
     public function testReplyToReplyIsRejected(): void
@@ -419,14 +426,23 @@ final class AdminCommentsTest extends CIUnitTestCase
         $admin    = $this->makeAdmin();
         $post     = $this->makePost($admin->id);
         $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
+        $hiddenId = $this->insertComment($post->id, $admin->id, '숨긴 댓글', ['status' => Comment::STATUS_HIDDEN]);
 
         $result = $this->actingAs($admin)->call('GET', 'admin/comments');
 
         $result->assertStatus(200);
+        $body = $this->decodedBody($result);
+
         // 행마다 답글 폼이 실려 있어야 JS 없이도 답글을 달 수 있다.
         $this->assertStringContainsString(
             'action="' . site_url('admin/comments/' . $parentId . '/reply') . '"',
-            $this->decodedBody($result)
+            $body
+        );
+
+        // 숨긴 댓글은 답글이 의미 없으므로(공개 화면에 안 보인다) 폼 자체를 그리지 않는다.
+        $this->assertStringNotContainsString(
+            'action="' . site_url('admin/comments/' . $hiddenId . '/reply') . '"',
+            $body
         );
     }
 }
