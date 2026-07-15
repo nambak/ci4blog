@@ -225,6 +225,33 @@ final class AdminCommentsTest extends CIUnitTestCase
         $this->assertSame('1', $countMatch[1]);
     }
 
+    public function testAllTabCountExcludesReplyMatchingSearchByAuthorName(): void
+    {
+        $admin  = $this->makeAdmin();
+        $other  = $this->makeUser('other', 'other@example.com');
+        $target = $this->makeUser('needle', 'needle@example.com');
+        $post   = $this->makePost($admin->id);
+
+        // 검색어와 무관한 작성자·본문의 최상위 댓글.
+        $parentId = $this->insertComment($post->id, $other->id, '무관한 댓글');
+        // 검색어(needle)와 일치하는 작성자명을 가진 답글 — 최상위가 아니다.
+        $this->insertComment($post->id, $target->id, '답글은 최상위 카운트에 잡히면 안 된다', ['parent_id' => $parentId]);
+
+        $result = $this->actingAs($admin)->call('GET', 'admin/comments?q=needle');
+
+        $result->assertStatus(200);
+
+        // AND 가 OR 보다 우선순위가 높으므로, statusCounts() 의 검색 조건이
+        // groupStart/groupEnd 로 묶이지 않으면 "parent_id IS NULL AND body LIKE q" OR
+        // "username LIKE q" 가 되어 답글(parent_id 있음)이 새어 든다.
+        preg_match('/<div class="posts-tabs">.*?<\/div>/s', $this->decodedBody($result), $tabsMatch);
+        $this->assertNotEmpty($tabsMatch, '탭 바를 찾지 못했다.');
+
+        preg_match('/status=all[^"]*"[^>]*>\s*전체\s*<span class="tab-count">(\d+)<\/span>/s', $tabsMatch[0], $countMatch);
+        $this->assertNotEmpty($countMatch, "'전체' 탭의 카운트를 찾지 못했다.");
+        $this->assertSame('0', $countMatch[1]);
+    }
+
     public function testStatCardsShowGlobalTotalsNotSearchScoped(): void
     {
         $admin = $this->makeAdmin();

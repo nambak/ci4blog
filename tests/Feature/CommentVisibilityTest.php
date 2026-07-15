@@ -134,4 +134,19 @@ final class CommentVisibilityTest extends CIUnitTestCase
         $result->assertStatus(200);
         $result->assertSee('2', '.comments-count');
     }
+
+    public function testCountExcludesReplyOfHiddenParentEvenWhenReplyItselfIsVisible(): void
+    {
+        $user     = $this->makeUser();
+        $post     = $this->makePost($user->id);
+        $parentId = $this->insertComment($post->id, $user->id, '숨긴 부모', ['status' => Comment::STATUS_HIDDEN]);
+        // 답글 자신의 status 는 visible(오버라이드 없음)이지만, 부모가 숨겨졌으므로 함께 빠져야 한다.
+        $this->insertComment($post->id, $user->id, '부모가 숨겨진 답글', ['parent_id' => $parentId]);
+
+        $this->assertSame(0, model(CommentModel::class)->countForPost((int) $post->id));
+
+        $result = $this->call('GET', 'posts/' . $post->slug);
+        $result->assertStatus(200);
+        $result->assertSee('0', '.comments-count');
+    }
 }
