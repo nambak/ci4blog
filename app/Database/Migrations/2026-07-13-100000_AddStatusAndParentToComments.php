@@ -38,20 +38,18 @@ class AddStatusAndParentToComments extends Migration
 
         // 부모를 지우면 답글도 함께 사라진다(고아 답글 방지). 애플리케이션 코드가
         // 정리할 필요가 없다. SQLite 는 테이블 재생성이 필요해 MySQL 에서만 건다.
+        // Forge 의 addForeignKey()+processIndexes() 는 이미 존재하는 테이블에도
+        // ALTER TABLE ADD CONSTRAINT 를 발행한다(raw SQL 대신 프레임워크 API 사용).
         if ($this->db->DBDriver === 'MySQLi') {
-            $this->db->query(
-                'ALTER TABLE ' . $this->db->prefixTable('comments')
-                . ' ADD CONSTRAINT fk_comments_parent'
-                . ' FOREIGN KEY (parent_id) REFERENCES ' . $this->db->prefixTable('comments') . '(id)'
-                . ' ON DELETE CASCADE'
-            );
+            $this->forge->addForeignKey('parent_id', 'comments', 'id', '', 'CASCADE', 'fk_comments_parent');
+            $this->forge->processIndexes('comments');
         }
     }
 
     public function down()
     {
         if ($this->db->DBDriver === 'MySQLi') {
-            $this->db->query('ALTER TABLE ' . $this->db->prefixTable('comments') . ' DROP FOREIGN KEY fk_comments_parent');
+            $this->forge->dropForeignKey('comments', 'fk_comments_parent');
         }
 
         $this->forge->dropColumn('comments', ['status', 'parent_id']);

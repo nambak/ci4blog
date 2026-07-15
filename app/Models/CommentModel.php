@@ -23,7 +23,7 @@ class CommentModel extends Model
 
     protected $validationRules = [
         'body'   => 'required',
-        'status' => 'permit_empty|in_list[visible,hidden]',
+        'status' => 'permit_empty|in_list[' . Comment::STATUS_VISIBLE . ',' . Comment::STATUS_HIDDEN . ']',
     ];
 
     protected $validationMessages = [
