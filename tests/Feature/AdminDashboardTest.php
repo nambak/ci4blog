@@ -181,6 +181,20 @@ final class AdminDashboardTest extends CIUnitTestCase
         );
     }
 
+    public function testDashboardLinksToCommentAdmin(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $result = $this->actingAs($admin)->call('GET', 'admin');
+
+        $result->assertStatus(200);
+        $result->assertSee('댓글 관리 →');
+        $this->assertStringContainsString(
+            'class="card-link" href="' . site_url('admin/comments') . '"',
+            $result->getBody()
+        );
+    }
+
     public function testHeaderHasNoPostAdminNavLink(): void
     {
         $admin = $this->makeAdmin();

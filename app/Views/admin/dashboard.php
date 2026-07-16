@@ -47,7 +47,10 @@
             </section>
 
             <section class="card" aria-label="최근 댓글">
-                <div class="card-head"><h2>최근 댓글</h2></div>
+                <div class="card-head">
+                    <h2>최근 댓글</h2>
+                    <a class="card-link" href="<?= site_url('admin/comments') ?>">댓글 관리 →</a>
+                </div>
                 <?php if (empty($recentComments)): ?>
                     <p class="card-empty">아직 댓글이 없습니다.</p>
                 <?php else: ?>
