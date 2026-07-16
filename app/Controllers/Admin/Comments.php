@@ -196,7 +196,7 @@ class Comments extends BaseController
     {
         $action = (string) $this->request->getPost('action');
 
-        if (! in_array($action, ['hide', 'restore', 'delete'], true)) {
+        if (! in_array($action, ['hide', 'restore', 'delete', 'review_reports'], true)) {
             return redirect()->back()->with('errors', ['알 수 없는 작업입니다.']);
         }
 
@@ -218,6 +218,12 @@ class Comments extends BaseController
             $model->delete($ids);
 
             return redirect()->back()->with('message', "{$count}개 댓글을 삭제했습니다.");
+        }
+
+        if ($action === 'review_reports') {
+            model(CommentReportModel::class)->markReviewedForComments($ids);
+
+            return redirect()->back()->with('message', "{$count}개 댓글의 신고를 처리했습니다.");
         }
 
         // 남은 둘은 상태 변경이다. hide·restore 를 각각 명시적으로 매핑해,

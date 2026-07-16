@@ -640,4 +640,40 @@ final class AdminCommentsTest extends CIUnitTestCase
         // pending 신고 없는 댓글엔 뱃지가 없다('신고 0' 이 뜨면 if ($rc > 0) 가드가 뚫린 것).
         $this->assertStringNotContainsString('신고 0', $body);
     }
+
+    public function testReviewReportsActionMarksReportsReviewed(): void
+    {
+        $admin    = $this->makeAdmin();
+        $reporter = $this->makeUser('reporter', 'reporter@example.com');
+        $post     = $this->makePost($admin->id);
+        $comment  = $this->insertComment($post->id, $admin->id, '신고된 댓글');
+        $this->report($comment, $reporter->id, 'spam', 'pending');
+
+        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', [
+            'action' => 'review_reports',
+            'ids'    => [$comment],
+        ]);
+
+        // 신고가 reviewed 로 바뀌고, 신고 탭에서 사라진다.
+        $this->seeInDatabase('comment_reports', ['comment_id' => $comment, 'status' => 'reviewed']);
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments?status=reported'));
+        $this->assertStringNotContainsString('신고된 댓글', $body);
+    }
+
+    public function testDeletingReportedCommentDeletesItsReports(): void
+    {
+        $admin    = $this->makeAdmin();
+        $reporter = $this->makeUser('reporter', 'reporter@example.com');
+        $post     = $this->makePost($admin->id);
+        $comment  = $this->insertComment($post->id, $admin->id, '신고된 댓글');
+        $this->report($comment, $reporter->id, 'spam', 'pending');
+
+        $this->actingAs($admin)->call('POST', 'admin/comments/bulk', [
+            'action' => 'delete',
+            'ids'    => [$comment],
+        ]);
+
+        $this->dontSeeInDatabase('comments', ['id' => $comment]);
+        $this->dontSeeInDatabase('comment_reports', ['comment_id' => $comment]);
+    }
 }

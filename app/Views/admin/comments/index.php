@@ -119,6 +119,7 @@
                         <span class="bulkbar-sep">|</span>
                         <button type="submit" class="bulk-btn" name="action" value="hide">숨김</button>
                         <button type="submit" class="bulk-btn" name="action" value="restore">복원</button>
+                        <button type="submit" class="bulk-btn" name="action" value="review_reports">신고 처리</button>
                         <button type="submit" class="bulk-btn bulk-btn-danger" name="action" value="delete"
                                 data-confirm="선택한 댓글을 삭제합니다. 답글도 함께 지워지고 되돌릴 수 없습니다. 계속할까요?">삭제</button>
                         <div class="bulkbar-spacer"></div>
