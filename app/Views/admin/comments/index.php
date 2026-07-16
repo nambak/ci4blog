@@ -127,8 +127,9 @@
 
                                 <?php // 이 댓글에 달린 관리자 답글. 없으면 아무것도 그리지 않는다. ?>
                                 <?php foreach ($replies[(int) $comment->id] ?? [] as $reply): ?>
+                                    <?php // 답글은 여러 관리자가 달 수 있으므로, 내 답글이 아니면 실제 작성자명을 보여준다. ?>
                                     <div class="ct-reply">
-                                        <span class="ct-reply-mark">↳ 내 답글</span> · <?= esc($reply->body) ?>
+                                        <span class="ct-reply-mark">↳ <?= (int) $reply->user_id === (int) auth()->id() ? '내 답글' : esc($reply->authorName) . ' 답글' ?></span> · <?= esc($reply->body) ?>
                                     </div>
                                 <?php endforeach ?>
 
