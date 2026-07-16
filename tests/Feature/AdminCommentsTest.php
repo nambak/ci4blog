@@ -486,8 +486,8 @@ final class AdminCommentsTest extends CIUnitTestCase
 
         $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments'));
 
-        // 내가 단 답글이 아니므로 실제 작성자명이 보여야 하고, '내 답글' 이라 오표기하면 안 된다.
-        $this->assertStringContainsString('다른관리자', $body);
+        // 내가 단 답글이 아니므로 '{작성자명} 답글' 형태로 보여야 하고, '내 답글' 이라 오표기하면 안 된다.
+        $this->assertStringContainsString('다른관리자 답글', $body);
         $this->assertStringNotContainsString('내 답글', $body);
     }
 
