@@ -493,6 +493,11 @@ final class AdminCommentsTest extends CIUnitTestCase
 
         $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments'));
 
+        // 위치 비교 전에 둘 다 렌더됐는지 확인한다(안 그러면 없는 문자열의 mb_strpos=false 가
+        // 0 으로 취급돼 순서가 틀려도 통과하는 오탐이 난다).
+        $this->assertStringContainsString('오래된 댓글', $body);
+        $this->assertStringContainsString('최신 댓글', $body);
+
         // 정렬 파라미터가 없으면 최신순: '최신 댓글' 이 '오래된 댓글' 보다 먼저 나온다.
         $this->assertLessThan(mb_strpos($body, '오래된 댓글'), mb_strpos($body, '최신 댓글'));
     }
@@ -507,6 +512,9 @@ final class AdminCommentsTest extends CIUnitTestCase
         $this->setCreatedAt($new, '2026-06-01 09:00:00');
 
         $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments?sort=oldest'));
+
+        $this->assertStringContainsString('오래된 댓글', $body);
+        $this->assertStringContainsString('최신 댓글', $body);
 
         // ?sort=oldest 면 순서가 뒤집힌다: '오래된 댓글' 이 먼저.
         $this->assertLessThan(mb_strpos($body, '최신 댓글'), mb_strpos($body, '오래된 댓글'));
@@ -526,6 +534,8 @@ final class AdminCommentsTest extends CIUnitTestCase
 
         $result->assertStatus(200);
         $body = $this->decodedBody($result);
+        $this->assertStringContainsString('오래된 댓글', $body);
+        $this->assertStringContainsString('최신 댓글', $body);
         $this->assertLessThan(mb_strpos($body, '오래된 댓글'), mb_strpos($body, '최신 댓글'));
     }
 
