@@ -18,6 +18,16 @@ class Comments extends BaseController
 {
     private const PER_PAGE = 20;
 
+    /**
+     * 정렬 화이트리스트. 키는 ?sort= 값, 값은 [컬럼, 방향]이다.
+     * 화이트리스트로 두는 이유는 ?sort= 를 orderBy 에 그대로 넘기지 않기 위해서다
+     * (임의 컬럼·SQL 조각 주입 차단). 목록의 기본은 첫 항목('newest')이다.
+     */
+    private const SORTS = [
+        'newest' => ['comments.created_at', 'DESC'],
+        'oldest' => ['comments.created_at', 'ASC'],
+    ];
+
     public function index(): string
     {
         // 탭. 허용 값 밖이면 조용히 '전체'로 떨어뜨린다.
@@ -25,6 +35,13 @@ class Comments extends BaseController
         if (! in_array($status, Comment::STATUSES, true)) {
             $status = 'all';
         }
+
+        // 정렬. 화이트리스트 밖(오타·위조)이면 조용히 기본값 'newest'로 떨어뜨린다.
+        $sort = (string) ($this->request->getGet('sort') ?? 'newest');
+        if (! isset(self::SORTS[$sort])) {
+            $sort = 'newest';
+        }
+        [$sortColumn, $sortDir] = self::SORTS[$sort];
 
         $search = trim((string) $this->request->getGet('q'));
 
@@ -48,20 +65,22 @@ class Comments extends BaseController
                 ->groupEnd();
         }
 
+        // 2차 정렬은 created_at 동률일 때 순서를 확정하려는 것이라, 1차 정렬 방향을 따라간다.
         $comments = $model
-            ->orderBy('comments.created_at', 'DESC')
-            ->orderBy('comments.id', 'DESC')
+            ->orderBy($sortColumn, $sortDir)
+            ->orderBy('comments.id', $sortDir)
             ->paginate(self::PER_PAGE);
 
         // CI4 Pager 는 현재 $_GET 전체를 페이지 링크에 옮겨 담는다. only() 는 그 범위를
-        // status·q 두 키로 좁히는 것이다(관계없는 파라미터가 새어 들어가지 않도록).
-        $model->pager->only(['status', 'q']);
+        // status·q·sort 세 키로 좁히는 것이다(관계없는 파라미터가 새어 들어가지 않도록).
+        $model->pager->only(['status', 'q', 'sort']);
 
         return view('admin/comments/index', [
             'comments' => $comments,
             'replies'  => $this->repliesFor($comments),
             'pager'    => $model->pager,
             'status'   => $status,
+            'sort'     => $sort,
             'search'   => $search,
             // 탭 카운트는 검색 결과 안의 분포(탭 숫자와 보이는 행 수를 맞춘다).
             'counts' => model(CommentModel::class)->statusCounts($search !== '' ? $search : null),
