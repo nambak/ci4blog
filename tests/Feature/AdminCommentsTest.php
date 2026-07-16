@@ -472,4 +472,36 @@ final class AdminCommentsTest extends CIUnitTestCase
             $body
         );
     }
+
+    public function testReplyPreviewShowsAuthorNameForAnotherAdminsReply(): void
+    {
+        $admin      = $this->makeAdmin();
+        $otherAdmin = $this->makeUser('다른관리자', 'other-admin@example.com');
+        $otherAdmin->addGroup('admin');
+
+        $post     = $this->makePost($admin->id);
+        $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
+        // 답글은 '다른관리자' 가 달았다. 지금 보는 사람은 $admin 이다.
+        $this->insertComment($post->id, $otherAdmin->id, '남이 단 답글', ['parent_id' => $parentId]);
+
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments'));
+
+        // 내가 단 답글이 아니므로 '{작성자명} 답글' 형태로 보여야 하고, '내 답글' 이라 오표기하면 안 된다.
+        $this->assertStringContainsString('다른관리자 답글', $body);
+        $this->assertStringNotContainsString('내 답글', $body);
+    }
+
+    public function testReplyPreviewShowsMineLabelForOwnReply(): void
+    {
+        $admin    = $this->makeAdmin();
+        $post     = $this->makePost($admin->id);
+        $parentId = $this->insertComment($post->id, $admin->id, '부모 댓글');
+        // 답글을 내가($admin) 직접 달았다.
+        $this->insertComment($post->id, $admin->id, '내가 단 답글', ['parent_id' => $parentId]);
+
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments'));
+
+        // 내 답글에는 '내 답글' 라벨이 붙어야 한다.
+        $this->assertStringContainsString('내 답글', $body);
+    }
 }
