@@ -25,14 +25,39 @@ $renderComment = static function ($comment, bool $isReply) use ($post): void {
 
             <div class="comment-body"><?= nl2br(esc($comment->body)) ?></div>
 
-            <?php // 댓글 작성자 본인·글 작성자·관리자에게만 삭제 버튼을 노출한다(acl 헬퍼). ?>
-            <?php if (is_owner_or_admin($comment->user_id) || is_owner_or_admin($post->user_id)): ?>
+            <?php
+            // 삭제: 댓글 작성자 본인·글 작성자·관리자. 신고: 로그인했고 남의 최상위 visible 댓글일 때.
+            $canDelete = is_owner_or_admin($comment->user_id) || is_owner_or_admin($post->user_id);
+            $canReport = auth()->loggedIn()
+                && (int) auth()->id() !== (int) $comment->user_id
+                && ! $comment->isHidden()
+                && ! $isReply;
+            ?>
+            <?php if ($canDelete || $canReport): ?>
                 <div class="comment-foot">
-                    <form action="<?= site_url('comments/' . $comment->id . '/delete') ?>" method="post"
-                          onsubmit="return confirm('댓글을 삭제하시겠습니까?');">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="comment-delete">삭제</button>
-                    </form>
+                    <?php if ($canDelete): ?>
+                        <form action="<?= site_url('comments/' . $comment->id . '/delete') ?>" method="post"
+                              onsubmit="return confirm('댓글을 삭제하시겠습니까?');">
+                            <?= csrf_field() ?>
+                            <button type="submit" class="comment-delete">삭제</button>
+                        </form>
+                    <?php endif ?>
+
+                    <?php if ($canReport): ?>
+                        <?php // <details> 라 JS 없이 펼쳐진다. 사유는 CommentReportModel 상수와 공유. ?>
+                        <details class="comment-report">
+                            <summary>신고</summary>
+                            <form action="<?= site_url('comments/' . $comment->id . '/report') ?>" method="post">
+                                <?= csrf_field() ?>
+                                <select name="reason" aria-label="신고 사유">
+                                    <?php foreach (\App\Models\CommentReportModel::REASONS as $value => $label): ?>
+                                        <option value="<?= esc($value, 'attr') ?>"><?= esc($label) ?></option>
+                                    <?php endforeach ?>
+                                </select>
+                                <button type="submit" class="comment-report-btn">신고</button>
+                            </form>
+                        </details>
+                    <?php endif ?>
                 </div>
             <?php endif ?>
         </div>
