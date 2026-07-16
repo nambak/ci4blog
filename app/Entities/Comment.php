@@ -8,6 +8,8 @@ use CodeIgniter\Entity\Entity;
  * 댓글 한 건을 나타내는 도메인 객체.
  *
  * forPost() 조인으로 들어온 작성자명은 $comment->username 으로 접근한다.
+ *
+ * @property Comment[] $replies forPost() 가 최상위 댓글에 채워 넣는 답글 목록(동적 속성).
  */
 class Comment extends Entity
 {
