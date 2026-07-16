@@ -349,6 +349,14 @@ textarea { resize: vertical; line-height: 1.7; }
 .posts-search input[type="search"] { flex: 1; max-width: 280px; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: var(--radius); background: var(--color-paper); color: var(--color-ink); }
 .posts-search input[type="search"]:focus { outline: none; border-color: var(--color-accent); }
 
+/* 검색 + 정렬을 한 줄에. 좁은 화면에서는 접혀 내려간다. */
+.ct-filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.ct-filters .posts-search { margin: 0; flex: 1; min-width: 240px; }
+.ct-sort { display: flex; align-items: center; gap: .5rem; margin: 0 0 1rem; }
+.ct-sort-label { font-size: .8125rem; color: var(--color-ink-3); }
+.ct-sort-select { padding: 8px 12px; border: 1px solid var(--color-line); border-radius: var(--radius); background: var(--color-paper); color: var(--color-ink); font: inherit; font-size: .8125rem; }
+.ct-sort-select:focus { outline: none; border-color: var(--color-accent); }
+
 .posts-tabs { display: flex; border-bottom: 1px solid var(--color-line); }
 .tab { display: inline-flex; align-items: center; gap: .5rem; padding: 14px 20px; font-size: 13px; color: var(--color-ink-3); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tab:hover { color: var(--color-ink); }

@@ -11,6 +11,15 @@
 (function () {
     'use strict';
 
+    // 정렬 드롭다운: JS 가 있으면 값이 바뀌는 즉시 폼을 제출한다(<noscript> 버튼 대체).
+    // 이 폼은 댓글이 없어도(빈 목록) 그려지므로 bulk-form 유무와 무관하게 먼저 처리한다.
+    var sortSelect = document.querySelector('.ct-sort select[data-autosubmit]');
+    if (sortSelect && sortSelect.form) {
+        sortSelect.addEventListener('change', function () {
+            sortSelect.form.submit();
+        });
+    }
+
     var form = document.getElementById('bulk-form');
     if (!form) {
         return;

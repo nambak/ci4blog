@@ -473,6 +473,79 @@ final class AdminCommentsTest extends CIUnitTestCase
         );
     }
 
+    /**
+     * 댓글의 created_at 을 직접 지정한다. created_at 은 CommentModel 의 allowedFields 밖이라
+     * insert 로는 넣을 수 없어, 정렬 순서를 검증하려면 DB 에 직접 박아야 한다.
+     */
+    private function setCreatedAt(int $commentId, string $createdAt): void
+    {
+        db_connect()->table('comments')->where('id', $commentId)->update(['created_at' => $createdAt]);
+    }
+
+    public function testDefaultSortShowsNewestFirst(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $old   = $this->insertComment($post->id, $admin->id, '오래된 댓글');
+        $new   = $this->insertComment($post->id, $admin->id, '최신 댓글');
+        $this->setCreatedAt($old, '2026-01-01 09:00:00');
+        $this->setCreatedAt($new, '2026-06-01 09:00:00');
+
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments'));
+
+        // 정렬 파라미터가 없으면 최신순: '최신 댓글' 이 '오래된 댓글' 보다 먼저 나온다.
+        $this->assertLessThan(mb_strpos($body, '오래된 댓글'), mb_strpos($body, '최신 댓글'));
+    }
+
+    public function testSortOldestShowsOldestFirst(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $old   = $this->insertComment($post->id, $admin->id, '오래된 댓글');
+        $new   = $this->insertComment($post->id, $admin->id, '최신 댓글');
+        $this->setCreatedAt($old, '2026-01-01 09:00:00');
+        $this->setCreatedAt($new, '2026-06-01 09:00:00');
+
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments?sort=oldest'));
+
+        // ?sort=oldest 면 순서가 뒤집힌다: '오래된 댓글' 이 먼저.
+        $this->assertLessThan(mb_strpos($body, '최신 댓글'), mb_strpos($body, '오래된 댓글'));
+    }
+
+    public function testUnknownSortFallsBackToNewest(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $old   = $this->insertComment($post->id, $admin->id, '오래된 댓글');
+        $new   = $this->insertComment($post->id, $admin->id, '최신 댓글');
+        $this->setCreatedAt($old, '2026-01-01 09:00:00');
+        $this->setCreatedAt($new, '2026-06-01 09:00:00');
+
+        // 화이트리스트 밖 값(오타·위조)은 조용히 최신순으로 떨어진다.
+        $result = $this->actingAs($admin)->call('GET', 'admin/comments?sort=; DROP TABLE comments;--');
+
+        $result->assertStatus(200);
+        $body = $this->decodedBody($result);
+        $this->assertLessThan(mb_strpos($body, '오래된 댓글'), mb_strpos($body, '최신 댓글'));
+    }
+
+    public function testSortControlPreservesStatusAndSearchAndTabsPreserveSort(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $this->insertComment($post->id, $admin->id, '검색어포함 댓글');
+
+        $body = $this->decodedBody(
+            $this->actingAs($admin)->call('GET', 'admin/comments?status=all&q=검색어포함&sort=oldest')
+        );
+
+        // 정렬 드롭다운이 있고, 현재 status·q 를 잃지 않도록 hidden 으로 싣는다.
+        $this->assertStringContainsString('name="sort"', $body);
+        $this->assertStringContainsString('name="q" value="검색어포함"', $body);
+        // 탭 링크는 현재 정렬(sort=oldest)을 유지해야 정렬을 건 채로 탭을 옮길 수 있다.
+        $this->assertStringContainsString('sort=oldest', $body);
+    }
+
     public function testReplyPreviewShowsAuthorNameForAnotherAdminsReply(): void
     {
         $admin      = $this->makeAdmin();

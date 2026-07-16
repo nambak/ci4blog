@@ -8,11 +8,14 @@
     // 탭 카운트는 검색 결과 안의 분포이고, 카드는 전체 기준이다.
     $visible = array_sum($counts);
 
-    /** 현재 검색어를 유지한 채 status 만 바꾼 URL. */
-    $tabUrl = static function (string $tab) use ($search): string {
+    /** 현재 검색어·정렬을 유지한 채 status 만 바꾼 URL. */
+    $tabUrl = static function (string $tab) use ($search, $sort): string {
         $query = ['status' => $tab];
         if ($search !== '') {
             $query['q'] = $search;
+        }
+        if ($sort !== 'newest') {
+            $query['sort'] = $sort;
         }
 
         return site_url('admin/comments') . '?' . http_build_query($query);
@@ -21,6 +24,12 @@
     $tabs = [
         'all'    => ['전체', $visible],
         'hidden' => ['숨김', $counts['hidden']],
+    ];
+
+    // 정렬 드롭다운 옵션. 키는 ?sort= 값(컨트롤러 화이트리스트와 일치).
+    $sortOptions = [
+        'newest' => '최신순',
+        'oldest' => '오래된순',
     ];
     ?>
 
@@ -62,11 +71,30 @@
             </div>
         </section>
 
-        <form class="posts-search" method="get" action="<?= site_url('admin/comments') ?>" role="search">
-            <input type="hidden" name="status" value="<?= esc($status, 'attr') ?>">
-            <input type="search" name="q" value="<?= esc($search, 'attr') ?>" placeholder="댓글 또는 작성자 검색" aria-label="댓글 또는 작성자 검색">
-            <button type="submit" class="btn btn-ghost">검색</button>
-        </form>
+        <div class="ct-filters">
+            <form class="posts-search" method="get" action="<?= site_url('admin/comments') ?>" role="search">
+                <input type="hidden" name="status" value="<?= esc($status, 'attr') ?>">
+                <input type="hidden" name="sort" value="<?= esc($sort, 'attr') ?>">
+                <input type="search" name="q" value="<?= esc($search, 'attr') ?>" placeholder="댓글 또는 작성자 검색" aria-label="댓글 또는 작성자 검색">
+                <button type="submit" class="btn btn-ghost">검색</button>
+            </form>
+
+            <?php // 정렬 드롭다운. GET 폼이라 JS 없이도 '정렬' 버튼으로 적용된다.
+                  // 현재 status·q 를 hidden 으로 실어, 정렬을 바꿔도 탭·검색을 잃지 않는다. ?>
+            <form class="ct-sort" method="get" action="<?= site_url('admin/comments') ?>">
+                <input type="hidden" name="status" value="<?= esc($status, 'attr') ?>">
+                <?php if ($search !== ''): ?>
+                    <input type="hidden" name="q" value="<?= esc($search, 'attr') ?>">
+                <?php endif ?>
+                <label class="ct-sort-label" for="ct-sort">정렬</label>
+                <select name="sort" id="ct-sort" class="ct-sort-select" data-autosubmit>
+                    <?php foreach ($sortOptions as $value => $label): ?>
+                        <option value="<?= esc($value, 'attr') ?>"<?= $sort === $value ? ' selected' : '' ?>><?= esc($label) ?></option>
+                    <?php endforeach ?>
+                </select>
+                <noscript><button type="submit" class="btn btn-ghost">적용</button></noscript>
+            </form>
+        </div>
 
         <section class="card">
             <div class="posts-tabs">
