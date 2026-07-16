@@ -474,6 +474,7 @@ textarea { resize: vertical; line-height: 1.7; }
 .ct-replybox-foot { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
 
 .badge-hidden { background: var(--color-line-soft); color: var(--color-ink-3); }
+.badge-report { background: var(--color-danger); color: #fff; }
 
 .bulkbar-spacer { flex: 1; }
 .bulkbar-all { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; }

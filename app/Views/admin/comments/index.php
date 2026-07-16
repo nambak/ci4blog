@@ -22,8 +22,9 @@
     };
 
     $tabs = [
-        'all'    => ['전체', $visible],
-        'hidden' => ['숨김', $counts['hidden']],
+        'all'      => ['전체', $visible],
+        'reported' => ['신고', $reportedCount],
+        'hidden'   => ['숨김', $counts['hidden']],
     ];
 
     // 정렬 드롭다운 옵션. 키는 ?sort= 값(컨트롤러 화이트리스트와 일치).
@@ -141,6 +142,10 @@
                                     <span class="ct-author"><?= esc($comment->authorName) ?></span>
                                     <?php if ($comment->isHidden()): ?>
                                         <span class="badge badge-hidden">숨김 처리됨</span>
+                                    <?php endif ?>
+                                    <?php $rc = $reportCounts[(int) $comment->id] ?? 0; ?>
+                                    <?php if ($rc > 0): ?>
+                                        <span class="badge badge-report">신고 <?= esc((string) $rc) ?></span>
                                     <?php endif ?>
                                     <?php if ($comment->created_at !== null): ?>
                                         <span class="ct-time">· <?= esc($comment->created_at->format('Y.m.d')) ?></span>

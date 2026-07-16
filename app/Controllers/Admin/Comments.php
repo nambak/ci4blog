@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Entities\Comment;
 use App\Models\CommentModel;
+use App\Models\CommentReportModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
 
@@ -30,9 +31,9 @@ class Comments extends BaseController
 
     public function index(): string
     {
-        // 탭. 허용 값 밖이면 조용히 '전체'로 떨어뜨린다.
+        // 탭. visible·hidden·reported 밖이면 조용히 '전체'로 떨어뜨린다.
         $status = (string) ($this->request->getGet('status') ?? 'all');
-        if (! in_array($status, Comment::STATUSES, true)) {
+        if (! in_array($status, [Comment::STATUS_VISIBLE, Comment::STATUS_HIDDEN, 'reported'], true)) {
             $status = 'all';
         }
 
@@ -53,7 +54,15 @@ class Comments extends BaseController
             ->join('posts', 'posts.id = comments.post_id', 'left')
             ->where('comments.parent_id', null);
 
-        if ($status !== 'all') {
+        $reports     = model(CommentReportModel::class);
+        $reportedIds = $reports->pendingReportedCommentIds();
+
+        if ($status === 'reported') {
+            // 신고 탭: pending 신고가 있는 visible 최상위 댓글만.
+            // 빈 배열이면 whereIn 이 유효한 SQL 이 되도록 매칭 안 되는 [0] 을 넣는다.
+            $model->where('comments.status', Comment::STATUS_VISIBLE)
+                ->whereIn('comments.id', $reportedIds !== [] ? $reportedIds : [0]);
+        } elseif ($status !== 'all') {
             $model->where('comments.status', $status);
         }
 
@@ -75,6 +84,13 @@ class Comments extends BaseController
         // status·q·sort 세 키로 좁히는 것이다(관계없는 파라미터가 새어 들어가지 않도록).
         $model->pager->only(['status', 'q', 'sort']);
 
+        // 뱃지: 이 페이지 댓글들의 pending 신고 수(N+1 회피).
+        $commentIds   = array_map(static fn ($c): int => (int) $c->id, $comments);
+        $reportCounts = $reports->pendingCountsByComment($commentIds);
+
+        // 신고 탭 카운트: 검색 범위 안에서 pending 신고가 있는 visible 최상위 댓글 수.
+        $reportedCount = $this->reportedCount($reportedIds, $search);
+
         return view('admin/comments/index', [
             'comments' => $comments,
             'replies'  => $this->repliesFor($comments),
@@ -86,6 +102,8 @@ class Comments extends BaseController
             'counts' => model(CommentModel::class)->statusCounts($search !== '' ? $search : null),
             // 통계 카드는 검색과 무관한 전체 기준이고, 답글까지 포함한 총계다.
             'cards' => $this->cards(),
+            'reportCounts'  => $reportCounts,
+            'reportedCount' => $reportedCount,
         ]);
     }
 
@@ -139,6 +157,33 @@ class Comments extends BaseController
                 ->where('status', Comment::STATUS_HIDDEN)
                 ->countAllResults(),
         ];
+    }
+
+    /**
+     * 신고 탭 카운트. pending 신고가 있는 visible 최상위 댓글 수(검색 범위 반영).
+     *
+     * @param int[] $reportedIds pending 신고가 있는 댓글 id 들
+     */
+    private function reportedCount(array $reportedIds, string $search): int
+    {
+        if ($reportedIds === []) {
+            return 0;
+        }
+
+        $builder = model(CommentModel::class)
+            ->join('users', 'users.id = comments.user_id', 'left')
+            ->where('comments.parent_id', null)
+            ->where('comments.status', Comment::STATUS_VISIBLE)
+            ->whereIn('comments.id', $reportedIds);
+
+        if ($search !== '') {
+            $builder->groupStart()
+                ->like('comments.body', $search)
+                ->orLike('users.username', $search)
+                ->groupEnd();
+        }
+
+        return $builder->countAllResults();
     }
 
     /**

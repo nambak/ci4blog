@@ -587,4 +587,57 @@ final class AdminCommentsTest extends CIUnitTestCase
         // 내 답글에는 '내 답글' 라벨이 붙어야 한다.
         $this->assertStringContainsString('내 답글', $body);
     }
+
+    private function report(int $commentId, int $reporterId, string $reason = 'spam', string $status = 'pending'): void
+    {
+        model(\App\Models\CommentReportModel::class)->insert([
+            'comment_id'       => $commentId,
+            'reporter_user_id' => $reporterId,
+            'reason'           => $reason,
+            'status'           => $status,
+        ]);
+    }
+
+    public function testReportedTabShowsOnlyVisibleCommentsWithPendingReports(): void
+    {
+        $admin    = $this->makeAdmin();
+        $reporter = $this->makeUser('reporter', 'reporter@example.com');
+        $post     = $this->makePost($admin->id);
+
+        $reported = $this->insertComment($post->id, $admin->id, '신고된 댓글');
+        $clean    = $this->insertComment($post->id, $admin->id, '멀쩡한 댓글');
+        $reviewed = $this->insertComment($post->id, $admin->id, '이미 검토된 신고 댓글');
+        $hidden   = $this->insertComment($post->id, $admin->id, '숨긴 신고 댓글', ['status' => Comment::STATUS_HIDDEN]);
+
+        $this->report($reported, $reporter->id, 'spam', 'pending');
+        $this->report($reviewed, $reporter->id, 'spam', 'reviewed'); // pending 아님 → 제외
+        $this->report($hidden, $reporter->id, 'spam', 'pending');    // 숨김 → 제외
+
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments?status=reported'));
+
+        $this->assertStringContainsString('신고된 댓글', $body);
+        $this->assertStringNotContainsString('멀쩡한 댓글', $body);
+        $this->assertStringNotContainsString('이미 검토된 신고 댓글', $body);
+        $this->assertStringNotContainsString('숨긴 신고 댓글', $body);
+    }
+
+    public function testReportBadgeShowsPendingCount(): void
+    {
+        $admin    = $this->makeAdmin();
+        $r1       = $this->makeUser('r1', 'r1@example.com');
+        $r2       = $this->makeUser('r2', 'r2@example.com');
+        $post     = $this->makePost($admin->id);
+        $reported = $this->insertComment($post->id, $admin->id, '신고된 댓글');
+        $clean    = $this->insertComment($post->id, $admin->id, '멀쩡한 댓글');
+
+        $this->report($reported, $r1->id, 'spam');
+        $this->report($reported, $r2->id, 'abuse');
+
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments'));
+
+        // 신고 2건이 뱃지로 보인다.
+        $this->assertStringContainsString('신고 2', $body);
+        // pending 신고 없는 댓글엔 뱃지가 없다('신고 0' 이 뜨면 if ($rc > 0) 가드가 뚫린 것).
+        $this->assertStringNotContainsString('신고 0', $body);
+    }
 }
