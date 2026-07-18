@@ -118,6 +118,23 @@ final class CommentReportTest extends CIUnitTestCase
         $this->actingAs($reporter)->call('POST', 'comments/' . $hidden . '/report', ['reason' => 'spam']);
     }
 
+    public function testCannotReportCommentOnUnpublishedPost(): void
+    {
+        $author   = $this->makeUser('author', 'author@example.com');
+        $reporter = $this->makeUser('reporter', 'reporter@example.com');
+        $post     = $this->makePost($author->id);
+        $comment  = $this->insertComment($post->id, $author->id, '신고 대상');
+
+        // 글을 발행 후에 초안으로 되돌린다. 댓글 자체는 visible 이라도, 글이
+        // 비발행이고 신고자가 글 작성자·관리자가 아니면 댓글의 존재 자체가
+        // 새어 나가면 안 된다(store() 와 동일한 규칙).
+        model(PostModel::class)->update($post->id, ['status' => Post::STATUS_DRAFT]);
+
+        // PageNotFoundException 이 call() 에서 던져진다 → insert 이전에 막혔음이 증명된다.
+        $this->expectException(\CodeIgniter\Exceptions\PageNotFoundException::class);
+        $this->actingAs($reporter)->call('POST', 'comments/' . $comment . '/report', ['reason' => 'spam']);
+    }
+
     public function testCannotReportReply(): void
     {
         $author   = $this->makeUser('author', 'author@example.com');

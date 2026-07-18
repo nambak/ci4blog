@@ -102,6 +102,15 @@ class Comments extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
+        $post = model(PostModel::class)->find((int) $comment->post_id);
+
+        // 글이 삭제되었거나 비발행(초안·비공개)인데 신고자가 글 작성자·관리자도
+        // 아니면 store() 와 같은 규칙으로 막는다. 이 가드가 없으면 댓글 자체는
+        // visible 이어도 댓글 id 를 직접 요청해 비공개 글의 댓글을 신고할 수 있다.
+        if ($post === null || (! $post->isPublished() && ! is_owner_or_admin($post->user_id))) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
         // 답글은 관리자가 단 것이고 관리 신고 탭이 최상위만 보여주므로 신고 대상에서 제외한다.
         if ($comment->isReply()) {
             throw PageNotFoundException::forPageNotFound();
