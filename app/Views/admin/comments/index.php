@@ -22,8 +22,9 @@
     };
 
     $tabs = [
-        'all'    => ['전체', $visible],
-        'hidden' => ['숨김', $counts['hidden']],
+        'all'      => ['전체', $visible],
+        'reported' => ['신고', $reportedCount],
+        'hidden'   => ['숨김', $counts['hidden']],
     ];
 
     // 정렬 드롭다운 옵션. 키는 ?sort= 값(컨트롤러 화이트리스트와 일치).
@@ -118,6 +119,7 @@
                         <span class="bulkbar-sep">|</span>
                         <button type="submit" class="bulk-btn" name="action" value="hide">숨김</button>
                         <button type="submit" class="bulk-btn" name="action" value="restore">복원</button>
+                        <button type="submit" class="bulk-btn" name="action" value="review_reports">신고 처리</button>
                         <button type="submit" class="bulk-btn bulk-btn-danger" name="action" value="delete"
                                 data-confirm="선택한 댓글을 삭제합니다. 답글도 함께 지워지고 되돌릴 수 없습니다. 계속할까요?">삭제</button>
                         <div class="bulkbar-spacer"></div>
@@ -141,6 +143,10 @@
                                     <span class="ct-author"><?= esc($comment->authorName) ?></span>
                                     <?php if ($comment->isHidden()): ?>
                                         <span class="badge badge-hidden">숨김 처리됨</span>
+                                    <?php endif ?>
+                                    <?php $rc = $reportCounts[(int) $comment->id] ?? 0; ?>
+                                    <?php if ($rc > 0): ?>
+                                        <span class="badge badge-report">신고 <?= esc((string) $rc) ?></span>
                                     <?php endif ?>
                                     <?php if ($comment->created_at !== null): ?>
                                         <span class="ct-time">· <?= esc($comment->created_at->format('Y.m.d')) ?></span>

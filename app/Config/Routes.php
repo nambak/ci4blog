@@ -21,6 +21,7 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
     $routes->post('posts/(:num)/delete', 'Posts::delete/$1'); // 글 삭제
     $routes->post('posts/(:num)/comments', 'Comments::store/$1'); // 댓글 저장
     $routes->post('comments/(:num)/delete', 'Comments::delete/$1'); // 댓글 삭제
+    $routes->post('comments/(:num)/report', 'Comments::report/$1'); // 댓글 신고
 
     $routes->get('profile', 'Profile::edit');                       // 프로필 수정 폼
     $routes->post('profile', 'Profile::update');                    // 프로필 저장(사용자명·비번·아바타)

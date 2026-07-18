@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Entities\Comment;
 use App\Entities\Post;
 use App\Models\CommentModel;
+use App\Models\CommentReportModel;
 use App\Models\PostModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
@@ -85,5 +86,64 @@ class Comments extends BaseController
         // "본인 또는 관리자" 판정은 acl 헬퍼로 모았다(관리자는 어느 쪽이든 true).
         return is_owner_or_admin($comment->user_id)
             || ($post !== null && is_owner_or_admin($post->user_id));
+    }
+
+    /**
+     * 댓글을 신고한다. (세션 필터로 로그인 사용자만 접근)
+     *
+     * 최상위 visible 댓글만 신고할 수 있다. 답글(관리자 작성)·숨김 댓글·자기 댓글은 막는다.
+     * reporter_user_id 는 auth()->id() 에서 얻는다(요청에서 받으면 위조 가능).
+     */
+    public function report(int $commentId): RedirectResponse
+    {
+        $comment = model(CommentModel::class)->find($commentId);
+
+        if ($comment === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $post = model(PostModel::class)->find((int) $comment->post_id);
+
+        // 글이 삭제되었거나 비발행(초안·비공개)인데 신고자가 글 작성자·관리자도
+        // 아니면 store() 와 같은 규칙으로 막는다. 이 가드가 없으면 댓글 자체는
+        // visible 이어도 댓글 id 를 직접 요청해 비공개 글의 댓글을 신고할 수 있다.
+        if ($post === null || (! $post->isPublished() && ! is_owner_or_admin($post->user_id))) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 답글은 관리자가 단 것이고 관리 신고 탭이 최상위만 보여주므로 신고 대상에서 제외한다.
+        if ($comment->isReply()) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 이미 안 보이는 댓글은 신고할 의미가 없다.
+        if ($comment->isHidden()) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 자기 댓글은 신고할 수 없다.
+        if ((int) $comment->user_id === (int) auth()->id()) {
+            return redirect()->back()->with('errors', ['자기 댓글은 신고할 수 없습니다.']);
+        }
+
+        $reports = model(CommentReportModel::class);
+
+        // 이미 신고했으면 조용히 넘어간다(중복 신고 방지).
+        if ($reports->hasReported($commentId, (int) auth()->id())) {
+            return redirect()->back()->with('message', '이미 신고한 댓글입니다.');
+        }
+
+        $ok = $reports->insert([
+            'comment_id'       => $commentId,
+            'reporter_user_id' => auth()->id(),
+            'reason'           => $this->request->getPost('reason'),
+            'status'           => CommentReportModel::STATUS_PENDING,
+        ]);
+
+        if (! $ok) {
+            return redirect()->back()->withInput()->with('errors', $reports->errors());
+        }
+
+        return redirect()->back()->with('message', '신고가 접수되었습니다.');
     }
 }
