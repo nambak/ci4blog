@@ -156,6 +156,8 @@ class Comments extends BaseController
             'hidden' => model(CommentModel::class)
                 ->where('status', Comment::STATUS_HIDDEN)
                 ->countAllResults(),
+            // '이번 주 새 댓글'·'전체 댓글' 카드의 지난주 대비 증감(created_at 기준).
+            'commentsDelta' => weekly_delta(model(CommentModel::class)),
         ];
     }
 

@@ -21,6 +21,9 @@ class Admin extends BaseController
             'comments'       => $comments->countAllResults(),
             'categories'     => $categories->countAllResults(),
             'postsThisMonth' => $posts->where('created_at >=', date('Y-m-01 00:00:00'))->countAllResults(),
+            // 전체 글·댓글 카드의 지난주 대비 증감(created_at 기준, 스냅샷 없음).
+            'postsDelta'    => weekly_delta(model(\App\Models\PostModel::class)),
+            'commentsDelta' => weekly_delta(model(\App\Models\CommentModel::class)),
         ];
 
         $recentPosts = model(\App\Models\PostModel::class)

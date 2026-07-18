@@ -10,10 +10,12 @@
             <div class="kpi-card">
                 <span class="kpi-label">전체 글</span>
                 <strong class="kpi-value" id="kpi-posts"><?= esc((string) $stats['posts']) ?></strong>
+                <?= view('partials/kpi_delta', ['delta' => $stats['postsDelta']]) ?>
             </div>
             <div class="kpi-card">
                 <span class="kpi-label">전체 댓글</span>
                 <strong class="kpi-value" id="kpi-comments"><?= esc((string) $stats['comments']) ?></strong>
+                <?= view('partials/kpi_delta', ['delta' => $stats['commentsDelta']]) ?>
             </div>
             <div class="kpi-card">
                 <span class="kpi-label">카테고리</span>

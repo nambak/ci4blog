@@ -263,6 +263,11 @@ textarea { resize: vertical; line-height: 1.7; }
 }
 .kpi-label { font-size: 13px; color: var(--color-ink-3); }
 .kpi-value { font-size: 28px; font-weight: 800; color: var(--color-ink); line-height: 1; }
+/* 지난주 대비 증감 배지. 화살표 색 + aria-label 문구로 의미를 전한다. */
+.kpi-delta { font-size: 12px; font-weight: 600; }
+.kpi-delta-up { color: var(--color-success); }
+.kpi-delta-down { color: var(--color-danger); }
+.kpi-delta-flat { color: var(--color-ink-4); }
 
 @media (max-width: 720px) {
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
