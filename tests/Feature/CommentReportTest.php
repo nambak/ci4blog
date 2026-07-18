@@ -139,7 +139,12 @@ final class CommentReportTest extends CIUnitTestCase
         $comment  = $this->insertComment($post->id, $author->id, '신고 대상');
 
         $this->actingAs($reporter)->call('POST', 'comments/' . $comment . '/report', ['reason' => 'spam']);
-        $this->actingAs($reporter)->call('POST', 'comments/' . $comment . '/report', ['reason' => 'abuse']);
+        $second = $this->actingAs($reporter)->call('POST', 'comments/' . $comment . '/report', ['reason' => 'abuse']);
+
+        // 두 번째 신고는 hasReported 가드 덕분에 insert 없이 리다이렉트로 조용히 처리된다.
+        // (가드가 없으면 유니크 키 위반으로 DatabaseException 이 던져져 리다이렉트가 아니게 된다.)
+        $second->assertRedirect();
+        $this->assertSame('이미 신고한 댓글입니다.', session('message'));
 
         // 두 번 신고해도 행은 하나뿐이다(유니크 + 중복 가드).
         $this->assertSame(1, model(\App\Models\CommentReportModel::class)
