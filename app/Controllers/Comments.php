@@ -7,6 +7,7 @@ use App\Entities\Post;
 use App\Models\CommentModel;
 use App\Models\CommentReportModel;
 use App\Models\PostModel;
+use CodeIgniter\Database\Exceptions\DatabaseException;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -126,21 +127,32 @@ class Comments extends BaseController
             return redirect()->back()->with('errors', ['자기 댓글은 신고할 수 없습니다.']);
         }
 
-        $reports = model(CommentReportModel::class);
+        $reports    = model(CommentReportModel::class);
+        $reporterId = (int) auth()->id();
 
-        // 이미 신고했으면 조용히 넘어간다(중복 신고 방지).
-        if ($reports->hasReported($commentId, (int) auth()->id())) {
-            return redirect()->back()->with('message', '이미 신고한 댓글입니다.');
+        // 검사-후-삽입은 동시 요청 두 개가 모두 통과하는 레이스가 있다(TOCTOU).
+        // 사전 검사 없이 바로 삽입하고, 유니크 키(comment_id, reporter_user_id) 위반을
+        // 여기서 "이미 신고" 로 바꾼다. 위반은 DBDebug=true 면 예외로, false 면 insert=false 로 온다.
+        try {
+            $inserted = $reports->insert([
+                'comment_id'       => $commentId,
+                'reporter_user_id' => $reporterId,
+                'reason'           => $this->request->getPost('reason'),
+                'status'           => CommentReportModel::STATUS_PENDING,
+            ]);
+        } catch (DatabaseException $e) {
+            // 중복이 맞으면 친화적으로, 그 밖의 DB 오류는 숨기지 않고 그대로 전파한다.
+            if (! $reports->hasReported($commentId, $reporterId)) {
+                throw $e;
+            }
+            $inserted = false;
         }
 
-        $ok = $reports->insert([
-            'comment_id'       => $commentId,
-            'reporter_user_id' => auth()->id(),
-            'reason'           => $this->request->getPost('reason'),
-            'status'           => CommentReportModel::STATUS_PENDING,
-        ]);
+        if (! $inserted) {
+            if ($reports->hasReported($commentId, $reporterId)) {
+                return redirect()->back()->with('message', '이미 신고한 댓글입니다.');
+            }
 
-        if (! $ok) {
             return redirect()->back()->withInput()->with('errors', $reports->errors());
         }
 
