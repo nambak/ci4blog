@@ -208,4 +208,57 @@ final class AdminDashboardTest extends CIUnitTestCase
             $result->getBody()
         );
     }
+
+    private function decodedBody(\CodeIgniter\Test\TestResponse $result): string
+    {
+        return html_entity_decode($result->getBody(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    private function makePost(int $userId): \App\Entities\Post
+    {
+        $posts = model(PostModel::class);
+        $posts->insert(['user_id' => $userId, 'title' => '글', 'body' => '본문', 'status' => \App\Entities\Post::STATUS_PUBLISHED]);
+
+        return $posts->find($posts->getInsertID());
+    }
+
+    /** created_at 은 allowedFields 밖이라 며칠 전 댓글은 DB 에 직접 박는다. */
+    private function commentDaysAgo(int $postId, int $userId, int $daysAgo): void
+    {
+        $model = model(CommentModel::class);
+        $model->insert(['post_id' => $postId, 'user_id' => $userId, 'body' => '댓글']);
+        db_connect()->table('comments')->where('id', $model->getInsertID())
+            ->update(['created_at' => date('Y-m-d H:i:s', strtotime("-{$daysAgo} days"))]);
+    }
+
+    public function testDashboardShowsCommentDeltaWhenThisWeekExceeds(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        // 글을 2주 이전으로 늙혀 글 카드 증감을 0으로 만든다 → kpi-delta-up 은 오직 댓글에서만 나온다.
+        db_connect()->table('posts')->where('id', $post->id)
+            ->update(['created_at' => date('Y-m-d H:i:s', strtotime('-30 days'))]);
+        $this->commentDaysAgo($post->id, $admin->id, 2);  // 이번 주
+        $this->commentDaysAgo($post->id, $admin->id, 3);  // 이번 주
+        $this->commentDaysAgo($post->id, $admin->id, 10); // 지난 주 → 댓글 delta +1
+
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin'));
+
+        // 증가 배지 + 접근성 문구가 렌더된다(댓글 카드 기준).
+        $this->assertStringContainsString('kpi-delta-up', $body);
+        $this->assertStringContainsString('지난주 대비 1 증가', $body);
+        $this->assertStringNotContainsString('kpi-delta-down', $body);
+    }
+
+    public function testDashboardShowsFlatDeltaWhenNoRecentActivity(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin'));
+
+        // 최근 2주 활동이 없으면 변화 없음(–) 배지.
+        $this->assertStringContainsString('kpi-delta-flat', $body);
+        $this->assertStringContainsString('지난주 대비 변화 없음', $body);
+        $this->assertStringNotContainsString('kpi-delta-up', $body);
+    }
 }

@@ -676,4 +676,23 @@ final class AdminCommentsTest extends CIUnitTestCase
         $this->dontSeeInDatabase('comments', ['id' => $comment]);
         $this->dontSeeInDatabase('comment_reports', ['comment_id' => $comment]);
     }
+
+    public function testCommentAdminShowsWeeklyDeltaBadge(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        // 이번 주 2건, 지난 주 1건 → delta +1
+        $c1 = $this->insertComment($post->id, $admin->id, '이번주1');
+        $c2 = $this->insertComment($post->id, $admin->id, '이번주2');
+        $c3 = $this->insertComment($post->id, $admin->id, '지난주1');
+        $this->setCreatedAt($c1, date('Y-m-d H:i:s', strtotime('-2 days')));
+        $this->setCreatedAt($c2, date('Y-m-d H:i:s', strtotime('-3 days')));
+        $this->setCreatedAt($c3, date('Y-m-d H:i:s', strtotime('-10 days')));
+
+        $body = $this->decodedBody($this->actingAs($admin)->call('GET', 'admin/comments'));
+
+        $this->assertStringContainsString('kpi-delta-up', $body);
+        $this->assertStringContainsString('지난주 대비 1 증가', $body);
+        $this->assertStringNotContainsString('kpi-delta-down', $body);
+    }
 }

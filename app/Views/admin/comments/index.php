@@ -57,10 +57,12 @@
             <div class="kpi-card">
                 <span class="kpi-label">이번 주 새 댓글</span>
                 <strong class="kpi-value" id="kpi-week"><?= esc((string) $cards['week']) ?></strong>
+                <?= view('partials/kpi_delta', ['delta' => $cards['commentsDelta']]) ?>
             </div>
             <div class="kpi-card">
                 <span class="kpi-label">전체 댓글</span>
                 <strong class="kpi-value" id="kpi-total"><?= esc((string) $cards['total']) ?></strong>
+                <?= view('partials/kpi_delta', ['delta' => $cards['commentsDelta']]) ?>
             </div>
             <div class="kpi-card">
                 <span class="kpi-label">이번 달 총 댓글</span>
