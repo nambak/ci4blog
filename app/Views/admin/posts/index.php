@@ -130,7 +130,7 @@
                                     <td class="col-title">
                                         <div class="posts-title-cell">
                                             <?php if ($post->image !== null && $post->image !== ''): ?>
-                                                <img class="posts-cover" src="<?= site_url('uploads/thumb_' . $post->image) ?>" alt="">
+                                                <img class="posts-cover" src="<?= esc(site_url('uploads/thumb_' . $post->image), 'attr') ?>" alt="">
                                             <?php else: ?>
                                                 <div class="posts-cover cover" style="background:<?= $post->cover_gradient ?>"><?= esc($post->cover_initial) ?></div>
                                             <?php endif ?>

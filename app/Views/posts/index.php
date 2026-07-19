@@ -29,7 +29,7 @@
                     <?php if ($post->image !== null && $post->image !== ''): ?>
                         <a class="post-thumb" href="<?= site_url('posts/' . $post->slug) ?>"
                            aria-label="<?= esc($post->title) ?>">
-                            <img src="<?= site_url('uploads/thumb_' . $post->image) ?>" alt="" loading="lazy">
+                            <img src="<?= esc(site_url('uploads/thumb_' . $post->image), 'attr') ?>" alt="" loading="lazy">
                         </a>
                     <?php endif ?>
                     <div class="post-summary">

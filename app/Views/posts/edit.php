@@ -49,7 +49,7 @@
         <div>
             <label for="image">대표 이미지 <small>(선택)</small></label>
             <?php if ($post->image !== null && $post->image !== ''): ?>
-                <p><img class="image-current" src="<?= site_url('uploads/thumb_' . $post->image) ?>" alt="현재 대표 이미지"></p>
+                <p><img class="image-current" src="<?= esc(site_url('uploads/thumb_' . $post->image), 'attr') ?>" alt="현재 대표 이미지"></p>
             <?php endif ?>
             <p class="field-hint">새 파일을 올리면 기존 이미지를 교체합니다. JPG·PNG·WebP, 2MB 이하.</p>
             <input type="file" name="image" id="image" accept="image/png,image/jpeg,image/webp">

@@ -42,7 +42,7 @@
 
         <?php // 대표 이미지가 없으면 홈과 같은 그라데이션 커버를 깐다. ?>
         <?php if ($post->image !== null && $post->image !== ''): ?>
-            <img class="post-cover" src="<?= site_url('uploads/' . $post->image) ?>" alt="<?= esc($post->title) ?>">
+            <img class="post-cover" src="<?= esc(site_url('uploads/' . $post->image), 'attr') ?>" alt="<?= esc($post->title) ?>">
         <?php else: ?>
             <div class="cover post-cover" style="background:<?= $post->cover_gradient ?>"><?= esc($post->cover_initial) ?></div>
         <?php endif ?>
