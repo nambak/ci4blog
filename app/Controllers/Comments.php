@@ -133,6 +133,8 @@ class Comments extends BaseController
         // 검사-후-삽입은 동시 요청 두 개가 모두 통과하는 레이스가 있다(TOCTOU).
         // 사전 검사 없이 바로 삽입하고, 유니크 키(comment_id, reporter_user_id) 위반을
         // 여기서 "이미 신고" 로 바꾼다. 위반은 DBDebug=true 면 예외로, false 면 insert=false 로 온다.
+        $dbException = null;
+
         try {
             $inserted = $reports->insert([
                 'comment_id'       => $commentId,
@@ -141,16 +143,19 @@ class Comments extends BaseController
                 'status'           => CommentReportModel::STATUS_PENDING,
             ]);
         } catch (DatabaseException $e) {
-            // 중복이 맞으면 친화적으로, 그 밖의 DB 오류는 숨기지 않고 그대로 전파한다.
-            if (! $reports->hasReported($commentId, $reporterId)) {
-                throw $e;
-            }
-            $inserted = false;
+            $inserted    = false;
+            $dbException = $e;
         }
 
         if (! $inserted) {
+            // 이미 신고돼 있으면(레이스 포함) 친화적으로 처리한다.
             if ($reports->hasReported($commentId, $reporterId)) {
                 return redirect()->back()->with('message', '이미 신고한 댓글입니다.');
+            }
+
+            // 중복이 아닌 DB 오류는 숨기지 않고 그대로 전파한다.
+            if ($dbException !== null) {
+                throw $dbException;
             }
 
             return redirect()->back()->withInput()->with('errors', $reports->errors());
