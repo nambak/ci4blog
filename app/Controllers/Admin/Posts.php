@@ -119,10 +119,20 @@ class Posts extends BaseController
         }
 
         if ($action === 'move') {
-            // 빈 값은 미분류(NULL). 실존 여부는 모델의 is_not_unique 규칙이 막는다.
-            $categoryId = trim((string) $this->request->getPost('category_id'));
+            $raw = trim((string) $this->request->getPost('category_id'));
 
-            if (! $model->update($ids, ['category_id' => $categoryId === '' ? null : (int) $categoryId])) {
+            // 캐스팅 전에 문자열을 검증한다. (int) 를 먼저 하면 "abc"→0, "5x"→5 처럼
+            // 조작된 값이 새므로(UI select 는 이런 값을 만들지 않는다), 양의 정수만 받는다.
+            // 빈 값은 미분류(NULL), 실존 여부는 모델의 is_not_unique 규칙이 막는다.
+            if ($raw === '') {
+                $categoryId = null;
+            } elseif (ctype_digit($raw) && (int) $raw > 0) {
+                $categoryId = (int) $raw;
+            } else {
+                return redirect()->back()->with('errors', ['올바르지 않은 카테고리입니다.']);
+            }
+
+            if (! $model->update($ids, ['category_id' => $categoryId])) {
                 return redirect()->back()->with('errors', $model->errors());
             }
 

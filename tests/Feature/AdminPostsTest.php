@@ -375,4 +375,25 @@ final class AdminPostsTest extends CIUnitTestCase
         // 모델의 is_not_unique[categories.id] 검증이 막는다.
         $this->assertNull(model(PostModel::class)->find($id)->category_id);
     }
+
+    public function testBulkMoveRejectsNonNumericCategoryId(): void
+    {
+        $admin      = $this->makeAdmin();
+        $categories = model(CategoryModel::class);
+        $categories->insert(['name' => '원래분류']);
+        $catId = $categories->getInsertID();
+
+        $id = $this->insertPost('옮길 글', Post::STATUS_PUBLISHED, $catId);
+
+        // 비수치 문자열은 (int) 캐스팅으로 0 이 되고, permit_empty 가 검증을 건너뛰어
+        // category_id=0 이 저장되던 버그(#75). 데이터가 그대로 유지되고 거부되어야 한다.
+        $this->actingAs($admin)->call('POST', 'admin/posts/bulk', [
+            'action'      => 'move',
+            'ids'         => [$id],
+            'category_id' => 'abc',
+        ])->assertRedirect();
+
+        $this->seeInDatabase('posts', ['id' => $id, 'category_id' => $catId]);
+        $this->assertSame(['올바르지 않은 카테고리입니다.'], session('errors'));
+    }
 }
