@@ -8,6 +8,8 @@
   --color-paper: #ffffff; --color-bg: #F0F0F0; --color-paper-warm: #ECEFF4;
   --color-line: #D8DEE9; --color-line-soft: #E9EDF3;
   --color-success: #A3BE8C; --color-danger: #BF616A; --color-caution: #EBCB8B;
+  /* 연한 배경 위 배지 텍스트용 어두운 변형(success/caution 원색은 대비가 낮다). */
+  --color-success-ink: #6F8A58; --color-caution-ink: #9A7B30;
   --color-code-bg: #2E3440; --color-prose: #27272a;
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
@@ -394,10 +396,13 @@ textarea { resize: vertical; line-height: 1.7; }
 .posts-action { font-size: 13px; color: var(--color-ink-3); text-decoration: none; padding: 4px 6px; border-radius: 6px; }
 .posts-action:hover { background: var(--color-paper-warm); color: var(--color-ink); }
 
-/* .badge 기본 상자 스타일은 위(44번째 줄 부근, .badge-accent 옆)에 이미 있다.
-   여기서는 상태별 색상 변형만 더한다(.badge-accent 와 같은 패턴). */
-.badge-published { background: rgba(163,190,140,.18); color: #6f8a58; }
-.badge-draft { background: rgba(235,203,139,.22); color: #9a7b30; }
+/* .badge 기본 상자 스타일은 위(57번째 줄 부근, .badge-accent 옆)에 이미 있다.
+   여기서는 상태별 색상 변형만 더한다(.badge-accent 와 같은 패턴).
+   공용 .badge 는 '작성자' 등 다른 배지도 쓰므로 기하를 건드리지 않고,
+   상태 배지 3종만 목업대로 pill 로 둥글린다(색은 디자인 토큰으로). */
+.badge-published, .badge-draft, .badge-private { border-radius: var(--radius-pill); }
+.badge-published { background: rgba(163,190,140,.18); color: var(--color-success-ink); }
+.badge-draft { background: rgba(235,203,139,.22); color: var(--color-caution-ink); }
 .badge-private { background: var(--color-line-soft); color: var(--color-ink-3); }
 
 @media (max-width: 720px) {
