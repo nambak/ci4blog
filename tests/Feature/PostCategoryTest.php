@@ -7,8 +7,8 @@ use App\Models\PostModel;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
-use CodeIgniter\Test\FeatureTestTrait;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
+use Tests\Support\Traits\WithCsrf;
 
 /**
  * 글 작성/수정 시 카테고리 지정(category_id)에 대한 Feature 테스트.
@@ -21,7 +21,7 @@ use CodeIgniter\Shield\Test\AuthenticationTesting;
 final class PostCategoryTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
-    use FeatureTestTrait;
+    use WithCsrf;
     use AuthenticationTesting;
 
     protected $namespace = null;

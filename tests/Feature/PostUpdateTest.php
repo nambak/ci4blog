@@ -6,8 +6,8 @@ use App\Models\PostModel;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
-use CodeIgniter\Test\FeatureTestTrait;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
+use Tests\Support\Traits\WithCsrf;
 
 /**
  * 글 수정에 대한 Feature 테스트.
@@ -20,7 +20,7 @@ use CodeIgniter\Shield\Test\AuthenticationTesting;
 final class PostUpdateTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
-    use FeatureTestTrait;
+    use WithCsrf;
     use AuthenticationTesting;
 
     protected $namespace = null;

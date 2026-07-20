@@ -8,7 +8,7 @@ use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
-use CodeIgniter\Test\FeatureTestTrait;
+use Tests\Support\Traits\WithCsrf;
 
 /**
  * 글 작성/수정 폼에서 상태를 저장하는지 확인한다.
@@ -16,7 +16,7 @@ use CodeIgniter\Test\FeatureTestTrait;
 final class PostStatusFormTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
-    use FeatureTestTrait;
+    use WithCsrf;
     use AuthenticationTesting;
 
     protected $namespace = null;
