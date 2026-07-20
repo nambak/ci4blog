@@ -9,13 +9,13 @@ use App\Entities\Post;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
-use CodeIgniter\Test\FeatureTestTrait;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
+use Tests\Support\Traits\WithCsrf;
 
 final class CommentReportTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
-    use FeatureTestTrait;
+    use WithCsrf;
     use AuthenticationTesting;
 
     protected $namespace = null;

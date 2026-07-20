@@ -8,8 +8,8 @@ use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
-use CodeIgniter\Test\FeatureTestTrait;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
+use Tests\Support\Traits\WithCsrf;
 
 /**
  * 관리자 카테고리 관리(/admin/categories) Feature 테스트.
@@ -17,7 +17,7 @@ use CodeIgniter\Shield\Test\AuthenticationTesting;
 final class AdminCategoriesTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
-    use FeatureTestTrait;
+    use WithCsrf;
     use AuthenticationTesting;
 
     protected $namespace = null;

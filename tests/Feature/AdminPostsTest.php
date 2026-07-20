@@ -9,7 +9,7 @@ use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
-use CodeIgniter\Test\FeatureTestTrait;
+use Tests\Support\Traits\WithCsrf;
 
 /**
  * 관리자 게시글 관리(/admin/posts) Feature 테스트.
@@ -17,7 +17,7 @@ use CodeIgniter\Test\FeatureTestTrait;
 final class AdminPostsTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
-    use FeatureTestTrait;
+    use WithCsrf;
     use AuthenticationTesting;
 
     protected $namespace = null;

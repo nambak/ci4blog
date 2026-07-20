@@ -6,7 +6,7 @@ use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
-use CodeIgniter\Test\FeatureTestTrait;
+use Tests\Support\Traits\WithCsrf;
 
 /**
  * 프로필 수정(/profile) Feature 테스트.
@@ -14,7 +14,7 @@ use CodeIgniter\Test\FeatureTestTrait;
 final class ProfileTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
-    use FeatureTestTrait;
+    use WithCsrf;
     use AuthenticationTesting;
 
     protected $namespace = null;

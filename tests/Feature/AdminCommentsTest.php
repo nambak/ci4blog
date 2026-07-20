@@ -11,8 +11,8 @@ use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
-use CodeIgniter\Test\FeatureTestTrait;
 use CodeIgniter\Test\TestResponse;
+use Tests\Support\Traits\WithCsrf;
 
 /**
  * 관리자 댓글 관리(/admin/comments) Feature 테스트.
@@ -20,7 +20,7 @@ use CodeIgniter\Test\TestResponse;
 final class AdminCommentsTest extends CIUnitTestCase
 {
     use DatabaseTestTrait;
-    use FeatureTestTrait;
+    use WithCsrf;
     use AuthenticationTesting;
 
     protected $namespace = null;
