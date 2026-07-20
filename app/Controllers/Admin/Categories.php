@@ -102,4 +102,31 @@ class Categories extends BaseController
         return redirect()->to('admin/categories')
             ->with('message', '카테고리를 삭제했습니다. 이 카테고리의 글은 미분류로 옮겨졌습니다.');
     }
+
+    /**
+     * 카테고리 공개/숨김 토글(#67).
+     *
+     * 숨기면 그 카테고리의 글이 공개 화면(목록·홈·검색·상세)에서 함께 빠진다.
+     * 미분류는 카테고리 레코드가 아니라 가상 행이므로 여기로 올 수 없다.
+     */
+    public function toggleVisibility(int $id): RedirectResponse
+    {
+        $model    = model(CategoryModel::class);
+        $category = $model->find($id);
+
+        if ($category === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $next = $category->is_visible ? 0 : 1;
+
+        if (! $model->update($id, ['is_visible' => $next])) {
+            return redirect()->back()->with('errors', $model->errors());
+        }
+
+        return redirect()->to('admin/categories')->with(
+            'message',
+            $next === 1 ? '카테고리를 공개로 바꿨습니다.' : '카테고리를 숨겼습니다.'
+        );
+    }
 }

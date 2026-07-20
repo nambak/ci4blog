@@ -27,9 +27,14 @@ class Posts extends BaseController
         $model = model(PostModel::class)->published();
 
         // 없는 카테고리는 404. (필터가 빈 목록으로 조용히 떨어지지 않게)
+        // 숨김 카테고리(is_visible = 0)도 공개 화면에서는 없는 것과 같게 다룬다(#67) —
+        // 403 이 아니라 404 인 이유는 아래 show() 의 주석과 같다.
         $activeCategory = null;
         if ($categorySlug !== null) {
-            $activeCategory = model(CategoryModel::class)->where('slug', $categorySlug)->first();
+            $activeCategory = model(CategoryModel::class)
+                ->where('slug', $categorySlug)
+                ->where('is_visible', 1)
+                ->first();
             if ($activeCategory === null) {
                 throw PageNotFoundException::forPageNotFound();
             }
@@ -75,6 +80,16 @@ class Posts extends BaseController
         // 존재한다는 사실 자체를 흘린다.
         if (! $post->isPublished() && ! $this->canModify($post)) {
             throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 숨김 카테고리(#67)에 속한 글도 같은 규칙으로 가린다. 카테고리를 숨긴다는 건
+        // 그 글들을 공개 화면에서 뺀다는 뜻이므로, 목록에서만 빼고 상세는 열어 두면
+        // 슬러그를 아는 사람에게 그대로 노출된다.
+        if ($post->category_id !== null && ! $this->canModify($post)) {
+            $postCategory = model(CategoryModel::class)->find($post->category_id);
+            if ($postCategory !== null && ! $postCategory->is_visible) {
+                throw PageNotFoundException::forPageNotFound();
+            }
         }
 
         // 이 글의 댓글을 작성자명과 함께 한 번에 로드한다(N+1 회피).

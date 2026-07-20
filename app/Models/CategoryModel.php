@@ -19,6 +19,7 @@ class CategoryModel extends Model
     protected $allowedFields = [
         'name',
         'slug',
+        'is_visible',
     ];
 
     protected $validationRules = [
@@ -62,13 +63,16 @@ class CategoryModel extends Model
     }
 
     /**
-     * 메뉴·필터에서 쓰는 전체 카테고리 목록(이름순).
+     * 공개 화면의 메뉴·필터에서 쓰는 카테고리 목록(이름순).
+     *
+     * 숨김(is_visible = 0) 카테고리는 제외한다(#67). 관리 화면은 숨김 것도 봐야 하므로
+     * 이 메서드가 아니라 withPostCounts() 를 쓴다.
      *
      * @return Category[]
      */
     public function menu(): array
     {
-        return $this->orderBy('name', 'ASC')->findAll();
+        return $this->where('is_visible', 1)->orderBy('name', 'ASC')->findAll();
     }
 
     /**

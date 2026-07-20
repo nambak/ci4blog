@@ -91,7 +91,31 @@ class PostModel extends Model
      */
     public function published(): static
     {
-        return $this->where($this->table . '.status', Post::STATUS_PUBLISHED);
+        // 숨김 카테고리(is_visible = 0)의 글도 함께 제외한다(#67).
+        //
+        // join 이 아니라 서브쿼리를 쓴다 — 이 모델에는 join 이 하나도 없어서, join 을
+        // 들이면 이 스코프를 쓰는 모든 쿼리가 groupBy 를 필요로 하는 등 파급이 크다.
+        //
+        // category_id IS NULL(미분류)은 명시적으로 통과시킨다. 미분류는 카테고리
+        // 레코드가 없는 가상 분류라 숨길 대상 자체가 없다 — 이 분기가 빠지면
+        // 미분류 글이 통째로 사라진다.
+        //
+        // 괄호가 들어간 표현식에는 CI4 가 식별자 접두사를 붙이지 않으므로 테이블명을
+        // prefixTable() 로 직접 채운다 — posts 쪽도 마찬가지다(테스트 DB 는 tests_ 접두사를
+        // 쓰므로, 논리명을 그대로 두면 "no such column: posts.category_id" 로 깨진다).
+        $db         = db_connect();
+        $posts      = $db->prefixTable($this->table);
+        $categories = $db->prefixTable('categories');
+
+        // 첫 where 는 괄호가 없어 CI4 가 접두사를 붙여 주므로 논리명을 쓴다.
+        return $this->where($this->table . '.status', Post::STATUS_PUBLISHED)
+            ->where(
+                '(' . $posts . '.category_id IS NULL'
+                . ' OR ' . $posts . '.category_id IN'
+                . ' (SELECT id FROM ' . $categories . ' WHERE is_visible = 1))',
+                null,
+                false
+            );
     }
 
     /**
