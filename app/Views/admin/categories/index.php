@@ -57,8 +57,14 @@
                                 <button type="submit" class="icon-btn"
                                         title="<?= $category->is_visible ? '숨기기' : '공개하기' ?>"
                                         aria-label="<?= esc($category->name, 'attr') ?> <?= $category->is_visible ? '숨기기' : '공개하기' ?>">
+                                    <?php
+                                    // 숨김 상태에는 눈에 사선을 그어 eye-off 로 보여 준다.
+                                    // 목업에는 eye-off 아이콘이 없어(고유 SVG 4종) 같은 눈 모양에
+                                    // 사선만 더했다 — 아이콘 세트의 결을 유지하려는 것이다.
+                                    ?>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="2.5" />
+                                        <?php if (! $category->is_visible): ?><path d="M3 3l18 18" /><?php endif ?>
                                     </svg>
                                 </button>
                             </form>

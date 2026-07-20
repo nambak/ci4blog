@@ -221,19 +221,46 @@ final class CategoryVisibilityTest extends CIUnitTestCase
         $this->seedCategories();
         $admin = $this->makeAdmin();
 
-        $body = $this->actingAs($admin)->call('GET', 'admin/categories')->getBody();
+        // aria-label(속성)을 정규식으로 봐야 하므로 디코딩한다. TestResponse 는 본문을
+        // DOMDocument 로 돌리는데 비 ASCII 를 숫자 엔티티로 바꿀지가 libxml 버전에 달려
+        // 있어, 디코딩하지 않으면 CI(ubuntu)에서만 깨진다(AdminPostsTest 와 같은 함정).
+        $body = html_entity_decode(
+            $this->actingAs($admin)->call('GET', 'admin/categories')->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
 
         // 상태는 글자로 보여 준다(아이콘에 겹쳐 두지 않는다).
         $this->assertStringContainsString('공개분류', $body);
         $this->assertStringContainsString('숨김분류', $body);
 
-        // 공개 카테고리는 "숨기기", 숨김 카테고리는 "공개하기" 로 동작을 알린다.
-        $this->assertStringContainsString('공개분류 숨기기', $body);
-        $this->assertStringContainsString('숨김분류 공개하기', $body);
-
         // 수정·삭제도 각각 이름이 붙은 라벨을 갖는다.
         $this->assertStringContainsString('공개분류 수정', $body);
         $this->assertStringContainsString('공개분류 삭제', $body);
+
+        // eye-off(눈 위의 사선)는 숨김 카테고리 버튼에만 붙는다.
+        //
+        // 개수만 세면 안 된다 — 픽스처가 공개 1·숨김 1 이라 조건을 반전해도 사선은
+        // 여전히 한 번 나온다(실제로 뮤테이션이 통과했다). 어느 버튼에 붙었는지 봐야 한다.
+        $hiddenButton  = $this->buttonBlock($body, '숨김분류 공개하기');
+        $visibleButton = $this->buttonBlock($body, '공개분류 숨기기');
+
+        $this->assertStringContainsString('M3 3l18 18', $hiddenButton, '숨김 카테고리는 eye-off 여야 한다.');
+        $this->assertStringNotContainsString('M3 3l18 18', $visibleButton, '공개 카테고리는 사선 없는 눈이어야 한다.');
+    }
+
+    /**
+     * aria-label 로 버튼 하나를 찾아 그 <button>…</button> 조각만 돌려준다.
+     * 아이콘이 "어느 버튼에" 들어갔는지 봐야 할 때 쓴다.
+     */
+    private function buttonBlock(string $body, string $label): string
+    {
+        $pattern = '/<button[^>]*aria-label="' . preg_quote($label, '/') . '".*?<\/button>/s';
+
+        $this->assertMatchesRegularExpression($pattern, $body, "버튼을 찾지 못했다: {$label}");
+        preg_match($pattern, $body, $matches);
+
+        return $matches[0];
     }
 
     /** 토글이 공개↔숨김을 뒤집는다. */
