@@ -148,6 +148,60 @@ final class ProfileTest extends CIUnitTestCase
         $this->assertTrue($check->isOK());
     }
 
+    /**
+     * 확인란이 다르면 거부한다.
+     *
+     * 현재 비밀번호는 맞게 넣는다 — 그래야 그 앞 관문(현재 비번 확인)을 통과해
+     * 확인란 검사 자체가 실제로 도는 상황을 만든다.
+     */
+    public function testRejectsMismatchedPasswordConfirmation(): void
+    {
+        $user = $this->makeUser('me', 'me@example.com');
+
+        $result = $this->actingAs($user)->call('POST', 'profile', [
+            'username'             => 'me',
+            'current_password'     => 'secret-password-123',
+            'new_password'         => 'brand-new-pass-456',
+            'new_password_confirm' => 'DIFFERENT-pass-456',
+        ]);
+
+        $result->assertRedirect();
+        $this->assertSame(['새 비밀번호가 서로 일치하지 않습니다.'], session('errors'));
+
+        // 기존 비번은 그대로 유효해야 한다(= 새 비번은 저장되지 않았다).
+        $this->assertTrue(
+            auth('session')->check(['email' => 'me@example.com', 'password' => 'secret-password-123'])->isOK()
+        );
+        $this->assertFalse(
+            auth('session')->check(['email' => 'me@example.com', 'password' => 'brand-new-pass-456'])->isOK()
+        );
+    }
+
+    /**
+     * 8자 미만은 거부한다. 확인란은 일치시켜 길이 검사만 남긴다.
+     */
+    public function testRejectsTooShortNewPassword(): void
+    {
+        $user = $this->makeUser('me', 'me@example.com');
+
+        $result = $this->actingAs($user)->call('POST', 'profile', [
+            'username'             => 'me',
+            'current_password'     => 'secret-password-123',
+            'new_password'         => 'short7',
+            'new_password_confirm' => 'short7',
+        ]);
+
+        $result->assertRedirect();
+        $this->assertSame(['새 비밀번호는 8자 이상이어야 합니다.'], session('errors'));
+
+        $this->assertTrue(
+            auth('session')->check(['email' => 'me@example.com', 'password' => 'secret-password-123'])->isOK()
+        );
+        $this->assertFalse(
+            auth('session')->check(['email' => 'me@example.com', 'password' => 'short7'])->isOK()
+        );
+    }
+
     public function testBlankNewPasswordLeavesPasswordUnchanged(): void
     {
         $user = $this->makeUser('me', 'me@example.com');

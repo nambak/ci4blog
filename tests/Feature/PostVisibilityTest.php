@@ -101,6 +101,7 @@ final class PostVisibilityTest extends CIUnitTestCase
         $result->assertStatus(200);
         $result->assertSee('공개된 글');
         $result->assertDontSee('초안 상태 글');
+        $result->assertDontSee('숨긴 글');
     }
 
     public function testSearchHidesUnpublishedPosts(): void
@@ -112,6 +113,7 @@ final class PostVisibilityTest extends CIUnitTestCase
         $result->assertStatus(200);
         $result->assertSee('공개된 글');
         $result->assertDontSee('초안 상태 글');
+        $result->assertDontSee('숨긴 글');
     }
 
     public function testPublishedPostIsVisibleToGuest(): void
@@ -157,6 +159,26 @@ final class PostVisibilityTest extends CIUnitTestCase
         $result->assertStatus(200);
         $result->assertSee('초안 상태 글');
         $result->assertSee('아직 발행되지 않았습니다');
+    }
+
+    /**
+     * 위 테스트의 반대 방향.
+     *
+     * 배너가 뜨는 것만 검증하면 조건이 반전돼도(예: isPublished() 로 뒤집혀도)
+     * 초록불이 유지된다 — 그때 발행글마다 "아직 발행되지 않았습니다" 가 붙는데
+     * 아무도 모른다. 본인 글이어도 발행 상태면 배너는 없어야 한다.
+     */
+    public function testOwnerDoesNotSeePreviewBannerOnPublishedPost(): void
+    {
+        $owner = $this->makeUser('owner', 'owner@example.com');
+        $this->seedThreeStatuses((int) $owner->id);
+        $post = model(PostModel::class)->where('title', '공개된 글')->first();
+
+        $result = $this->actingAs($owner)->call('GET', "posts/{$post->slug}");
+
+        $result->assertStatus(200);
+        $result->assertSee('공개된 글');
+        $result->assertDontSee('아직 발행되지 않았습니다');
     }
 
     public function testAdminSeesPrivatePostOfOtherAuthor(): void

@@ -90,6 +90,27 @@ final class AdminPostsTest extends CIUnitTestCase
         $this->actingAs($user)->call('GET', 'admin/posts')->assertRedirect();
     }
 
+    /**
+     * /admin 라우트 그룹은 group:admin,superadmin 을 허용한다. 그런데 이 파일의
+     * 나머지 테스트는 전부 admin 으로만 들어가므로, 필터에서 superadmin 이 빠져도
+     * 아무 테스트도 깨지지 않는다. 두 그룹을 같은 권한으로 다룬다는 약속을
+     * 실제로 지키는지 확인한다.
+     */
+    public function testSuperadminCanAccess(): void
+    {
+        $super = $this->makeUser('super', 'super@example.com');
+        $super->addGroup('superadmin');
+
+        $this->insertPost('공개된 글');
+        $this->insertPost('초안 상태 글', Post::STATUS_DRAFT);
+
+        $result = $this->actingAs($super)->call('GET', 'admin/posts');
+
+        $result->assertStatus(200);
+        $result->assertSee('게시글 관리');
+        $result->assertSee('초안 상태 글');
+    }
+
     public function testAdminSeesAllStatuses(): void
     {
         $admin = $this->makeAdmin();
@@ -188,8 +209,8 @@ final class AdminPostsTest extends CIUnitTestCase
         // app/Views/partials/pager.php 의 <nav class="pager">…</nav> 조각만 잘라내어
         // 그 안에서만 검증한다.
         $body = $result->getBody();
-        $this->assertMatchesRegularExpression('/<nav class="pager"[^>]*>.*<\/nav>/s', $body);
-        preg_match('/<nav class="pager"[^>]*>.*<\/nav>/s', $body, $navMatch);
+        $this->assertMatchesRegularExpression('/<nav class="pager"[^>]*>.*?<\/nav>/s', $body);
+        preg_match('/<nav class="pager"[^>]*>.*?<\/nav>/s', $body, $navMatch);
         $pagerHtml = $navMatch[0];
 
         // 페이저가 만든 링크 중 2페이지로 가는 것의 href 하나 안에
