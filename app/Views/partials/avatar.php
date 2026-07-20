@@ -6,7 +6,7 @@
 $size = $size ?? 'md';
 ?>
 <?php if (! empty($avatar)): ?>
-    <img class="avatar avatar-<?= esc($size, 'attr') ?>" src="<?= site_url('uploads/' . $avatar) ?>" alt="<?= esc($name) ?>">
+    <img class="avatar avatar-<?= esc($size, 'attr') ?>" src="<?= esc(site_url('uploads/' . $avatar), 'attr') ?>" alt="<?= esc($name) ?>">
 <?php else: ?>
     <span class="avatar avatar-<?= esc($size, 'attr') ?> avatar-initial"
           style="background:hsl(<?= abs(crc32((string) $name)) % 360 ?>,38%,82%)">
