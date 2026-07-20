@@ -209,6 +209,33 @@ final class CategoryVisibilityTest extends CIUnitTestCase
         $result->assertSee('숨김분류');
     }
 
+    /**
+     * 관리 목록이 상태 글자와 아이콘 버튼 3종을 렌더한다.
+     *
+     * 작업 버튼을 아이콘으로 바꾸면서 눈에 보이는 글자가 사라졌다. aria-label 이
+     * 빠지면 스크린리더 사용자에게는 정체불명의 버튼 세 개만 남는데, 화면을 보고
+     * 하는 확인으로는 그 회귀를 절대 알아챌 수 없다.
+     */
+    public function testAdminListRendersAccessibleActionIcons(): void
+    {
+        $this->seedCategories();
+        $admin = $this->makeAdmin();
+
+        $body = $this->actingAs($admin)->call('GET', 'admin/categories')->getBody();
+
+        // 상태는 글자로 보여 준다(아이콘에 겹쳐 두지 않는다).
+        $this->assertStringContainsString('공개분류', $body);
+        $this->assertStringContainsString('숨김분류', $body);
+
+        // 공개 카테고리는 "숨기기", 숨김 카테고리는 "공개하기" 로 동작을 알린다.
+        $this->assertStringContainsString('공개분류 숨기기', $body);
+        $this->assertStringContainsString('숨김분류 공개하기', $body);
+
+        // 수정·삭제도 각각 이름이 붙은 라벨을 갖는다.
+        $this->assertStringContainsString('공개분류 수정', $body);
+        $this->assertStringContainsString('공개분류 삭제', $body);
+    }
+
     /** 토글이 공개↔숨김을 뒤집는다. */
     public function testToggleFlipsVisibility(): void
     {

@@ -326,8 +326,14 @@ textarea { resize: vertical; line-height: 1.7; }
 .cat-count { font-size: 13px; color: var(--color-ink-3); }
 .cat-actions { display: flex; gap: 6px; align-items: center; }
 .cat-actions form { margin: 0; }
-.cat-visibility { font-size: 13px; color: var(--color-ink-3); }
-.cat-visibility form { margin: 0; }
+.cat-visibility { font-size: 12px; font-weight: 600; color: var(--color-ink-3); }
+.cat-visibility.is-hidden { color: var(--color-caution-ink); }
+
+/* 아이콘 버튼(수정·삭제·공개토글). 목업의 15px 라인 아이콘 기준. */
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: none; border-radius: var(--radius); background: none; color: var(--color-ink-3); cursor: pointer; text-decoration: none; transition: background .15s, color .15s; }
+.icon-btn:hover { background: var(--color-paper-warm); color: var(--color-ink); }
+.icon-btn-danger:hover { background: rgba(191,97,106,.12); color: var(--color-danger); }
+.icon-btn svg { width: 15px; height: 15px; }
 .cat-uncategorized .cat-name { color: var(--color-ink-3); }
 
 /* ── 프로필 수정 ── */
