@@ -98,8 +98,9 @@
                         <span class="bulkbar-move">
                             <select name="category_id" aria-label="옮길 카테고리">
                                 <option value="">— 미분류 —</option>
+                                <?php // 숨김 카테고리로도 옮길 수 있다 — 관리자에겐 계속 노출한다(#67). ?>
                                 <?php foreach ($categories as $category): ?>
-                                    <option value="<?= esc($category->id, 'attr') ?>"><?= esc($category->name) ?></option>
+                                    <option value="<?= esc($category->id, 'attr') ?>"><?= esc($category->name) ?><?= $category->is_visible ? '' : ' (숨김)' ?></option>
                                 <?php endforeach ?>
                             </select>
                             <button type="submit" class="bulk-btn" name="action" value="move">이동</button>

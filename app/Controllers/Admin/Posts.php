@@ -81,7 +81,8 @@ class Posts extends BaseController
             // 이 화면에서는 아직 쓰지 않지만, 바로 다음 작업(카테고리 일괄 이동 <select>)이
             // 이 카테고리 목록을 그대로 재사용한다. 죽은 코드가 아니라 다음 작업의 준비물이니
             // 지우지 말 것.
-            'categories' => model(CategoryModel::class)->menu(),
+            // 숨김 카테고리로도 옮길 수 있어야 하므로 forForm()(숨김 포함)을 쓴다(#67).
+            'categories' => model(CategoryModel::class)->forForm(),
         ]);
     }
 

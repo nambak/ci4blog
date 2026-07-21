@@ -292,4 +292,68 @@ final class CategoryVisibilityTest extends CIUnitTestCase
         // 값이 그대로여야 한다 — 리다이렉트만 보고 넘어가면 변경됐는지 알 수 없다.
         $this->assertTrue(model(CategoryModel::class)->find($ids['visible'])->is_visible);
     }
+
+    /**
+     * 수정 폼은 숨김 카테고리라도 "이 글이 지금 속한" 항목을 선택된 채로 보여 줘야 한다.
+     *
+     * 폼 셀렉트가 공개 메뉴(menu())를 그대로 쓰면 숨김 항목이 목록에 없어 아무 option 도
+     * selected 가 되지 않는다. 그러면 브라우저는 첫 항목("— 카테고리 없음 —", value="")을
+     * 제출하므로, 제목만 고쳐 저장해도 글이 조용히 미분류로 옮겨진다.
+     */
+    public function testEditFormKeepsHiddenCategorySelected(): void
+    {
+        $owner = $this->makeUser('writer', 'writer@example.com');
+        $ids   = $this->seedCategories((int) $owner->id);
+        $post  = model(PostModel::class)->where('title', '숨김분류 글')->first();
+
+        $body = html_entity_decode(
+            $this->actingAs($owner)->call('GET', "posts/{$post->id}/edit")->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/<option value="' . $ids['hidden'] . '" selected>/',
+            $body,
+            '숨김 카테고리가 선택된 채로 렌더되지 않았다 — 저장 시 미분류로 밀린다.'
+        );
+    }
+
+    /** 폼의 숨김 항목은 "(숨김)"으로 표시한다 — 고르면 글이 공개 화면에서 빠진다는 신호. */
+    public function testFormMarksHiddenCategoryWithLabel(): void
+    {
+        $owner = $this->makeUser('writer', 'writer@example.com');
+        $this->seedCategories((int) $owner->id);
+
+        $body = $this->actingAs($owner)->call('GET', 'posts/new')->getBody();
+
+        $this->assertStringContainsString('숨김분류 (숨김)', $body);
+        // 공개 카테고리에까지 꼬리표가 붙으면 안 된다.
+        $this->assertStringNotContainsString('공개분류 (숨김)', $body);
+    }
+
+    /**
+     * 관리자 글 목록의 일괄 이동 셀렉트에도 숨김 카테고리가 있어야 한다.
+     *
+     * 없으면 관리자는 글을 숨김 카테고리로 옮길 방법이 없다 — 이슈 #67 의
+     * "관리자에겐 계속 노출"과 어긋난다.
+     */
+    public function testAdminBulkMoveSelectIncludesHiddenCategory(): void
+    {
+        $this->seedCategories();
+        $admin = $this->makeAdmin();
+
+        $body = html_entity_decode(
+            $this->actingAs($admin)->call('GET', 'admin/posts')->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+
+        // 셀렉트 안쪽만 본다 — 목록 표의 카테고리 칸에 이름이 있는 것으로 통과하면 안 된다.
+        preg_match('/<select name="category_id".*?<\/select>/s', $body, $matches);
+        $this->assertNotEmpty($matches, '일괄 이동 셀렉트를 찾지 못했다.');
+
+        $this->assertStringContainsString('숨김분류', $matches[0]);
+        $this->assertStringContainsString('공개분류', $matches[0]);
+    }
 }

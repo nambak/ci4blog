@@ -129,7 +129,8 @@ class Posts extends BaseController
     public function new(): string
     {
         return view('posts/create', [
-            'categories' => model(CategoryModel::class)->menu(),
+            // 폼은 숨김 카테고리도 고를 수 있어야 한다 — forForm() 주석 참고(#67).
+            'categories' => model(CategoryModel::class)->forForm(),
         ]);
     }
 
@@ -195,8 +196,9 @@ class Posts extends BaseController
         }
 
         return view('posts/edit', [
-            'post'       => $post,
-            'categories' => model(CategoryModel::class)->menu(),
+            'post' => $post,
+            // 이 글이 숨김 카테고리에 속해 있어도 목록에 있어야 선택이 유지된다(#67).
+            'categories' => model(CategoryModel::class)->forForm(),
         ]);
     }
 

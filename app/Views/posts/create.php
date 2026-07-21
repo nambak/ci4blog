@@ -29,8 +29,9 @@
             <?php // 미선택은 빈 값 → 컨트롤러가 null 로 저장. 검증 실패 시 old() 로 선택 복원. ?>
             <select name="category_id" id="category_id">
                 <option value="">— 카테고리 없음 —</option>
+                <?php // 숨김 카테고리도 고를 수 있다. 다만 고르면 글이 공개 화면에서 빠지므로 표시해 둔다(#67). ?>
                 <?php foreach ($categories as $category): ?>
-                    <option value="<?= esc($category->id) ?>"<?= (string) old('category_id') === (string) $category->id ? ' selected' : '' ?>><?= esc($category->name) ?></option>
+                    <option value="<?= esc($category->id) ?>"<?= (string) old('category_id') === (string) $category->id ? ' selected' : '' ?>><?= esc($category->name) ?><?= $category->is_visible ? '' : ' (숨김)' ?></option>
                 <?php endforeach ?>
             </select>
         </div>
