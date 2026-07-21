@@ -406,12 +406,23 @@ class Posts extends BaseController
             if ($likes->hasLiked($id, $userId)) {
                 $likes->where('post_id', $id)->where('user_id', $userId)->delete();
             } else {
-                // 중복이 아닌 DB 오류는 숨기지 않고 그대로 전파한다.
+                // 삽입도 실패했는데 좋아요도 없다. 두 가지가 겹쳐 있다 —
+                //  ① 같은 사용자의 취소 요청이 동시에 들어와 먼저 지운 경우(레이스)
+                //  ② 중복이 아닌 진짜 DB 오류
+                // 둘을 구분할 방법이 없고, ① 은 최종 상태가 "좋아요 없음"으로 사용자가
+                // 원한 그대로다. 여기서 예외를 다시 던지면 ① 에도 500 이 나가므로
+                // (주석에 적어 둔 "삭제 쪽 레이스는 무해하다"와 어긋난다), 원인은
+                // 로그로 남기고 화면은 정상 응답한다. ② 라면 카운트가 그대로여서
+                // 사용자에게도 "안 눌렸다"가 보인다.
                 if ($dbException !== null) {
-                    throw $dbException;
+                    log_message('error', '좋아요 삽입 실패 (post {post}, user {user}): {message}', [
+                        'post'    => $id,
+                        'user'    => $userId,
+                        'message' => $dbException->getMessage(),
+                    ]);
+                } elseif ($likes->errors() !== []) {
+                    return redirect()->back()->with('errors', $likes->errors());
                 }
-
-                return redirect()->back()->with('errors', $likes->errors());
             }
         }
 
