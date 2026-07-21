@@ -325,7 +325,13 @@ final class CategoryVisibilityTest extends CIUnitTestCase
         $owner = $this->makeUser('writer', 'writer@example.com');
         $this->seedCategories((int) $owner->id);
 
-        $body = $this->actingAs($owner)->call('GET', 'posts/new')->getBody();
+        // 본문을 문자열로 직접 검사하므로 디코딩이 필요하다 — libxml 버전에 따라 비 ASCII 가
+        // 숫자 엔티티(&#49704;…)로 올라오며, 그러면 로컬은 통과하고 CI(ubuntu)만 깨진다.
+        $body = html_entity_decode(
+            $this->actingAs($owner)->call('GET', 'posts/new')->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
 
         $this->assertStringContainsString('숨김분류 (숨김)', $body);
         // 공개 카테고리에까지 꼬리표가 붙으면 안 된다.
