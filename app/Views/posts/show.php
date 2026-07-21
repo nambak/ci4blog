@@ -67,6 +67,22 @@
         </div>
     <?php endif ?>
 
+    <?php // 좋아요(#64). 컨트롤러가 posts/{slug}#like 로 되돌리므로 앵커를 여기에 둔다. ?>
+    <section class="post-like" id="like">
+        <?php if (auth()->loggedIn()): ?>
+            <form action="<?= site_url('posts/' . $post->id . '/like') ?>" method="post">
+                <?= csrf_field() ?>
+                <?php // 버튼 라벨과 aria-pressed 가 현재 상태를 함께 알린다(아이콘만으론 스크린리더가 못 읽는다). ?>
+                <button type="submit" class="btn btn-like<?= $liked ? ' is-liked' : '' ?>" aria-pressed="<?= $liked ? 'true' : 'false' ?>">
+                    <?= $liked ? '♥ 좋아요 취소' : '♡ 좋아요' ?>
+                </button>
+            </form>
+        <?php else: ?>
+            <p class="like-login"><a class="nav-link" href="<?= site_url('login') ?>">로그인</a> 후 좋아요를 누를 수 있습니다.</p>
+        <?php endif ?>
+        <span class="like-count"><?= (int) $likeCount ?>명이 좋아합니다</span>
+    </section>
+
     <?php // 댓글 목록(부분 뷰). ?>
     <?= $this->include('comments/_list', ['comments' => $comments, 'commentCount' => $commentCount, 'post' => $post]) ?>
 
