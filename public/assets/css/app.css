@@ -97,7 +97,7 @@ input[type=file] { font-size: 14px; color: var(--color-ink-2); }
 
 /* 좋아요(#64): 목업 Post 의 engagement bar. 위아래 경계선 + 하트 아이콘 고스트 버튼 + 숫자.
    목업의 띠는 화면 전체 폭이지만 이 레이아웃은 본문이 720px 라, 본문 리듬에 맞춰 같은 폭으로 둔다. */
-.engagement-bar { display: flex; align-items: center; gap: 18px; max-width: 720px; margin: 32px auto 0; padding: 20px 0; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); font-size: 13px; color: var(--color-ink-3); }
+.engagement-bar { display: flex; align-items: center; gap: 18px; max-width: 720px; margin: 48px auto 0; padding: 20px 0; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); font-size: 13px; color: var(--color-ink-3); }
 .engagement-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border: none; border-radius: var(--radius); background: none; color: inherit; font: inherit; line-height: 1; cursor: pointer; text-decoration: none; }
 .engagement-btn:hover { background: var(--color-paper-warm); }
 .engagement-btn.is-liked { color: var(--color-danger); }
@@ -134,7 +134,9 @@ textarea { resize: vertical; line-height: 1.7; }
 .pagination li.disabled span { color: var(--color-ink-4); cursor: default; }
 
 /* comments */
-.comments { max-width: 720px; margin: 48px auto 0; border-top: 1px solid var(--color-line); padding-top: 28px; }
+/* 목업의 댓글 섹션은 pt-14 하나뿐 — 위쪽 구분선이 없다. 좋아요 바(engagement-bar)의
+   아래 선이 그 역할을 하므로, 여기에 선을 또 두면 가까운 자리에 선이 두 줄로 겹친다. */
+.comments { max-width: 720px; margin: 0 auto; padding-top: 56px; }
 .comments-title { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 20px; }
 .comments-count { color: var(--color-ink-3); font-weight: 500; margin-left: 4px; }
 .comments-empty { color: var(--color-ink-3); }
