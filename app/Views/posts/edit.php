@@ -29,8 +29,9 @@
             <?php $selectedCategory = old('category_id', $post->category_id); ?>
             <select name="category_id" id="category_id">
                 <option value="">— 카테고리 없음 —</option>
+                <?php // 이 글이 속한 카테고리가 숨김이어도 목록에 있어야 선택이 유지된다(#67). ?>
                 <?php foreach ($categories as $category): ?>
-                    <option value="<?= esc($category->id) ?>"<?= (string) $selectedCategory === (string) $category->id ? ' selected' : '' ?>><?= esc($category->name) ?></option>
+                    <option value="<?= esc($category->id) ?>"<?= (string) $selectedCategory === (string) $category->id ? ' selected' : '' ?>><?= esc($category->name) ?><?= $category->is_visible ? '' : ' (숨김)' ?></option>
                 <?php endforeach ?>
             </select>
         </div>

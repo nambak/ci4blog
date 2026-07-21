@@ -47,6 +47,7 @@ $routes->group('admin', ['filter' => 'group:admin,superadmin'], static function 
     $routes->get('categories/(:num)/edit', 'Admin\Categories::edit/$1');   // 수정 폼
     $routes->post('categories/(:num)', 'Admin\Categories::update/$1');     // 수정 저장
     $routes->post('categories/(:num)/delete', 'Admin\Categories::delete/$1'); // 삭제
+    $routes->post('categories/(:num)/visibility', 'Admin\Categories::toggleVisibility/$1'); // 공개/숨김 토글
 });
 
 // 공개 회원가입은 막는다(관리자만 shield:user create 로 계정 생성).

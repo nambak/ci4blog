@@ -19,6 +19,7 @@ class CategoryModel extends Model
     protected $allowedFields = [
         'name',
         'slug',
+        'is_visible',
     ];
 
     protected $validationRules = [
@@ -62,11 +63,30 @@ class CategoryModel extends Model
     }
 
     /**
-     * 메뉴·필터에서 쓰는 전체 카테고리 목록(이름순).
+     * 공개 화면의 메뉴·필터에서 쓰는 카테고리 목록(이름순).
+     *
+     * 숨김(is_visible = 0) 카테고리는 제외한다(#67). 관리 화면은 숨김 것도 봐야 하므로
+     * 이 메서드가 아니라 withPostCounts() 나 forForm() 을 쓴다.
      *
      * @return Category[]
      */
     public function menu(): array
+    {
+        return $this->where('is_visible', 1)->orderBy('name', 'ASC')->findAll();
+    }
+
+    /**
+     * 글 폼(작성·수정)과 관리자 일괄 이동 셀렉트에서 쓰는 목록(이름순, 숨김 포함).
+     *
+     * 폼은 "보여 주는" 곳이 아니라 "고르는" 곳이라 menu() 와 기준이 다르다.
+     * 숨김을 빼면 두 가지가 깨진다.
+     *  - 숨김 카테고리 글의 수정 폼에서 아무 option 도 selected 가 되지 않아,
+     *    제목만 고쳐 저장해도 글이 미분류로 밀린다.
+     *  - 관리자가 글을 숨김 카테고리로 옮길 방법이 없어진다(#67 "관리자에겐 계속 노출").
+     *
+     * @return Category[]
+     */
+    public function forForm(): array
     {
         return $this->orderBy('name', 'ASC')->findAll();
     }
