@@ -5,7 +5,9 @@ namespace App\Controllers;
 use App\Entities\Post;
 use App\Models\CategoryModel;
 use App\Models\CommentModel;
+use App\Models\PostLikeModel;
 use App\Models\PostModel;
+use CodeIgniter\Database\Exceptions\DatabaseException;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -75,22 +77,7 @@ class Posts extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
-        // 비발행 글(초안·비공개)은 작성자 본인과 관리자에게만 미리보기로 열어 준다.
-        // 403 이 아니라 404 를 주는 건 의도적이다 — 403 은 그 슬러그의 글이
-        // 존재한다는 사실 자체를 흘린다.
-        if (! $post->isPublished() && ! $this->canModify($post)) {
-            throw PageNotFoundException::forPageNotFound();
-        }
-
-        // 숨김 카테고리(#67)에 속한 글도 같은 규칙으로 가린다. 카테고리를 숨긴다는 건
-        // 그 글들을 공개 화면에서 뺀다는 뜻이므로, 목록에서만 빼고 상세는 열어 두면
-        // 슬러그를 아는 사람에게 그대로 노출된다.
-        if ($post->category_id !== null && ! $this->canModify($post)) {
-            $postCategory = model(CategoryModel::class)->find($post->category_id);
-            if ($postCategory !== null && ! $postCategory->is_visible) {
-                throw PageNotFoundException::forPageNotFound();
-            }
-        }
+        $this->assertViewable($post);
 
         // 이 글의 댓글을 작성자명과 함께 한 번에 로드한다(N+1 회피).
         $comments     = model(CommentModel::class)->forPost((int) $post->id);
@@ -111,8 +98,15 @@ class Posts extends BaseController
             ? model(CategoryModel::class)->find($post->category_id)
             : null;
 
+        // 좋아요(#64): 카운트는 상세에만 둔다. 목록까지 세면 글마다 쿼리가 돌아 N+1 이 된다.
+        $likes     = model(PostLikeModel::class);
+        $likeCount = $likes->countForPost((int) $post->id);
+        $liked     = auth()->loggedIn() && $likes->hasLiked((int) $post->id, (int) auth()->id());
+
         return view('posts/show', [
             'post'         => $post,
+            'likeCount'    => $likeCount,
+            'liked'        => $liked,
             'comments'     => $comments,
             'commentCount' => $commentCount,
             'authorName'   => $authorName,
@@ -373,6 +367,93 @@ class Posts extends BaseController
         $model->delete($id);
 
         return redirect()->to('posts')->with('message', '글이 삭제되었습니다.');
+    }
+
+    /**
+     * 좋아요 토글(#64). 세션 필터 그룹 안이라 로그인 사용자만 들어온다.
+     */
+    public function like(int $id): RedirectResponse
+    {
+        $post = model(PostModel::class)->find($id);
+
+        if ($post === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 상세(show)와 같은 가드를 그대로 쓴다 — 상세가 404 인 글에 좋아요만 열려 있으면
+        // 응답 차이로 글의 존재가 샌다.
+        $this->assertViewable($post);
+
+        $likes  = model(PostLikeModel::class);
+        $userId = (int) auth()->id();
+
+        // 검사-후-삽입(hasLiked 로 분기)은 동시 요청 두 개가 모두 통과하는 레이스가 있다.
+        // 그래서 #88 처럼 그 구조를 아예 두지 않는다 — 먼저 넣어 보고, 유니크 키
+        // (post_id, user_id) 위반으로 실패하면 그게 곧 "이미 눌렀다"는 뜻이라 취소로 간다.
+        // 위반은 DBDebug=true 면 예외로, false 면 insert=false 로 온다.
+        $dbException = null;
+
+        try {
+            $inserted = $likes->insert(['post_id' => $id, 'user_id' => $userId]);
+        } catch (DatabaseException $e) {
+            $inserted    = false;
+            $dbException = $e;
+        }
+
+        if (! $inserted) {
+            // 이미 좋아요가 있으면 취소한다(토글). 지울 게 없으면 0 행이 지워질 뿐이라
+            // 삭제 쪽 레이스는 무해하다 — 최종 상태가 "좋아요 없음"으로 같다.
+            if ($likes->hasLiked($id, $userId)) {
+                $likes->where('post_id', $id)->where('user_id', $userId)->delete();
+            } else {
+                // 삽입도 실패했는데 좋아요도 없다. 두 가지가 겹쳐 있다 —
+                //  ① 같은 사용자의 취소 요청이 동시에 들어와 먼저 지운 경우(레이스)
+                //  ② 중복이 아닌 진짜 DB 오류
+                // 둘을 구분할 방법이 없고, ① 은 최종 상태가 "좋아요 없음"으로 사용자가
+                // 원한 그대로다. 여기서 예외를 다시 던지면 ① 에도 500 이 나가므로
+                // (주석에 적어 둔 "삭제 쪽 레이스는 무해하다"와 어긋난다), 원인은
+                // 로그로 남기고 화면은 정상 응답한다. ② 라면 카운트가 그대로여서
+                // 사용자에게도 "안 눌렸다"가 보인다.
+                if ($dbException !== null) {
+                    log_message('error', '좋아요 삽입 실패 (post {post}, user {user}): {message}', [
+                        'post'    => $id,
+                        'user'    => $userId,
+                        'message' => $dbException->getMessage(),
+                    ]);
+                } elseif ($likes->errors() !== []) {
+                    return redirect()->back()->with('errors', $likes->errors());
+                }
+            }
+        }
+
+        return redirect()->to('posts/' . $post->slug . '#like');
+    }
+
+    /**
+     * 이 글을 지금 사용자에게 보여 줘도 되는지 확인하고, 아니면 404 를 던진다.
+     *
+     * 상세(show)와 좋아요(like)가 함께 쓴다. 두 곳에 복붙해 두면 가드가 또 늘 때
+     * 한쪽만 고치는 사고가 난다 — 댓글 신고(#79)가 정확히 그 사고였다.
+     *
+     * 403 이 아니라 404 를 주는 건 의도적이다 — 403 은 그 슬러그의 글이
+     * 존재한다는 사실 자체를 흘린다.
+     */
+    private function assertViewable(Post $post): void
+    {
+        // 비발행 글(초안·비공개)은 작성자 본인과 관리자에게만 미리보기로 열어 준다.
+        if (! $post->isPublished() && ! $this->canModify($post)) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 숨김 카테고리(#67)에 속한 글도 같은 규칙으로 가린다. 카테고리를 숨긴다는 건
+        // 그 글들을 공개 화면에서 뺀다는 뜻이므로, 목록에서만 빼고 상세는 열어 두면
+        // 슬러그를 아는 사람에게 그대로 노출된다.
+        if ($post->category_id !== null && ! $this->canModify($post)) {
+            $postCategory = model(CategoryModel::class)->find($post->category_id);
+            if ($postCategory !== null && ! $postCategory->is_visible) {
+                throw PageNotFoundException::forPageNotFound();
+            }
+        }
     }
 
     /**

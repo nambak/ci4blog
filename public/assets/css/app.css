@@ -95,6 +95,14 @@ input[type=file] { font-size: 14px; color: var(--color-ink-2); }
 .post-actions { display: flex; gap: 10px; align-items: center; max-width: 720px; margin: 32px auto 0; }
 .post-back { max-width: 720px; margin: 24px auto 0; }
 
+/* 좋아요(#64): 본문과 댓글 사이. 누른 상태는 색만이 아니라 버튼 라벨(♥ 좋아요 취소)로도 알린다. */
+.post-like { display: flex; align-items: center; gap: 12px; max-width: 720px; margin: 32px auto 0; }
+.btn-like { background: transparent; color: var(--color-ink-2); border: 1px solid var(--color-line); }
+.btn-like:hover { background: var(--color-paper-warm); opacity: 1; }
+.btn-like.is-liked { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+.like-count { font-size: 13px; color: var(--color-ink-3); }
+.like-login { margin: 0; font-size: 14px; color: var(--color-ink-3); }
+
 /* prose (마크다운 본문, ep26 대비) */
 .prose { font-size: 16px; line-height: 1.8; color: var(--color-prose); overflow-wrap: break-word; word-break: break-word; }
 .prose p { margin: 24px 0; }
