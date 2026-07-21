@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Entities\Post;
 use App\Models\CategoryModel;
+use App\Models\CommentModel;
 use App\Models\PostModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Shield\Entities\User;
@@ -216,7 +217,7 @@ final class PostLikeTest extends CIUnitTestCase
     private function likeSection(string $body): string
     {
         $body = html_entity_decode($body, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        preg_match('/<section[^>]*id="like".*?<\/section>/s', $body, $matches);
+        preg_match('/<div[^>]*id="like".*?<\/div>/s', $body, $matches);
         $this->assertNotEmpty($matches, '상세에서 좋아요 영역(id="like")을 찾지 못했다.');
 
         return $matches[0];
@@ -235,13 +236,19 @@ final class PostLikeTest extends CIUnitTestCase
 
         $section = $this->likeSection($this->call('GET', "posts/{$post->slug}")->getBody());
 
-        $this->assertStringContainsString('2명이 좋아합니다', $section);
+        // 목업(Post 의 engagement bar)은 문장이 아니라 하트 옆 숫자만 보여 준다.
+        $this->assertStringContainsString('<span class="like-count">2</span>', $section);
         // 하드코딩된 0 이 아니라 실제 카운트여야 한다.
-        $this->assertStringNotContainsString('0명이 좋아합니다', $section);
+        $this->assertStringNotContainsString('<span class="like-count">0</span>', $section);
     }
 
-    /** 이미 누른 사용자에게는 취소 라벨이 보인다(버튼이 현재 상태를 반영한다). */
-    public function testLikeButtonShowsCancelLabelWhenAlreadyLiked(): void
+    /**
+     * 이미 누른 사용자에게는 하트가 채워지고 취소 라벨이 붙는다.
+     *
+     * 목업은 아이콘만 두므로 화면에 글자가 없다 — 상태를 색으로만 알리면 스크린리더가
+     * 읽지 못하니 aria-label 과 aria-pressed 가 그 역할을 대신해야 한다.
+     */
+    public function testLikeButtonShowsCancelStateWhenAlreadyLiked(): void
     {
         $author = $this->makeUser('author', 'author@example.com');
         $liker  = $this->makeUser('liker', 'liker@example.com');
@@ -250,12 +257,15 @@ final class PostLikeTest extends CIUnitTestCase
         $this->actingAs($liker)->call('POST', "posts/{$post->id}/like");
         $section = $this->likeSection($this->actingAs($liker)->call('GET', "posts/{$post->slug}")->getBody());
 
-        $this->assertStringContainsString('좋아요 취소', $section);
+        $this->assertStringContainsString('aria-label="좋아요 취소"', $section);
         $this->assertStringContainsString('aria-pressed="true"', $section);
+        // 색(is-liked)만이 아니라 하트를 채워서도 알린다 — 색각 이상 사용자를 위해.
+        $this->assertStringContainsString('is-liked', $section);
+        $this->assertStringContainsString('fill="currentColor"', $section);
     }
 
-    /** 아직 안 누른 사용자에게는 좋아요 라벨이 보인다. */
-    public function testLikeButtonShowsLikeLabelWhenNotLiked(): void
+    /** 아직 안 누른 사용자에게는 빈 하트와 좋아요 라벨이 보인다. */
+    public function testLikeButtonShowsLikeStateWhenNotLiked(): void
     {
         $author = $this->makeUser('author', 'author@example.com');
         $liker  = $this->makeUser('liker', 'liker@example.com');
@@ -263,8 +273,33 @@ final class PostLikeTest extends CIUnitTestCase
 
         $section = $this->likeSection($this->actingAs($liker)->call('GET', "posts/{$post->slug}")->getBody());
 
-        $this->assertStringNotContainsString('좋아요 취소', $section);
+        $this->assertStringContainsString('aria-label="좋아요"', $section);
         $this->assertStringContainsString('aria-pressed="false"', $section);
+        $this->assertStringNotContainsString('is-liked', $section);
+        $this->assertStringNotContainsString('fill="currentColor"', $section);
+    }
+
+    /**
+     * 목업의 engagement bar 는 좋아요 옆에 댓글 수를 함께 보여 주고, 누르면 댓글 영역으로 간다.
+     *
+     * 링크 대상(id="comments")이 실제로 있는지까지 본다 — 앵커만 걸고 대상이 없으면 아무 데도 안 간다.
+     */
+    public function testEngagementBarShowsCommentCountLinkedToComments(): void
+    {
+        $author = $this->makeUser('author', 'author@example.com');
+        $post   = $this->makePost((int) $author->id);
+        $comments = model(CommentModel::class);
+        $comments->insert(['post_id' => $post->id, 'user_id' => $author->id, 'body' => '첫 댓글']);
+        $comments->insert(['post_id' => $post->id, 'user_id' => $author->id, 'body' => '둘째 댓글']);
+
+        $body    = $this->call('GET', "posts/{$post->slug}")->getBody();
+        $section = $this->likeSection($body);
+
+        $this->assertStringContainsString('<span class="comment-count">2</span>', $section);
+        // 하드코딩된 0 이 아니라 실제 개수여야 한다.
+        $this->assertStringNotContainsString('<span class="comment-count">0</span>', $section);
+        $this->assertStringContainsString('href="#comments"', $section);
+        $this->assertStringContainsString('id="comments"', $body, '앵커 대상인 댓글 영역이 없다.');
     }
 
     /** 비로그인에게는 폼 대신 로그인 유도만 보인다(댓글 영역과 같은 패턴). */
