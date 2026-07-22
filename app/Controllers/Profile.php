@@ -121,11 +121,7 @@ class Profile extends BaseController
             return false;
         }
 
-        $dir  = WRITEPATH . 'uploads';
-        $name = $file->getRandomName();
-        $file->move($dir, $name);
-
-        return $name;
+        return service('uploadStorage')->store($file);
     }
 
     /**
