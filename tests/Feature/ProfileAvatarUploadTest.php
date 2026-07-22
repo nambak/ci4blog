@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Libraries\UploadStorage;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
 use CodeIgniter\Test\CIUnitTestCase;
@@ -44,7 +45,12 @@ final class ProfileAvatarUploadTest extends CIUnitTestCase
         Services::resetSingle('superglobals');
 
         $this->storage = new FakeUploadStorage(WRITEPATH . 'uploads');
-        Services::injectMock('uploadStorage', $this->storage);
+
+        // 서비스 이름을 소문자로 주입한다. injectMock() 은 $instances 에 준 이름 그대로,
+        // $mocks 에는 소문자로 넣는데 resetSingle() 은 소문자 키만 지운다. camelCase 로
+        // 주입하면 $instances['uploadStorage'] 가 남아 다음 테스트 클래스까지 새어 나가고,
+        // service() 는 파라미터가 없을 때 그 $instances 를 그대로 읽는다.
+        Services::injectMock('uploadstorage', $this->storage);
     }
 
     protected function tearDown(): void
@@ -59,6 +65,10 @@ final class ProfileAvatarUploadTest extends CIUnitTestCase
         // 비워 두지 않으면 뒤따르는 테스트가 이미 지워진 임시 파일을 업로드로 인식한다.
         $_FILES = [];
         Services::resetSingle('superglobals');
+
+        // CIUnitTestCase 는 서비스를 자동으로 되돌리지 않는다($tearDownMethods = []).
+        // 치우지 않으면 가짜 저장기가 다른 테스트 클래스까지 살아남는다.
+        Services::resetSingle('uploadstorage');
 
         parent::tearDown();
     }
@@ -84,7 +94,9 @@ final class ProfileAvatarUploadTest extends CIUnitTestCase
             true
         );
 
-        $path = tempnam(sys_get_temp_dir(), 'avatar') . '.png';
+        // tempnam() 이 만든 파일을 그대로 쓴다. 뒤에 확장자를 붙이면 원본이
+        // 추적되지 않은 채 /tmp 에 남는다. 업로드 파일명은 attach() 의 $name 이 정한다.
+        $path = tempnam(sys_get_temp_dir(), 'avatar');
         file_put_contents($path, $png);
         $this->temps[] = $path;
 
@@ -107,6 +119,25 @@ final class ProfileAvatarUploadTest extends CIUnitTestCase
                 'error'    => UPLOAD_ERR_OK,
             ],
         ]);
+    }
+
+    /**
+     * 가짜 저장기가 tearDown 으로 확실히 치워지는 이름으로 등록됐는지 지킨다.
+     *
+     * camelCase 로 주입하면 resetSingle() 이 못 지워 다음 테스트 클래스까지 새어 나간다.
+     * 그 사고는 조용해서(다른 테스트가 업로드를 안 하면 아무도 안 깨진다) 방지망이 필요하다.
+     */
+    public function testFakeStorageIsRegisteredUnderAResettableKey(): void
+    {
+        Services::resetSingle('uploadstorage');
+
+        $this->assertSame(
+            UploadStorage::class,
+            service('uploadStorage')::class,
+            'resetSingle() 뒤에는 진짜 저장기가 돌아와야 한다'
+        );
+
+        Services::injectMock('uploadstorage', $this->storage);
     }
 
     public function testStoresUploadedAvatarAndPersistsFilename(): void
@@ -157,7 +188,7 @@ final class ProfileAvatarUploadTest extends CIUnitTestCase
         $users->save($user);
 
         // 내용은 텍스트인데 확장자·신고 타입만 이미지인 파일.
-        $path = tempnam(sys_get_temp_dir(), 'fake') . '.png';
+        $path = tempnam(sys_get_temp_dir(), 'fake');
         file_put_contents($path, "not an image\n");
         $this->temps[] = $path;
         $this->attach($path, 'evil.png', 'image/png');
