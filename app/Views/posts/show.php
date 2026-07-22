@@ -96,7 +96,7 @@
     </div>
 
     <?php // 댓글 목록(부분 뷰). ?>
-    <?= $this->include('comments/_list', ['comments' => $comments, 'commentCount' => $commentCount, 'post' => $post]) ?>
+    <?= $this->include('comments/_list', ['comments' => $comments, 'commentCount' => $commentCount, 'post' => $post, 'likeCounts' => $likeCounts, 'likedIds' => $likedIds]) ?>
 
     <?php // 댓글 작성 폼은 로그인 사용자에게만 노출한다(비로그인은 로그인 유도). ?>
     <?php if (auth()->loggedIn()): ?>

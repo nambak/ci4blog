@@ -194,6 +194,119 @@ final class CommentLikeTest extends CIUnitTestCase
         $this->assertSame(0, $this->likeCount($comment));
     }
 
+    /** 글 상세의 댓글마다 하트와 카운트가 보인다. */
+    public function testPostShowRendersHeartAndCountPerComment(): void
+    {
+        $author  = $this->makeUser('author', 'author@example.com');
+        $visitor = $this->makeUser('visitor', 'visitor@example.com');
+        $post    = $this->makePost($author->id);
+        $liked   = $this->makeComment($post->id, $author->id, ['body' => '내가 누른 댓글']);
+        $plain   = $this->makeComment($post->id, $author->id, ['body' => '아무도 안 누른 댓글']);
+
+        $this->actingAs($visitor)->call('POST', "comments/{$liked}/like");
+
+        $body = html_entity_decode(
+            $this->actingAs($visitor)->call('GET', "posts/{$post->slug}")->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+
+        // 댓글별 블록을 잘라내 그 안만 본다 — 페이지 어딘가에 문자열이 있는 것으로 통과하면 안 된다.
+        $likedBlock = $this->likeControl($body, $liked);
+        $plainBlock = $this->likeControl($body, $plain);
+
+        $this->assertStringContainsString('>1<', $likedBlock, '누른 댓글의 카운트가 1이어야 한다');
+        $this->assertStringContainsString('aria-pressed="true"', $likedBlock);
+        $this->assertStringContainsString('is-liked', $likedBlock);
+
+        $this->assertStringContainsString('>0<', $plainBlock, '안 누른 댓글의 카운트가 0이어야 한다');
+        $this->assertStringContainsString('aria-pressed="false"', $plainBlock);
+        $this->assertStringNotContainsString('is-liked', $plainBlock, '안 누른 댓글에 눌린 표시가 있으면 안 된다');
+    }
+
+    /** 비로그인에게는 폼 대신 로그인 링크가 보인다(게시글 좋아요와 같은 규칙). */
+    public function testGuestSeesLoginLinkInsteadOfLikeForm(): void
+    {
+        $author  = $this->makeUser('author', 'author@example.com');
+        $post    = $this->makePost($author->id);
+        $comment = $this->makeComment($post->id, $author->id);
+
+        $body = html_entity_decode(
+            $this->call('GET', "posts/{$post->slug}")->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+
+        $block = $this->likeControl($body, $comment);
+
+        $this->assertStringContainsString('/login', $block, '비로그인은 로그인으로 보내야 한다');
+        $this->assertStringNotContainsString("comments/{$comment}/like", $block, '비로그인에게 좋아요 폼을 주면 안 된다');
+    }
+
+    /**
+     * 댓글 수가 늘어도 좋아요 관련 쿼리 수는 그대로여야 한다(N+1 회귀 방지).
+     *
+     * 총 쿼리 수는 다른 기능이 늘면 깨지므로 comment_likes 를 건드리는 쿼리만 센다.
+     * CI4 4.7.3 에는 getQueryCount() 가 없어 DBQuery 이벤트로 센다.
+     */
+    public function testLikeQueryCountDoesNotGrowWithCommentCount(): void
+    {
+        $two  = $this->countLikeQueriesForPostWith(2);
+        $five = $this->countLikeQueriesForPostWith(5);
+
+        $this->assertSame(
+            $two,
+            $five,
+            "댓글이 2개일 때 {$two}회, 5개일 때 {$five}회 — 댓글 수에 따라 늘면 N+1 이다"
+        );
+        $this->assertGreaterThan(0, $two, '좋아요 쿼리가 아예 없으면 이 테스트는 아무것도 지키지 못한다');
+    }
+
+    /** 댓글 $count 개를 가진 글 상세를 그리고, comment_likes 를 건드린 쿼리 수를 돌려준다. */
+    private function countLikeQueriesForPostWith(int $count): int
+    {
+        $author  = $this->makeUser("author{$count}", "author{$count}@example.com");
+        $visitor = $this->makeUser("visitor{$count}", "visitor{$count}@example.com");
+        $post    = $this->makePost($author->id, ['title' => "댓글 {$count} 개 글"]);
+
+        for ($i = 0; $i < $count; $i++) {
+            $id = $this->makeComment($post->id, $author->id, ['body' => "댓글 {$i}"]);
+            $this->actingAs($visitor)->call('POST', "comments/{$id}/like");
+        }
+
+        $seen = 0;
+        \CodeIgniter\Events\Events::on('DBQuery', static function ($query) use (&$seen): void {
+            if (str_contains(strtolower((string) $query), 'comment_likes')) {
+                $seen++;
+            }
+        });
+
+        try {
+            $this->actingAs($visitor)->call('GET', "posts/{$post->slug}");
+        } finally {
+            // 리스너가 남으면 다음 테스트의 카운트까지 오염된다.
+            \CodeIgniter\Events\Events::removeAllListeners('DBQuery');
+        }
+
+        return $seen;
+    }
+
+    /**
+     * 댓글 한 건의 좋아요 컨트롤 마크업만 잘라낸다.
+     *
+     * 페이지 전체를 문자열로 검사하면 다른 댓글의 상태로 통과하는 위양성이 생긴다.
+     */
+    private function likeControl(string $body, int $commentId): string
+    {
+        $pattern = '/<(form|a)[^>]*class="[^"]*comment-like[^"]*"[^>]*data-comment="' . $commentId . '".*?<\/\1>/s';
+
+        if (preg_match($pattern, $body, $m) !== 1) {
+            $this->fail("댓글 {$commentId} 의 좋아요 컨트롤을 찾지 못했다.");
+        }
+
+        return $m[0];
+    }
+
     public function testMissingCommentIsNotFound(): void
     {
         $visitor = $this->makeUser('visitor', 'visitor@example.com');

@@ -1,10 +1,18 @@
-<?php // 글 상세에 끼워 넣는 댓글 목록 부분 뷰. $comments(Comment[])·$commentCount·$post 를 받는다. ?>
+<?php // 글 상세에 끼워 넣는 댓글 목록 부분 뷰. $comments(Comment[])·$commentCount·$post 와 좋아요 집계($likeCounts·$likedIds)를 받는다. ?>
 <?php
+// 좋아요 하트(#100). 목업의 댓글 하트와 같은 13px svg 다.
+// 누른 상태는 색만이 아니라 채움(fill)으로도 알린다 — 색 하나로만 알리면 색각 이상
+// 사용자가 구분하지 못한다.
+$heart = static fn (bool $filled): string => '<svg class="icon-heart-sm" viewBox="0 0 24 24" fill="'
+    . ($filled ? 'currentColor' : 'none')
+    . '" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    . '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+
 // 댓글 한 건을 그린다. 최상위와 답글이 같은 마크업을 쓰므로 한 번만 정의한다.
 // $isReply 면 들여쓰기 클래스를 붙인다.
-$renderComment = static function ($comment, bool $isReply) use ($post): void {
+$renderComment = static function ($comment, bool $isReply) use ($post, $likeCounts, $likedIds, $heart): void {
     ?>
-    <li class="comment<?= $isReply ? ' comment-reply' : '' ?>">
+    <li class="comment<?= $isReply ? ' comment-reply' : '' ?>" id="comment-<?= (int) $comment->id ?>">
         <?= view('partials/avatar', ['avatar' => $comment->authorAvatar, 'name' => $comment->authorName, 'size' => 'sm']) ?>
 
         <div class="comment-main">
@@ -32,9 +40,36 @@ $renderComment = static function ($comment, bool $isReply) use ($post): void {
                 && (int) auth()->id() !== (int) $comment->user_id
                 && ! $comment->isHidden()
                 && ! $isReply;
+
+            // 좋아요는 숨김 댓글에만 닫는다(컨트롤러 가드와 같은 규칙).
+            $canLike    = ! $comment->isHidden();
+            $likeCount  = $likeCounts[(int) $comment->id] ?? 0;
+            $hasLiked   = isset($likedIds[(int) $comment->id]);
             ?>
-            <?php if ($canDelete || $canReport): ?>
+            <?php // 좋아요는 항상 보여야 하므로 푸터를 조건 없이 그린다(목업 순서: 좋아요 → 삭제·신고). ?>
                 <div class="comment-foot">
+                    <?php if ($canLike && auth()->loggedIn()): ?>
+                        <form action="<?= site_url('comments/' . $comment->id . '/like') ?>" method="post"
+                              class="comment-like" data-comment="<?= (int) $comment->id ?>">
+                            <?= csrf_field() ?>
+                            <?php // 아이콘만 남아 글자가 없으므로 상태는 aria 로 알린다. ?>
+                            <button type="submit"
+                                    class="comment-like-btn<?= $hasLiked ? ' is-liked' : '' ?>"
+                                    aria-pressed="<?= $hasLiked ? 'true' : 'false' ?>"
+                                    aria-label="<?= $hasLiked ? '좋아요 취소' : '좋아요' ?>">
+                                <?= $heart($hasLiked) ?><span class="comment-like-count"><?= (int) $likeCount ?></span>
+                            </button>
+                        </form>
+                    <?php elseif ($canLike): ?>
+                        <?php // 비로그인은 로그인으로 보낸다(게시글 좋아요와 같은 규칙). ?>
+                        <a class="comment-like" data-comment="<?= (int) $comment->id ?>"
+                           href="<?= site_url('login') ?>" aria-label="로그인하고 좋아요">
+                            <span class="comment-like-btn">
+                                <?= $heart(false) ?><span class="comment-like-count"><?= (int) $likeCount ?></span>
+                            </span>
+                        </a>
+                    <?php endif ?>
+
                     <?php if ($canDelete): ?>
                         <form action="<?= site_url('comments/' . $comment->id . '/delete') ?>" method="post"
                               onsubmit="return confirm('댓글을 삭제하시겠습니까?');">
@@ -59,7 +94,6 @@ $renderComment = static function ($comment, bool $isReply) use ($post): void {
                         </details>
                     <?php endif ?>
                 </div>
-            <?php endif ?>
         </div>
     </li>
     <?php
