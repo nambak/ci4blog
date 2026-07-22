@@ -367,7 +367,12 @@ class Posts extends BaseController
         }
 
         $image = $post->image;
-        $model->delete($id);
+
+        // 삭제 결과를 확인하고 나서 파일을 건드린다. 실패했는데 파일만 지우면
+        // 글은 남은 채 이미지 참조만 깨진다.
+        if (! $model->delete($id)) {
+            return redirect()->back()->with('errors', ['글을 삭제하지 못했습니다.']);
+        }
 
         // 행을 지운 뒤에 파일을 정리한다(update() 와 같은 순서). 소프트 삭제가 아니라
         // 되돌릴 일이 없으므로, 안 지우면 원본과 썸네일이 디스크에 영원히 남는다.
