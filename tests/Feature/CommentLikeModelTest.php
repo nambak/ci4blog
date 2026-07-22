@@ -53,6 +53,10 @@ final class CommentLikeModelTest extends CIUnitTestCase
         model(CommentLikeModel::class)->insert(['comment_id' => $commentId, 'user_id' => $userId]);
     }
 
+    /**
+     * 댓글별 좋아요 수를 한 번에 돌려준다. 좋아요가 없는 댓글은 키 자체가 없어야
+     * 뷰에서 ?? 0 으로 처리할 수 있다.
+     */
     public function testCountsByCommentReturnsCountPerComment(): void
     {
         $author = $this->makeUser('author', 'author@example.com');
@@ -76,6 +80,7 @@ final class CommentLikeModelTest extends CIUnitTestCase
         $this->assertArrayNotHasKey($c, $counts);
     }
 
+    /** 요청하지 않은 댓글이 섞여 들어오면 안 된다 — whereIn 이 빠지면 전체가 잡힌다. */
     public function testCountsByCommentIgnoresCommentsOutsideTheList(): void
     {
         $author = $this->makeUser('author', 'author@example.com');
@@ -93,12 +98,14 @@ final class CommentLikeModelTest extends CIUnitTestCase
         $this->assertSame([$asked => 1], $counts, '요청한 id 만 돌려줘야 한다');
     }
 
+    /** 빈 배열에 whereIn 을 걸면 드라이버에 따라 전체 조회가 되거나 오류가 난다. */
     public function testCountsByCommentReturnsEmptyForEmptyInput(): void
     {
         // 빈 배열에 whereIn 을 걸면 드라이버에 따라 전체 조회가 되거나 오류가 난다.
         $this->assertSame([], model(CommentLikeModel::class)->countsByComment([]));
     }
 
+    /** 남이 누른 것이 내 것으로 잡히면 화면에 남의 상태가 내 상태로 보인다. */
     public function testLikedByUserReturnsOnlyThatUsersLikes(): void
     {
         $author = $this->makeUser('author', 'author@example.com');
@@ -118,6 +125,7 @@ final class CommentLikeModelTest extends CIUnitTestCase
         $this->assertArrayNotHasKey($their, $liked, '남이 누른 것이 내 것으로 잡히면 안 된다');
     }
 
+    /** 빈 입력은 쿼리 없이 빈 배열이다. */
     public function testLikedByUserReturnsEmptyForEmptyInput(): void
     {
         $me = $this->makeUser('me', 'me@example.com');
@@ -125,6 +133,7 @@ final class CommentLikeModelTest extends CIUnitTestCase
         $this->assertSame([], model(CommentLikeModel::class)->likedByUser([], (int) $me->id));
     }
 
+    /** 토글 분기가 쓰는 단건 판정. */
     public function testHasLikedReflectsSingleRow(): void
     {
         $author = $this->makeUser('author', 'author@example.com');

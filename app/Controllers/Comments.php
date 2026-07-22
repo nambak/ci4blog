@@ -193,6 +193,17 @@ class Comments extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
+        // 답글은 자신이 visible 이어도 부모가 숨겨지면 목록에서 함께 빠진다
+        // (CommentModel::visibleForPost 의 orWhere('parent.status', VISIBLE)).
+        // 답글 자신의 상태만 보면 화면에 없는 답글을 id 로 직접 누를 수 있다.
+        if ($comment->isReply()) {
+            $parent = model(CommentModel::class)->find((int) $comment->parent_id);
+
+            if ($parent === null || $parent->isHidden()) {
+                throw PageNotFoundException::forPageNotFound();
+            }
+        }
+
         $likes  = model(CommentLikeModel::class);
         $userId = (int) auth()->id();
 

@@ -89,6 +89,7 @@ final class CommentLikeTest extends CIUnitTestCase
         return db_connect()->table('comment_likes')->where('comment_id', $commentId)->countAllResults();
     }
 
+    /** 같은 요청을 두 번 보내면 좋아요가 생겼다가 취소된다(토글). */
     public function testLikeThenUnlikeTogglesTheRow(): void
     {
         $author  = $this->makeUser('author', 'author@example.com');
@@ -103,6 +104,10 @@ final class CommentLikeTest extends CIUnitTestCase
         $this->assertSame(0, $this->likeCount($comment), '한 번 더 누르면 취소돼야 한다');
     }
 
+    /**
+     * 유니크 키는 (comment_id, user_id) 다 — 사용자가 다르면 각각 쌓인다.
+     * 키가 comment_id 만이었다면 두 번째가 취소로 새어 통과한다.
+     */
     public function testDifferentUsersLikesAccumulate(): void
     {
         $author  = $this->makeUser('author', 'author@example.com');
@@ -117,6 +122,10 @@ final class CommentLikeTest extends CIUnitTestCase
         $this->assertSame(2, $this->likeCount($comment), '사용자가 다르면 각각 쌓여야 한다');
     }
 
+    /**
+     * 비로그인은 session 필터가 막는다. 리다이렉트만 보면 실제로 막혔는지 알 수 없어
+     * 카운트 불변까지 함께 단언한다.
+     */
     public function testGuestIsRedirectedAndCountIsUnchanged(): void
     {
         $author  = $this->makeUser('author', 'author@example.com');
@@ -129,6 +138,10 @@ final class CommentLikeTest extends CIUnitTestCase
         $this->assertSame(0, $this->likeCount($comment), '비로그인은 좋아요가 남으면 안 된다');
     }
 
+    /**
+     * 답글도 좋아요 대상이다(목업이 답글에도 하트를 그린다).
+     * 부모에 잘못 달리지 않는지도 함께 본다.
+     */
     public function testReplyCanBeLiked(): void
     {
         $author  = $this->makeUser('author', 'author@example.com');
@@ -143,6 +156,7 @@ final class CommentLikeTest extends CIUnitTestCase
         $this->assertSame(0, $this->likeCount($parent), '부모 댓글에 잘못 달리면 안 된다');
     }
 
+    /** 숨김 처리된 댓글은 좋아요 대상이 아니다 — 신고와 같은 판단이다. */
     public function testHiddenCommentCannotBeLiked(): void
     {
         $author  = $this->makeUser('author', 'author@example.com');
@@ -160,6 +174,37 @@ final class CommentLikeTest extends CIUnitTestCase
         $this->assertSame(0, $this->likeCount($comment));
     }
 
+    /**
+     * 부모가 숨겨진 답글에는 좋아요를 달 수 없다.
+     *
+     * CommentModel::visibleForPost() 가 부모가 안 보이는 답글을 목록에서 빼므로
+     * (orWhere('parent.status', VISIBLE)), 답글 자신의 status 만 보면 화면에 없는
+     * 답글을 id 로 직접 누를 수 있다. 이 PR 이 다른 곳에서 맞춘 "보이는 것에만
+     * 동작한다"는 규칙이 여기서만 깨진다.
+     */
+    public function testReplyUnderHiddenParentCannotBeLiked(): void
+    {
+        $author  = $this->makeUser('author', 'author@example.com');
+        $visitor = $this->makeUser('visitor', 'visitor@example.com');
+        $post    = $this->makePost($author->id);
+        $parent  = $this->makeComment($post->id, $author->id, ['status' => Comment::STATUS_HIDDEN]);
+        // 답글 자신은 visible 이다 — 부모 때문에 화면에서 빠질 뿐이다.
+        $reply = $this->makeComment($post->id, $author->id, ['parent_id' => $parent, 'body' => '숨은 부모의 답글']);
+
+        try {
+            $this->actingAs($visitor)->call('POST', "comments/{$reply}/like");
+            $this->fail('부모가 숨겨진 답글에는 좋아요를 달 수 없어야 한다.');
+        } catch (PageNotFoundException) {
+            // 기대한 경로.
+        }
+
+        $this->assertSame(0, $this->likeCount($reply));
+    }
+
+    /**
+     * 비발행 글의 댓글도 막는다. 상세가 404 인 글에 좋아요만 열려 있으면
+     * 응답 차이로 글의 존재가 샌다.
+     */
     public function testCommentOnUnpublishedPostCannotBeLiked(): void
     {
         $author  = $this->makeUser('author', 'author@example.com');
@@ -177,6 +222,7 @@ final class CommentLikeTest extends CIUnitTestCase
         $this->assertSame(0, $this->likeCount($comment));
     }
 
+    /** 숨김 카테고리 글의 댓글도 같은 이유로 막는다(#67 가드를 공통화한 자리). */
     public function testCommentOnPostInHiddenCategoryCannotBeLiked(): void
     {
         $author  = $this->makeUser('author', 'author@example.com');
@@ -307,6 +353,7 @@ final class CommentLikeTest extends CIUnitTestCase
         return $m[0];
     }
 
+    /** 없는 댓글 id 는 404. */
     public function testMissingCommentIsNotFound(): void
     {
         $visitor = $this->makeUser('visitor', 'visitor@example.com');
