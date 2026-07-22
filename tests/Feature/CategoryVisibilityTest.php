@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Entities\Post;
 use App\Models\CategoryModel;
+use App\Models\CommentModel;
+use App\Models\CommentReportModel;
 use App\Models\PostModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Shield\Entities\User;
@@ -361,5 +363,61 @@ final class CategoryVisibilityTest extends CIUnitTestCase
 
         $this->assertStringContainsString('숨김분류', $matches[0]);
         $this->assertStringContainsString('공개분류', $matches[0]);
+    }
+
+    /**
+     * 숨김 카테고리 글에는 댓글을 달 수 없다.
+     *
+     * #67 이 상세(Posts::assertViewable)만 2단으로 바꾸고 Comments::store() 는
+     * isPublished() 만 보게 남겨 뒀다. 그래서 상세가 404 인 글에 글 id 만 알면
+     * 댓글이 달렸고, 성공 리다이렉트의 Location 으로 슬러그까지 샜다.
+     */
+    public function testCannotCommentOnPostInHiddenCategory(): void
+    {
+        $this->seedCategories();
+        $post     = model(PostModel::class)->where('title', '숨김분류 글')->first();
+        $stranger = $this->makeUser('stranger', 'stranger@example.com');
+        $comments = model(CommentModel::class);
+
+        try {
+            $this->actingAs($stranger)->call('POST', "posts/{$post->id}/comments", ['body' => '숨김 글에 남기는 댓글']);
+            $this->fail('숨김 카테고리 글에는 댓글을 달 수 없어야 한다.');
+        } catch (PageNotFoundException) {
+            // 기대한 경로.
+        }
+
+        $this->assertSame(
+            0,
+            $comments->where('post_id', $post->id)->countAllResults(),
+            '404 로 막혔다면 댓글이 저장돼 있으면 안 된다.'
+        );
+    }
+
+    /** 숨김 카테고리 글의 댓글은 신고할 수 없다 — store() 와 같은 이유. */
+    public function testCannotReportCommentOnPostInHiddenCategory(): void
+    {
+        $this->seedCategories();
+        $post   = model(PostModel::class)->where('title', '숨김분류 글')->first();
+        $author = $this->makeUser('author', 'author@example.com');
+
+        $comments = model(CommentModel::class);
+        $comments->insert(['post_id' => $post->id, 'user_id' => $author->id, 'body' => '남의 댓글']);
+        $commentId = $comments->getInsertID();
+
+        $reporter = $this->makeUser('reporter', 'reporter@example.com');
+        $reports  = model(CommentReportModel::class);
+
+        try {
+            $this->actingAs($reporter)->call('POST', "comments/{$commentId}/report", ['reason' => 'spam']);
+            $this->fail('숨김 카테고리 글의 댓글은 신고할 수 없어야 한다.');
+        } catch (PageNotFoundException) {
+            // 기대한 경로.
+        }
+
+        $this->assertSame(
+            0,
+            $reports->where('comment_id', $commentId)->countAllResults(),
+            '404 로 막혔다면 신고가 저장돼 있으면 안 된다.'
+        );
     }
 }

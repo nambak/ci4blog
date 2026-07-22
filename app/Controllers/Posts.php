@@ -440,19 +440,10 @@ class Posts extends BaseController
      */
     private function assertViewable(Post $post): void
     {
-        // 비발행 글(초안·비공개)은 작성자 본인과 관리자에게만 미리보기로 열어 준다.
-        if (! $post->isPublished() && ! $this->canModify($post)) {
+        // 판정은 post_viewable() 헬퍼가 한다 — 댓글 작성·신고·좋아요가 같은 규칙을
+        // 써야 해서 한 곳으로 모았다(#100).
+        if (! post_viewable($post)) {
             throw PageNotFoundException::forPageNotFound();
-        }
-
-        // 숨김 카테고리(#67)에 속한 글도 같은 규칙으로 가린다. 카테고리를 숨긴다는 건
-        // 그 글들을 공개 화면에서 뺀다는 뜻이므로, 목록에서만 빼고 상세는 열어 두면
-        // 슬러그를 아는 사람에게 그대로 노출된다.
-        if ($post->category_id !== null && ! $this->canModify($post)) {
-            $postCategory = model(CategoryModel::class)->find($post->category_id);
-            if ($postCategory !== null && ! $postCategory->is_visible) {
-                throw PageNotFoundException::forPageNotFound();
-            }
         }
     }
 
