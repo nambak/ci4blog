@@ -320,9 +320,11 @@ class Posts extends BaseController
             return false;
         }
 
+        // 저장은 UploadStorage 가 맡는다(#95). UploadedFile::move() 가 내부에서 쓰는
+        // is_uploaded_file()·move_uploaded_file() 은 실제 HTTP 업로드에서만 참이라
+        // 이 한 겹이 없으면 아래 썸네일 생성까지 통째로 테스트에서 빠진다.
         $dir  = WRITEPATH . 'uploads';
-        $name = $file->getRandomName();
-        $file->move($dir, $name);
+        $name = service('uploadStorage')->store($file);
 
         // 목록용 썸네일(400x250 크롭). 원본은 상세에서 사용.
         service('image')
@@ -384,7 +386,17 @@ class Posts extends BaseController
             return $this->response->setStatusCode(403, '삭제 권한이 없습니다.');
         }
 
-        $model->delete($id);
+        $image = $post->image;
+
+        // 삭제 결과를 확인하고 나서 파일을 건드린다. 실패했는데 파일만 지우면
+        // 글은 남은 채 이미지 참조만 깨진다.
+        if (! $model->delete($id)) {
+            return redirect()->back()->with('errors', ['글을 삭제하지 못했습니다.']);
+        }
+
+        // 행을 지운 뒤에 파일을 정리한다(update() 와 같은 순서). 소프트 삭제가 아니라
+        // 되돌릴 일이 없으므로, 안 지우면 원본과 썸네일이 디스크에 영원히 남는다.
+        $this->deleteImageFiles($image);
 
         return redirect()->to('posts')->with('message', '글이 삭제되었습니다.');
     }
