@@ -65,7 +65,8 @@ $renderComment = static function ($comment, bool $isReply) use ($post): void {
     <?php
 };
 ?>
-<section class="comments">
+<?php // id 는 글 상세의 engagement bar 에서 "댓글 N" 을 눌렀을 때의 앵커 대상이다. ?>
+<section class="comments" id="comments">
     <h2 class="comments-title">댓글 <span class="comments-count"><?= esc((string) $commentCount) ?></span></h2>
 
     <?php if ($comments === []): ?>
