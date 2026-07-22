@@ -2,6 +2,7 @@
 
 namespace Config;
 
+use App\Libraries\UploadStorage;
 use CodeIgniter\Config\BaseService;
 
 /**
@@ -29,4 +30,16 @@ class Services extends BaseService
      *     return new \CodeIgniter\Example();
      * }
      */
+
+    /**
+     * 업로드 파일 저장기. 테스트에서 injectMock('uploadStorage', ...) 으로 바꿔 끼운다.
+     */
+    public static function uploadStorage(bool $getShared = true): UploadStorage
+    {
+        if ($getShared) {
+            return static::getSharedInstance('uploadStorage');
+        }
+
+        return new UploadStorage(WRITEPATH . 'uploads');
+    }
 }
