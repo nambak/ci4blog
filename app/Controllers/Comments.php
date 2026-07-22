@@ -149,14 +149,20 @@ class Comments extends BaseController
         }
 
         if (! $inserted) {
-            // 이미 신고돼 있으면(레이스 포함) 친화적으로 처리한다.
-            if ($reports->hasReported($commentId, $reporterId)) {
-                return redirect()->back()->with('message', '이미 신고한 댓글입니다.');
+            if ($dbException !== null) {
+                // 유니크 위반 = 이미 신고돼 있다는 뜻(레이스 포함). 원인은 예외에서 읽는다 —
+                // 연결의 error() 는 이 시점에 이미 비어 있다(#107 조사).
+                if (is_duplicate_key_error($dbException->getCode(), $dbException->getMessage())) {
+                    return redirect()->back()->with('message', '이미 신고한 댓글입니다.');
+                }
+
+                // 중복이 아닌 DB 오류는 숨기지 않고 그대로 전파한다.
+                throw $dbException;
             }
 
-            // 중복이 아닌 DB 오류는 숨기지 않고 그대로 전파한다.
-            if ($dbException !== null) {
-                throw $dbException;
+            // DBDebug=false 면 예외가 없어 원인을 알 수 없다. 이때만 예전처럼 되묻는다.
+            if ($reports->hasReported($commentId, $reporterId)) {
+                return redirect()->back()->with('message', '이미 신고한 댓글입니다.');
             }
 
             return redirect()->back()->withInput()->with('errors', $reports->errors());
@@ -221,14 +227,21 @@ class Comments extends BaseController
         }
 
         if (! $inserted) {
-            if ($likes->hasLiked($commentId, $userId)) {
+            // 실패 원인은 예외에서 읽는다. 연결의 error() 는 이 시점에 이미 비어 있다
+            // ({code:0, message:"not an error"}) — #107 조사에서 확인했다.
+            $isDuplicate = $dbException !== null
+                && is_duplicate_key_error($dbException->getCode(), $dbException->getMessage());
+
+            if ($isDuplicate) {
+                // 유니크 위반 = 이미 눌러 뒀다는 뜻이므로 취소로 간다(토글).
                 $likes->where('comment_id', $commentId)->where('user_id', $userId)->delete();
             } elseif ($dbException !== null) {
-                // 삽입도 실패했는데 좋아요도 없다 — 같은 사용자의 취소 요청이 겹친
-                // 레이스이거나 진짜 DB 오류다. 둘을 구분할 수 없고 전자는 최종 상태가
-                // 사용자가 원한 그대로라, 재던지면 정상 동작에도 500 이 나간다(76ea329).
-                // 원인은 로그로 남기고 화면은 정상 응답한다. 후자라면 카운트가 그대로여서
-                // 사용자에게도 "안 눌렸다"가 보인다.
+                // 중복이 아닌 DB 오류다. 기존 행은 건드리지 않는다 — 원인을 구분하지 않고
+                // "행이 있으면 취소" 하면, 삽입이 커밋된 뒤 타임아웃 같은 실패에서 방금
+                // 만든 행을 지워 사용자가 누른 좋아요가 사라진다(#107).
+                // 재던지지도 않는다. 동시 취소 레이스 같은 정상 상황에도 500 이 나가므로
+                // (76ea329) 로그만 남기고 화면은 정상 응답한다 — 진짜 오류라면 카운트가
+                // 그대로여서 사용자에게도 "안 눌렸다"가 보인다.
                 log_message('error', '댓글 좋아요 삽입 실패 (comment {comment}, user {user}): {message}', [
                     'comment' => $commentId,
                     'user'    => $userId,
@@ -236,6 +249,9 @@ class Comments extends BaseController
                 ]);
             } elseif ($likes->errors() !== []) {
                 return redirect()->back()->with('errors', $likes->errors());
+            } elseif ($likes->hasLiked($commentId, $userId)) {
+                // DBDebug=false 면 예외가 없어 원인을 알 수 없다. 이때만 예전처럼 되묻는다.
+                $likes->where('comment_id', $commentId)->where('user_id', $userId)->delete();
             }
         }
 
