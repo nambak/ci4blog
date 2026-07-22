@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Entities\Comment;
 use App\Entities\Post;
+use App\Models\CommentLikeModel;
 use App\Models\CommentModel;
 use App\Models\CommentReportModel;
 use App\Models\PostModel;
@@ -162,5 +163,82 @@ class Comments extends BaseController
         }
 
         return redirect()->back()->with('message', '신고가 접수되었습니다.');
+    }
+
+    /**
+     * 댓글 좋아요를 토글한다. (세션 필터로 로그인 사용자만 접근)
+     *
+     * 답글도 대상이다 — 답글은 관리자만 달 수 있으므로(Admin\Comments::reply) 관리자
+     * 응답이 도움이 됐다는 신호를 받는 자리가 된다. 신고가 답글을 제외한 것은 관리
+     * 신고 탭이 최상위만 보여주기 때문이라 여기엔 해당하지 않는다.
+     */
+    public function like(int $commentId): RedirectResponse
+    {
+        $comment = model(CommentModel::class)->find($commentId);
+
+        if ($comment === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $post = model(PostModel::class)->find((int) $comment->post_id);
+
+        // 글 상세와 같은 가드. 상세가 404 인 글의 댓글에 좋아요만 열려 있으면
+        // 응답 차이로 글의 존재가 샌다.
+        if ($post === null || ! post_viewable($post)) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 이미 안 보이는 댓글에 좋아요를 남길 의미가 없다(신고와 같은 판단).
+        if ($comment->isHidden()) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        // 답글은 자신이 visible 이어도 부모가 숨겨지면 목록에서 함께 빠진다
+        // (CommentModel::visibleForPost 의 orWhere('parent.status', VISIBLE)).
+        // 답글 자신의 상태만 보면 화면에 없는 답글을 id 로 직접 누를 수 있다.
+        if ($comment->isReply()) {
+            $parent = model(CommentModel::class)->find((int) $comment->parent_id);
+
+            if ($parent === null || $parent->isHidden()) {
+                throw PageNotFoundException::forPageNotFound();
+            }
+        }
+
+        $likes  = model(CommentLikeModel::class);
+        $userId = (int) auth()->id();
+
+        // 검사-후-삽입은 동시 요청 두 개가 모두 통과하는 레이스가 있어 쓰지 않는다(#88).
+        // 먼저 넣어 보고 유니크 키(comment_id, user_id) 위반으로 실패하면 그게 곧
+        // "이미 눌렀다"는 뜻이라 취소로 간다. 위반은 DBDebug=true 면 예외로, false 면
+        // insert=false 로 온다.
+        $dbException = null;
+
+        try {
+            $inserted = $likes->insert(['comment_id' => $commentId, 'user_id' => $userId]);
+        } catch (DatabaseException $e) {
+            $inserted    = false;
+            $dbException = $e;
+        }
+
+        if (! $inserted) {
+            if ($likes->hasLiked($commentId, $userId)) {
+                $likes->where('comment_id', $commentId)->where('user_id', $userId)->delete();
+            } elseif ($dbException !== null) {
+                // 삽입도 실패했는데 좋아요도 없다 — 같은 사용자의 취소 요청이 겹친
+                // 레이스이거나 진짜 DB 오류다. 둘을 구분할 수 없고 전자는 최종 상태가
+                // 사용자가 원한 그대로라, 재던지면 정상 동작에도 500 이 나간다(76ea329).
+                // 원인은 로그로 남기고 화면은 정상 응답한다. 후자라면 카운트가 그대로여서
+                // 사용자에게도 "안 눌렸다"가 보인다.
+                log_message('error', '댓글 좋아요 삽입 실패 (comment {comment}, user {user}): {message}', [
+                    'comment' => $commentId,
+                    'user'    => $userId,
+                    'message' => $dbException->getMessage(),
+                ]);
+            } elseif ($likes->errors() !== []) {
+                return redirect()->back()->with('errors', $likes->errors());
+            }
+        }
+
+        return redirect()->to('posts/' . $post->slug . '#comment-' . $commentId);
     }
 }

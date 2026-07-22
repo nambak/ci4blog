@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Entities\Post;
 use App\Models\CategoryModel;
+use App\Models\CommentLikeModel;
 use App\Models\CommentModel;
 use App\Models\PostLikeModel;
 use App\Models\PostModel;
@@ -103,12 +104,31 @@ class Posts extends BaseController
         $likeCount = $likes->countForPost((int) $post->id);
         $liked     = auth()->loggedIn() && $likes->hasLiked((int) $post->id, (int) auth()->id());
 
+        // 댓글 좋아요(#100): 목록의 모든 댓글에 카운트가 붙으므로 댓글마다 조회하면
+        // 그대로 N+1 이다. 최상위와 답글의 id 를 한 배열로 모아 두 번의 쿼리로 끝낸다.
+        $commentIds = [];
+        foreach ($comments as $comment) {
+            $commentIds[] = (int) $comment->id;
+            foreach ($comment->replies as $reply) {
+                $commentIds[] = (int) $reply->id;
+            }
+        }
+
+        $commentLikes = model(CommentLikeModel::class);
+        $likeCounts   = $commentLikes->countsByComment($commentIds);
+        // 비로그인은 누른 것이 있을 수 없으므로 쿼리 자체를 돌리지 않는다.
+        $likedIds = auth()->loggedIn()
+            ? $commentLikes->likedByUser($commentIds, (int) auth()->id())
+            : [];
+
         return view('posts/show', [
             'post'         => $post,
             'likeCount'    => $likeCount,
             'liked'        => $liked,
             'comments'     => $comments,
             'commentCount' => $commentCount,
+            'likeCounts'   => $likeCounts,
+            'likedIds'     => $likedIds,
             'authorName'   => $authorName,
             'authorAvatar' => $authorAvatar,
             'category'     => $category,
