@@ -26,10 +26,10 @@ class Comments extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
-        // 비발행 글(초안·비공개)은 상세와 같은 규칙으로 막는다. 이 가드가 없으면
-        // 숫자 id 만 아는 사용자가 남의 초안에 댓글을 달 수 있고, 성공 리다이렉트의
-        // Location 헤더로 비발행 글의 슬러그가 새어 나간다.
-        if (! $post->isPublished() && ! is_owner_or_admin($post->user_id)) {
+        // 상세와 같은 규칙으로 막는다(비발행 + 숨김 카테고리). 이 가드가 없으면
+        // 숫자 id 만 아는 사용자가 못 보는 글에 댓글을 달 수 있고, 성공 리다이렉트의
+        // Location 헤더로 그 글의 슬러그가 새어 나간다.
+        if (! post_viewable($post)) {
             throw PageNotFoundException::forPageNotFound();
         }
 
@@ -105,10 +105,10 @@ class Comments extends BaseController
 
         $post = model(PostModel::class)->find((int) $comment->post_id);
 
-        // 글이 삭제되었거나 비발행(초안·비공개)인데 신고자가 글 작성자·관리자도
-        // 아니면 store() 와 같은 규칙으로 막는다. 이 가드가 없으면 댓글 자체는
-        // visible 이어도 댓글 id 를 직접 요청해 비공개 글의 댓글을 신고할 수 있다.
-        if ($post === null || (! $post->isPublished() && ! is_owner_or_admin($post->user_id))) {
+        // 글이 삭제되었거나 못 보는 글이면 store() 와 같은 규칙으로 막는다. 이 가드가
+        // 없으면 댓글 자체는 visible 이어도 댓글 id 를 직접 요청해 비공개 글의 댓글을
+        // 신고할 수 있다.
+        if ($post === null || ! post_viewable($post)) {
             throw PageNotFoundException::forPageNotFound();
         }
 

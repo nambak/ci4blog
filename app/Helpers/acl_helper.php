@@ -7,6 +7,8 @@
  * 반복되던 로직이다. 한 곳으로 모아 둔다.
  */
 
+use App\Entities\Post;
+use App\Models\CategoryModel;
 use CodeIgniter\Shield\Entities\User;
 
 if (! function_exists('is_owner_or_admin')) {
@@ -31,5 +33,37 @@ if (! function_exists('is_owner_or_admin')) {
         }
 
         return (int) $ownerId === (int) $user->id || $user->inGroup('admin', 'superadmin');
+    }
+}
+
+if (! function_exists('post_viewable')) {
+    /**
+     * 현재 사용자가 이 글을 공개 화면에서 볼 수 있는가.
+     *
+     * 글 상세뿐 아니라 그 글에 딸린 쓰기 동작(댓글 작성·신고·댓글 좋아요)이 모두
+     * 같은 판정을 써야 한다. 상세가 404 인 글에 부수 동작만 열려 있으면 응답 차이로
+     * 글의 존재가 새고, 성공 리다이렉트의 Location 으로 슬러그까지 나간다.
+     *
+     * 판정만 하고 예외는 던지지 않는다 — 404 를 어디서 내는지는 호출부에 남겨 둔다.
+     */
+    function post_viewable(Post $post): bool
+    {
+        // 비발행 글(초안·비공개)은 작성자 본인과 관리자에게만 열어 준다.
+        if (! $post->isPublished() && ! is_owner_or_admin($post->user_id)) {
+            return false;
+        }
+
+        // 숨김 카테고리(#67)의 글도 같은 규칙으로 가린다. 카테고리를 숨긴다는 건 그 글들을
+        // 공개 화면에서 뺀다는 뜻이므로, 목록에서만 빼고 나머지를 열어 두면 슬러그나
+        // 글 id 를 아는 사람에게 그대로 노출된다.
+        if ($post->category_id !== null && ! is_owner_or_admin($post->user_id)) {
+            $category = model(CategoryModel::class)->find($post->category_id);
+
+            if ($category !== null && ! $category->is_visible) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
