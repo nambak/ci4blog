@@ -433,19 +433,21 @@ class Posts extends BaseController
         }
 
         if (! $inserted) {
-            // 이미 좋아요가 있으면 취소한다(토글). 지울 게 없으면 0 행이 지워질 뿐이라
-            // 삭제 쪽 레이스는 무해하다 — 최종 상태가 "좋아요 없음"으로 같다.
-            if ($likes->hasLiked($id, $userId)) {
+            // 실패 원인은 예외에서 읽는다. 연결의 error() 는 이 시점에 이미 비어 있다
+            // ({code:0, message:"not an error"}) — #107 조사에서 확인했다.
+            $isDuplicate = $dbException !== null
+                && is_duplicate_key_error($dbException->getCode(), $dbException->getMessage());
+
+            // 유니크 위반 = 이미 눌러 뒀다는 뜻이므로 취소로 간다(토글).
+            if ($isDuplicate) {
                 $likes->where('post_id', $id)->where('user_id', $userId)->delete();
             } else {
-                // 삽입도 실패했는데 좋아요도 없다. 두 가지가 겹쳐 있다 —
-                //  ① 같은 사용자의 취소 요청이 동시에 들어와 먼저 지운 경우(레이스)
-                //  ② 중복이 아닌 진짜 DB 오류
-                // 둘을 구분할 방법이 없고, ① 은 최종 상태가 "좋아요 없음"으로 사용자가
-                // 원한 그대로다. 여기서 예외를 다시 던지면 ① 에도 500 이 나가므로
-                // (주석에 적어 둔 "삭제 쪽 레이스는 무해하다"와 어긋난다), 원인은
-                // 로그로 남기고 화면은 정상 응답한다. ② 라면 카운트가 그대로여서
-                // 사용자에게도 "안 눌렸다"가 보인다.
+                // 중복이 아닌 실패다. 기존 행은 건드리지 않는다 — 원인을 구분하지 않고
+                // "행이 있으면 취소" 하면, 삽입이 커밋된 뒤 타임아웃 같은 실패에서 방금
+                // 만든 행을 지워 누른 좋아요가 사라진다(#107).
+                // 재던지지도 않는다. 같은 사용자의 동시 취소 같은 정상 상황에도 500 이
+                // 나가므로(76ea329) 로그만 남기고 화면은 정상 응답한다. 진짜 오류라면
+                // 카운트가 그대로여서 사용자에게도 "안 눌렸다"가 보인다.
                 if ($dbException !== null) {
                     log_message('error', '좋아요 삽입 실패 (post {post}, user {user}): {message}', [
                         'post'    => $id,
@@ -454,6 +456,9 @@ class Posts extends BaseController
                     ]);
                 } elseif ($likes->errors() !== []) {
                     return redirect()->back()->with('errors', $likes->errors());
+                } elseif ($likes->hasLiked($id, $userId)) {
+                    // DBDebug=false 면 예외가 없어 원인을 알 수 없다. 이때만 예전처럼 되묻는다.
+                    $likes->where('post_id', $id)->where('user_id', $userId)->delete();
                 }
             }
         }
