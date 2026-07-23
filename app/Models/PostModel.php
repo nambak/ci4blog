@@ -96,6 +96,7 @@ class PostModel extends Model
      * 사라지면 그 정리가 아예 호출되지 않으므로, 지우기 **전에** 댓글 id 를 모은다.
      *
      * 한계: $id 가 null 인 호출(where(...)->delete())은 정리를 타지 않는다.
+     * 그 경우 경고 로그를 남겨 조용히 지나가지 않게 한다.
      * CommentModel 도 같은 한계를 갖는다. 현재 호출부는 모두 id 나 id 배열을 넘긴다.
      */
     public function delete($id = null, bool $purge = false)
@@ -103,6 +104,11 @@ class PostModel extends Model
         $ids = array_values(array_filter(array_map('intval', (array) $id)));
 
         if ($ids === []) {
+            // where(...)->delete() 처럼 id 없이 들어온 경우다. 어떤 행이 지워질지
+            // 미리 알 수 없어 자식을 정리할 수 없다. 조용히 넘어가면 고아 행이
+            // 소리 없이 쌓이므로 흔적을 남긴다.
+            log_message('warning', 'PostModel::delete() 가 id 없이 호출돼 자식 행 정리를 건너뛴다.');
+
             return parent::delete($id, $purge);
         }
 
