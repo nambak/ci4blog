@@ -84,6 +84,58 @@ class PostModel extends Model
     }
 
     /**
+     * 글을 지울 때 딸린 행도 함께 지운다.
+     *
+     * 마이그레이션에 FK 가 있지만 운영 DB 인 SQLite 는 이를 강제하지 않는다.
+     * post_likes·comment_likes·comment_reports 는 아예 MySQL 에서만 FK 를 건다
+     * (SQLite 는 FK 추가에 테이블 재생성이 필요해서). 그래서 앱에서 지운다.
+     * FK 가 켜져 있어 이미 사라진 행을 한 번 더 지우는 것은 무해하다.
+     *
+     * 댓글 정리는 CommentModel::delete() 에 위임한다. 답글 재귀·신고·좋아요 정리
+     * 규칙이 거기 한 곳에만 있게 하기 위해서다. FK CASCADE 로 댓글이 먼저
+     * 사라지면 그 정리가 아예 호출되지 않으므로, 지우기 **전에** 댓글 id 를 모은다.
+     *
+     * 한계: $id 가 null 인 호출(where(...)->delete())은 정리를 타지 않는다.
+     * CommentModel 도 같은 한계를 갖는다. 현재 호출부는 모두 id 나 id 배열을 넘긴다.
+     */
+    public function delete($id = null, bool $purge = false)
+    {
+        $ids = array_values(array_filter(array_map('intval', (array) $id)));
+
+        if ($ids === []) {
+            return parent::delete($id, $purge);
+        }
+
+        $this->db->transStart();
+
+        $commentIds = array_values(array_filter(array_map(
+            'intval',
+            array_column(
+                $this->db->table('comments')->select('id')->whereIn('post_id', $ids)->get()->getResultArray(),
+                'id'
+            )
+        )));
+
+        if ($commentIds !== []) {
+            model(CommentModel::class)->delete($commentIds);
+        }
+
+        $this->db->table('post_likes')->whereIn('post_id', $ids)->delete();
+
+        $result = parent::delete($id, $purge);
+
+        $this->db->transComplete();
+
+        // 중간에 쿼리가 깨졌으면 롤백됐으므로 성공을 알리지 않는다.
+        // (Posts::delete() 가 이 반환값을 보고 이미지 파일 정리 여부를 정한다.)
+        if ($this->db->transStatus() === false) {
+            return false;
+        }
+
+        return $result;
+    }
+
+    /**
      * 공개 화면 전용 스코프: 발행된 글만 남긴다.
      *
      * 공개 목록·홈·상세가 이 메서드를 명시적으로 체이닝한다. 모델 기본 스코프로
