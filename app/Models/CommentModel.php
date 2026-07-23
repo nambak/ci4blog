@@ -124,8 +124,8 @@ class CommentModel extends Model
      * id 들 아래에 자식이 있는지 확인)가 자식을 찾지 못해 빈 배열로 즉시 끝나므로 비용은
      * 사실상 같다. MySQL 에서는 이미 CASCADE 로 사라진 행을 한 번 더 지우는 셈이라 무해하다.
      *
-     * 재귀 과정에서 모은 삭제 대상 전체 id($allIds)로 comment_reports 도 함께 지운다.
-     * MySQL 은 comment_reports.comment_id 의 FK CASCADE 로 이미 사라지지만, 테스트가 도는
+     * 재귀 과정에서 모은 삭제 대상 전체 id($allIds)로 comment_reports 와 comment_likes 도
+     * 함께 지운다. MySQL 은 comment_reports.comment_id 의 FK CASCADE 로 이미 사라지지만, 테스트가 도는
      * SQLite 는 FK 를 걸 수 없어 정합성을 위해 애플리케이션에서 한 번 더 지운다(답글 재귀
      * 삭제와 같은 철학).
      */
@@ -148,6 +148,7 @@ class CommentModel extends Model
 
         if ($allIds !== []) {
             $this->db->table('comment_reports')->whereIn('comment_id', $allIds)->delete();
+            $this->db->table('comment_likes')->whereIn('comment_id', $allIds)->delete();
         }
 
         return parent::delete($id, $purge);
