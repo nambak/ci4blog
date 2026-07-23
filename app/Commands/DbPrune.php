@@ -68,6 +68,23 @@ class DbPrune extends BaseCommand
             $total += $this->purge($db);
         }
 
+        // 반복 상한(MAX_ROUNDS)을 다 돌고도 고아가 남아 있을 수 있다 — 그대로 "성공"을
+        // 출력하면 운영자가 정리가 끝난 줄 알고 넘어간다. 한 번 더 세어 확인한다.
+        $remaining = $this->scan($db);
+
+        if (array_sum($remaining) > 0) {
+            CLI::newLine();
+            CLI::write(
+                "{$total}건을 삭제했지만, 반복 상한(" . self::MAX_ROUNDS . '회)에 도달해 고아 행이 여전히 남아 있습니다.',
+                'red'
+            );
+            $this->report($remaining);
+            CLI::newLine();
+            CLI::write('db:prune --force 를 다시 실행해 남은 행을 마저 지우세요.', 'yellow');
+
+            return EXIT_ERROR;
+        }
+
         CLI::newLine();
         CLI::write("{$total}건을 삭제했습니다.", 'green');
 
