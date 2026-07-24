@@ -113,7 +113,8 @@ class Posts extends BaseController
         $count = count($ids);
 
         if ($action === 'delete') {
-            // comments 는 post_id 에 ON DELETE CASCADE 가 걸려 있어 함께 지워진다.
+            // 딸린 댓글·좋아요·신고는 PostModel::delete() 가 정리한다.
+            // (운영 DB 인 SQLite 는 FK 를 강제하지 않아 앱에서 지워야 한다.)
             $model->delete($ids);
 
             return redirect()->back()->with('message', "{$count}개 글을 삭제했습니다.");
