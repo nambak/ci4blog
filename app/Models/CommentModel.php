@@ -128,11 +128,20 @@ class CommentModel extends Model
      * 함께 지운다. MySQL 은 comment_reports.comment_id 의 FK CASCADE 로 이미 사라지지만, 테스트가 도는
      * SQLite 는 FK 를 걸 수 없어 정합성을 위해 애플리케이션에서 한 번 더 지운다(답글 재귀
      * 삭제와 같은 철학).
+     *
+     * 이 모든 삭제는 한 트랜잭션으로 묶여, 단독 호출에서 중간에 실패해도 부분 삭제로
+     * 고아 행이 남지 않는다. PostModel::delete() 를 통한 호출에서는 상위 트랜잭션에 중첩된다.
      */
     public function delete($id = null, bool $purge = false)
     {
         $ids    = array_values(array_filter(array_map('intval', (array) $id)));
         $allIds = $ids;
+
+        // 답글 재귀 삭제·신고·좋아요 정리·본체 삭제를 한 트랜잭션으로 묶는다. 단독 호출
+        // (본인 댓글 삭제·관리자 일괄)에서 중간에 실패해도 고아 행이 남지 않게 하기 위해서다.
+        // PostModel::delete() 를 통해 호출될 때는 CI4 의 트랜잭션 depth 카운팅으로 안전하게
+        // 상위 트랜잭션에 중첩된다.
+        $this->db->transStart();
 
         while ($ids !== []) {
             $childIds = array_values(array_filter(array_map(
@@ -151,7 +160,16 @@ class CommentModel extends Model
             $this->db->table('comment_likes')->whereIn('comment_id', $allIds)->delete();
         }
 
-        return parent::delete($id, $purge);
+        $result = parent::delete($id, $purge);
+
+        $this->db->transComplete();
+
+        // 중간에 쿼리가 깨졌으면 롤백됐으므로 성공을 알리지 않는다(PostModel::delete() 와 같은 방식).
+        if ($this->db->transStatus() === false) {
+            return false;
+        }
+
+        return $result;
     }
 
     /**
