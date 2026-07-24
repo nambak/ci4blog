@@ -100,4 +100,26 @@ final class CommentDeleteCleanupTest extends CIUnitTestCase
             '답글의 좋아요가 남았다'
         );
     }
+
+    /**
+     * id 없이 호출되면 트랜잭션을 열기 전에 위임해, 실패해도 트랜잭션이 미완결로 남지 않는다.
+     *
+     * transStart() 뒤 parent::delete() 가 예외를 던지면 transComplete() 를 못 타서
+     * 트랜잭션 depth 가 1 로 남고, 그 뒤 정상 삭제까지 미완결 트랜잭션에 물린다.
+     * PostModel::delete() 와 같은 빈-id 가드로 트랜잭션을 아예 열지 않게 막는다.
+     */
+    public function testDeletingWithEmptyIdDoesNotLeakTransaction(): void
+    {
+        $db = db_connect();
+
+        // 빈 id — parent::delete() 의 "where 없는 삭제 금지" 예외는 여기서 검증 대상이 아니다.
+        // 잡는 것은 그 예외로 트랜잭션이 열린 채 남는 누수다.
+        try {
+            model(CommentModel::class)->delete(null);
+        } catch (\Throwable) {
+            // 무시: 트랜잭션 누수만 본다.
+        }
+
+        $this->assertSame(0, $db->transDepth, '빈 id 삭제가 트랜잭션을 열어둔 채 빠져나갔다');
+    }
 }
