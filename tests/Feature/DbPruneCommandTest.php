@@ -103,8 +103,12 @@ final class DbPruneCommandTest extends CIUnitTestCase
     }
 
     /**
-     * 고아 댓글을 지우면 그 댓글의 좋아요가 **새 고아**가 된다.
-     * 한 번 훑고 끝내면 남으므로, 더 지울 것이 없을 때까지 반복해야 한다.
+     * 고아 댓글과 그 댓글의 좋아요가 한 번의 --force 로 모두 사라진다.
+     *
+     * 이 시나리오(고아 댓글 + 그 좋아요)는 purge() 가 한 라운드 안에서
+     * 댓글 → 좋아요 순으로 지우므로 바깥 루프 없이 정리된다. 바깥 루프가
+     * 실제로 필요한 경우(2단 이상 답글 체인)는 testForceCleansUpTwoStepOrphanReplyChain
+     * 이 따로 증명한다.
      */
     public function testForceRepeatsUntilNoOrphansRemain(): void
     {
