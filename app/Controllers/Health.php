@@ -33,9 +33,10 @@ class Health extends BaseController
     protected function databaseIsUp(): bool
     {
         try {
-            db_connect()->query('SELECT 1');
-
-            return true;
+            // DBDebug=false(운영 기본)면 query() 는 실패 시 예외가 아니라 false 를
+            // 반환한다. 무조건 true 를 돌려주면 DB 장애 중에도 200 이 나가므로,
+            // 반환값이 false 가 아닌지까지 확인한다.
+            return db_connect()->query('SELECT 1') !== false;
         } catch (Throwable) {
             return false;
         }
