@@ -94,4 +94,18 @@ final class CsrfProtectionTest extends CIUnitTestCase
             'app/Config/Filters.php 의 $globals[\'before\'] 에 csrf 가 있어야 한다.'
         );
     }
+
+    /**
+     * BREACH 완화(#111 ⑤) 회귀 방지.
+     *
+     * tokenRandomize 가 꺼지면 매 요청 토큰 마스킹이 사라져, HTTPS+압축 환경에서
+     * 압축 크기 변화로 CSRF 토큰을 추출하는 BREACH 표면이 다시 생긴다.
+     */
+    public function testTokenRandomizeIsEnabled(): void
+    {
+        $this->assertTrue(
+            config('Security')->tokenRandomize,
+            'app/Config/Security.php 의 $tokenRandomize 는 BREACH 완화를 위해 true 여야 한다.'
+        );
+    }
 }
