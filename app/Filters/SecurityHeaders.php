@@ -40,5 +40,7 @@ class SecurityHeaders implements FilterInterface
         if ($csp->enabled) {
             $response->setHeader($csp->headerName(), $csp->compile());
         }
+
+        return $response;
     }
 }
