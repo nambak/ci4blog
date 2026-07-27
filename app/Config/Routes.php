@@ -19,11 +19,11 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
     $routes->get('posts/(:num)/edit', 'Posts::edit/$1');     // 글 수정 폼
     $routes->post('posts/(:num)', 'Posts::update/$1');       // 글 수정 저장
     $routes->post('posts/(:num)/delete', 'Posts::delete/$1'); // 글 삭제
-    $routes->post('posts/(:num)/like', 'Posts::like/$1');     // 좋아요 토글
-    $routes->post('posts/(:num)/comments', 'Comments::store/$1'); // 댓글 저장
+    $routes->post('posts/(:num)/like', 'Posts::like/$1', ['filter' => 'throttle:like']);     // 좋아요 토글
+    $routes->post('posts/(:num)/comments', 'Comments::store/$1', ['filter' => 'throttle:comment']); // 댓글 저장
     $routes->post('comments/(:num)/delete', 'Comments::delete/$1'); // 댓글 삭제
-    $routes->post('comments/(:num)/report', 'Comments::report/$1'); // 댓글 신고
-    $routes->post('comments/(:num)/like', 'Comments::like/$1');     // 댓글 좋아요 토글
+    $routes->post('comments/(:num)/report', 'Comments::report/$1', ['filter' => 'throttle:report']); // 댓글 신고
+    $routes->post('comments/(:num)/like', 'Comments::like/$1', ['filter' => 'throttle:like']);       // 댓글 좋아요 토글
 
     $routes->get('profile', 'Profile::edit');                       // 프로필 수정 폼
     $routes->post('profile', 'Profile::update');                    // 프로필 저장(사용자명·비번·아바타)

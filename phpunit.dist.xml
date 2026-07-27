@@ -45,6 +45,10 @@
     <php>
         <server name="app.baseURL" value="http://example.com/"/>
         <server name="CODEIGNITER_SCREAM_DEPRECATIONS" value="0"/>
+        <!-- 속도 제한(#111)은 테스트에서 기본 off. 기존 테스트들이 캐시를 비우지
+             않아 토큰이 누적되면(PostLikeTest 15회 등) 엉뚱한 이유로 깨진다.
+             RateLimitTest 는 Factories::injectMock 으로 켠 설정을 주입한다. -->
+        <env name="ratelimit.enabled" value="false"/>
         <!-- Directory containing phpunit.xml -->
         <const name="HOMEPATH" value="./"/>
         <!-- Directory containing the Paths config file -->
