@@ -35,6 +35,7 @@ class Filters extends BaseFilters
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'securityheaders' => \App\Filters\SecurityHeaders::class,
+        'throttle'        => \App\Filters\Throttle::class,
     ];
 
     /**
