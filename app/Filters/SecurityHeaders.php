@@ -6,6 +6,7 @@ use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\IncomingRequest;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+use Config\Csp;
 
 /**
  * 응답에 보안 헤더를 부착하는 after 필터.
@@ -31,5 +32,15 @@ class SecurityHeaders implements FilterInterface
         if ($request instanceof IncomingRequest && $request->isSecure()) {
             $response->setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
         }
+
+        // CSP(#111). config off 면 부착하지 않는다. reportOnly 스위치가
+        // 헤더 이름을 정한다(Report-Only ↔ enforce).
+        $csp = config(Csp::class);
+
+        if ($csp->enabled) {
+            $response->setHeader($csp->headerName(), $csp->compile());
+        }
+
+        return $response;
     }
 }
