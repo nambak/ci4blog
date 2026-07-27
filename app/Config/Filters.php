@@ -109,5 +109,10 @@ class Filters extends BaseFilters
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [];
+    public array $filters = [
+        // 로그인 라우트는 Shield 가 등록하므로(service('auth')->routes()) Routes.php
+        // 에서 붙일 수 없다. URI 패턴으로 건다. GET(폼 열기)에도 걸리지만
+        // 필터가 POST 만 세므로 무해하다.
+        'throttle:login' => ['before' => ['login']],
+    ];
 }

@@ -183,4 +183,42 @@ final class RateLimitTest extends CIUnitTestCase
         $result->assertRedirect();
         $this->assertStringContainsString('요청이 너무 잦습니다', (string) session('message'));
     }
+
+    public function testLoginIsBlockedAfterCapacity(): void
+    {
+        $this->limitTo(2);
+        $this->makeUser('victim', 'victim@example.com');
+
+        $attempt = fn () => $this->call('POST', 'login', [
+            'email'    => 'victim@example.com',
+            'password' => 'wrong-password',
+        ]);
+
+        $attempt();
+        $attempt();
+        $result = $attempt();
+
+        $result->assertRedirect();
+        // 로그인 화면은 Shield 뷰가 session('error') 를 표시한다.
+        $this->assertStringContainsString('요청이 너무 잦습니다', (string) session('error'));
+    }
+
+    public function testLoginFormPageIsNotCounted(): void
+    {
+        $this->limitTo(2);
+        $this->makeUser('victim', 'victim@example.com');
+
+        // GET 으로 로그인 폼을 여러 번 열어도 토큰이 줄지 않아야 한다.
+        $this->call('GET', 'login');
+        $this->call('GET', 'login');
+        $this->call('GET', 'login');
+
+        $result = $this->call('POST', 'login', [
+            'email'    => 'victim@example.com',
+            'password' => 'wrong-password',
+        ]);
+
+        $result->assertRedirect();
+        $this->assertStringNotContainsString('요청이 너무 잦습니다', (string) session('error'));
+    }
 }
