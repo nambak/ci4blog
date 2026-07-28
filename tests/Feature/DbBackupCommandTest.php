@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Commands\DbBackup;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Test\StreamFilterTrait;
+use Config\Services;
 use SQLite3;
 
 /**
@@ -137,5 +139,23 @@ final class DbBackupCommandTest extends CIUnitTestCase
 
         $this->assertSame([], $this->backups(), '--keep 이 잘못되면 백업을 만들지 않는다.');
         $this->assertStringContainsString('--keep', $this->getStreamFilterBuffer());
+    }
+
+    public function testSkipsWhenDriverIsNotSqlite(): void
+    {
+        // 테스트 DB 는 SQLite 라 MySQL 상황을 만들 수 없다.
+        // 드라이버 판정 seam 만 바꿔 스킵 분기를 실제로 태운다.
+        $command = new class (Services::logger(), Services::commands()) extends DbBackup {
+            protected function driverName(): string
+            {
+                return 'MySQLi';
+            }
+        };
+
+        $status = $command->run([]);
+
+        $this->assertSame(EXIT_SUCCESS, $status, '비SQLite 는 실패가 아니라 스킵이다.');
+        $this->assertSame([], $this->backups(), '스킵했으면 백업 파일이 없어야 한다.');
+        $this->assertStringContainsString('MySQLi', $this->getStreamFilterBuffer());
     }
 }

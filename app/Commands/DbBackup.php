@@ -38,6 +38,16 @@ class DbBackup extends BaseCommand
 
     public function run(array $params)
     {
+        $driver = $this->driverName();
+
+        if ($driver !== 'SQLite3') {
+            // 저장소는 호스팅 무관 템플릿이다. MySQL 등 다른 구성에서 배포가
+            // 깨지지 않도록 실패가 아닌 스킵으로 끝내되, 이유는 로그에 남긴다.
+            CLI::write("SQLite3 전용 백업 — 현재 드라이버 {$driver}, 건너뜁니다.", 'yellow');
+
+            return EXIT_SUCCESS;
+        }
+
         $keep = $this->keepOption($params);
 
         if ($keep < 1) {
@@ -112,6 +122,12 @@ class DbBackup extends BaseCommand
                 CLI::write('오래된 백업 삭제: ' . basename($stale));
             }
         }
+    }
+
+    /** 현재 DB 드라이버. 테스트가 비SQLite 상황을 재현하는 seam 이다. */
+    protected function driverName(): string
+    {
+        return Database::connect()->DBDriver;
     }
 
     /** 백업 디렉터리. 테스트가 위치를 알아야 하므로 한 곳에서만 만든다. */
