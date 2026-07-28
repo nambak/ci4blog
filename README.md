@@ -147,7 +147,7 @@ ci4blog/
 │  ├─ Database/       # Migrations, Seeds
 │  └─ Views/          # layouts, partials, pages, posts, comments
 ├─ tests/Feature/     # 엔드포인트 단위 Feature 테스트
-├─ writable/          # 캐시·로그·업로드
+├─ writable/          # 캐시·로그·업로드·DB 백업
 ├─ docs/
 │  └─ curriculum.md   # 전체 회차별 커밋 빌드 가이드
 └─ public/            # 웹 루트 (index.php)
