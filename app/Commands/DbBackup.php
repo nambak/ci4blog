@@ -7,6 +7,7 @@ use CodeIgniter\CLI\CLI;
 use CodeIgniter\Database\Exceptions\DatabaseException;
 use Config\Database;
 use DateTimeImmutable;
+use DateTimeZone;
 
 /**
  * SQLite DB 파일의 스냅샷을 writable/backups/ 에 남긴다.
@@ -107,8 +108,10 @@ class DbBackup extends BaseCommand
             return self::DEFAULT_KEEP;
         }
 
-        // 숫자가 아니면 0 이 되어 호출부의 가드에 걸린다.
-        return (int) $raw;
+        // (int) 캐스팅은 '2abc' 를 2, '1.5' 를 1 로 조용히 받아 준다.
+        // --keep 1O 같은 오타가 보관 개수를 1 로 만들어 백업을 지우는 사고가 되므로,
+        // 숫자로만 이뤄진 문자열만 받고 나머지는 0 으로 넘겨 호출부 가드에 걸리게 한다.
+        return ctype_digit((string) $raw) ? (int) $raw : 0;
     }
 
     /** 최신 $keep 개만 남기고 지운다. 파일명이 타임스탬프라 이름 정렬 = 시간 정렬이다. */
@@ -142,10 +145,15 @@ class DbBackup extends BaseCommand
      * 이름에 마이크로초까지 넣는다 — 이름 정렬이 곧 시간 정렬이어야
      * 로테이션이 "오래된 것부터" 지울 수 있고, 같은 초에 두 번 실행돼도
      * 이름이 겹치지 않는다(VACUUM INTO 는 대상 파일이 있으면 실패한다).
+     *
+     * 시각은 앱 타임존이 아니라 UTC 로 찍는다. DST 가 있는 지역이면 시계가
+     * 되돌아가는 한 시간 동안 "나중에 만든 백업의 이름이 더 작아져"
+     * 로테이션이 최신 백업을 지울 수 있다.
      */
     private function uniquePath(string $dir): string
     {
-        $base = $dir . DIRECTORY_SEPARATOR . 'backup-' . (new DateTimeImmutable())->format('Ymd-His-u');
+        $stamp = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Ymd-His-u');
+        $base  = $dir . DIRECTORY_SEPARATOR . 'backup-' . $stamp;
         $path = $base . '.sqlite';
         $seq  = 1;
 

@@ -121,11 +121,13 @@ php spark db:backup            # 스냅샷 1개 생성, 최근 10개 유지
 php spark db:backup --keep 30  # 보관 개수 조정
 ```
 
-- 위치: `writable/backups/backup-<타임스탬프>.sqlite`
+- 위치: `writable/backups/backup-<타임스탬프>.sqlite` (타임스탬프는 **UTC** — 이름 정렬이 곧 시간 정렬이어야 오래된 것부터 지울 수 있습니다)
 - 방식: `VACUUM INTO` — 쓰기 중에도 일관된 단일 파일 스냅샷을 만듭니다(`-wal`·`-shm` 동반 파일이 없어 복구가 단순합니다).
 - SQLite 가 아닌 DB 에서는 이유를 출력하고 건너뜁니다(파일 복사로 백업할 대상이 아니므로).
 
 ### 복구 절차
+
+백업 파일이 존재하는 환경은 곧 **SQLite 를 쓰는 환경**입니다(다른 드라이버에서는 커맨드가 건너뜁니다). 즉 `.env` 의 `database.default.DBDriver = SQLite3` 이고, `database.default.database` 가 **DB 파일 경로**입니다 — 아래 절차의 대상이 그 파일입니다.
 
 1. 웹 서버/PHP-FPM 을 멈춥니다.
 2. 현재 DB 파일(`.env` 의 `database.default.database` 경로)을 다른 이름으로 옮겨 둡니다 — 원인 조사에 필요합니다.

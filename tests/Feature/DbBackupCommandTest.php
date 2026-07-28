@@ -141,6 +141,66 @@ final class DbBackupCommandTest extends CIUnitTestCase
         $this->assertStringContainsString('--keep', $this->getStreamFilterBuffer());
     }
 
+    /**
+     * (int) 캐스팅만 하면 '2abc' 가 2, '1.5' 가 1 로 통과한다.
+     * --keep 1O 같은 오타가 보관 개수를 1 로 만들어 백업을 지우는 사고가 된다.
+     *
+     * @dataProvider malformedKeepProvider
+     */
+    public function testMalformedKeepIsRejected(string $keep): void
+    {
+        command("db:backup --keep {$keep}");
+
+        $this->assertSame([], $this->backups(), "--keep {$keep} 은 거부돼야 한다.");
+        $this->assertStringContainsString('--keep', $this->getStreamFilterBuffer());
+    }
+
+    /**
+     * 음수(`--keep -3`)는 넣지 않는다 — CI4 CLI 파서가 `-` 로 시작하는 토큰을
+     * 값이 아니라 또 다른 옵션으로 읽어, --keep 은 값 없이 기본값(10)이 된다.
+     * 백업이 더 많이 남는 방향이라 사고가 아니고, 이 커맨드가 막을 수 있는 입력도 아니다.
+     */
+    public static function malformedKeepProvider(): array
+    {
+        return [
+            '소수점'    => ['1.5'],
+            '숫자+문자' => ['2abc'],
+            '문자만'    => ['abc'],
+        ];
+    }
+
+    /**
+     * 파일명 시각은 앱 타임존이 아니라 UTC 여야 한다. DST 가 있는 지역이면
+     * 시계가 되돌아가는 한 시간 동안 이름 정렬이 시간 정렬과 어긋나
+     * 로테이션이 최신 백업을 지운다.
+     */
+    public function testFileNameStampIsUtc(): void
+    {
+        $original = date_default_timezone_get();
+        date_default_timezone_set('America/New_York');  // UTC 와 4~5시간 차이
+
+        try {
+            $before = gmdate('YmdHis');
+            command('db:backup');
+            $after = gmdate('YmdHis');
+        } finally {
+            date_default_timezone_set($original);
+        }
+
+        $files = $this->backups();
+        $this->assertCount(1, $files);
+
+        $this->assertSame(
+            1,
+            preg_match('/^backup-(\d{8})-(\d{6})-\d{6}\.sqlite$/', basename($files[0]), $m),
+            '파일명이 backup-<날짜>-<시각>-<마이크로초>.sqlite 형식이어야 한다.'
+        );
+
+        $stamp = $m[1] . $m[2];
+        $this->assertGreaterThanOrEqual($before, $stamp, '파일명 시각이 UTC 보다 이르면 안 된다.');
+        $this->assertLessThanOrEqual($after, $stamp, '파일명 시각이 UTC 보다 늦으면 안 된다(로컬 타임존을 썼다는 뜻).');
+    }
+
     public function testSkipsWhenDriverIsNotSqlite(): void
     {
         // 테스트 DB 는 SQLite 라 MySQL 상황을 만들 수 없다.
