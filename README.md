@@ -101,7 +101,7 @@ php spark cache:clear
 
 ### writable/ 권한
 
-`writable/` 아래(`cache`, `logs`, `session`, `uploads`)는 **웹 서버가 쓸 수 있어야** 합니다. 소유자를 웹 서버 사용자로 두거나 그룹 쓰기를 허용합니다.
+`writable/` 아래(`cache`, `logs`, `session`, `uploads`, `backups`)는 **웹 서버가 쓸 수 있어야** 합니다. 소유자를 웹 서버 사용자로 두거나 그룹 쓰기를 허용합니다.
 
 ```bash
 # 예: 웹 서버가 www-data 인 경우
@@ -111,6 +111,27 @@ sudo find writable/ -type f -exec chmod 664 {} \;
 ```
 
 > 업로드 이미지는 웹 루트 밖(`writable/uploads/`)에 저장되고 `Posts::image` 컨트롤러로 서빙되므로, `writable/` 가 외부에서 직접 접근되지 않습니다.
+
+## 운영 — 백업과 복구
+
+배포(`scripts/deploy.sh`)는 마이그레이션 **직전**에 DB 스냅샷을 만듭니다. 백업이 실패하면 배포가 그 자리에서 멈춥니다 — 되돌릴 파일 없이 마이그레이션을 실행하지 않기 위해서입니다.
+
+```bash
+php spark db:backup            # 스냅샷 1개 생성, 최근 10개 유지
+php spark db:backup --keep 30  # 보관 개수 조정
+```
+
+- 위치: `writable/backups/backup-<타임스탬프>.sqlite`
+- 방식: `VACUUM INTO` — 쓰기 중에도 일관된 단일 파일 스냅샷을 만듭니다(`-wal`·`-shm` 동반 파일이 없어 복구가 단순합니다).
+- SQLite 가 아닌 DB 에서는 이유를 출력하고 건너뜁니다(파일 복사로 백업할 대상이 아니므로).
+
+### 복구 절차
+
+1. 웹 서버/PHP-FPM 을 멈춥니다.
+2. 현재 DB 파일(`.env` 의 `database.default.database` 경로)을 다른 이름으로 옮겨 둡니다 — 원인 조사에 필요합니다.
+3. 되돌릴 백업 파일을 그 경로로 복사합니다.
+4. 파일 소유자를 PHP-FPM 실행 사용자로 맞춥니다(`chown`).
+5. 서비스를 다시 올리고 `GET /health` 가 `{"status":"ok","db":"ok"}` 인지 확인합니다.
 
 ## 프로젝트 구조
 
