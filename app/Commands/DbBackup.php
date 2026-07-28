@@ -28,10 +28,24 @@ class DbBackup extends BaseCommand
     protected $group       = 'Database';
     protected $name        = 'db:backup';
     protected $description = 'SQLite DB 스냅샷을 writable/backups/ 에 만든다.';
-    protected $usage       = 'db:backup';
+    protected $usage       = 'db:backup [--keep 10]';
+    protected $options     = [
+        '--keep' => '보관할 백업 개수(기본 10). 초과분은 오래된 것부터 지운다.',
+    ];
+
+    /** 기본 보관 개수. 디스크 상한이 예측 가능하도록 개수 기준으로 돌린다. */
+    public const DEFAULT_KEEP = 10;
 
     public function run(array $params)
     {
+        $keep = $this->keepOption($params);
+
+        if ($keep < 1) {
+            CLI::error('--keep 은 1 이상의 정수여야 합니다.');
+
+            return EXIT_ERROR;
+        }
+
         $dir = $this->backupDir();
 
         if (! is_dir($dir) && ! @mkdir($dir, 0775, true) && ! is_dir($dir)) {
@@ -66,7 +80,38 @@ class DbBackup extends BaseCommand
             'green'
         );
 
+        $this->rotate($dir, $keep);
+
         return EXIT_SUCCESS;
+    }
+
+    /**
+     * --keep 값. CI4 의 command() 파서는 `--keep 2` 형태만 값으로 읽는다
+     * (`--keep=2` 는 옵션 이름 자체가 'keep=2' 가 된다).
+     */
+    private function keepOption(array $params): int
+    {
+        $raw = $params['keep'] ?? CLI::getOption('keep');
+
+        if ($raw === null || $raw === true || $raw === '') {
+            return self::DEFAULT_KEEP;
+        }
+
+        // 숫자가 아니면 0 이 되어 호출부의 가드에 걸린다.
+        return (int) $raw;
+    }
+
+    /** 최신 $keep 개만 남기고 지운다. 파일명이 타임스탬프라 이름 정렬 = 시간 정렬이다. */
+    private function rotate(string $dir, int $keep): void
+    {
+        $files = glob($dir . DIRECTORY_SEPARATOR . 'backup-*.sqlite') ?: [];
+        rsort($files, SORT_STRING);
+
+        foreach (array_slice($files, $keep) as $stale) {
+            if (@unlink($stale)) {
+                CLI::write('오래된 백업 삭제: ' . basename($stale));
+            }
+        }
     }
 
     /** 백업 디렉터리. 테스트가 위치를 알아야 하므로 한 곳에서만 만든다. */

@@ -97,4 +97,45 @@ final class DbBackupCommandTest extends CIUnitTestCase
 
         $this->assertStringContainsString('백업 완료', $this->getStreamFilterBuffer());
     }
+
+    public function testKeepsOnlyNewestBackupsAndDeletesOldest(): void
+    {
+        command('db:backup --keep 2');
+        command('db:backup --keep 2');
+        command('db:backup --keep 2');
+
+        $files = $this->backups();  // 오래된 것 → 최신 순
+        $this->assertCount(2, $files, '--keep 2 면 2개만 남아야 한다.');
+
+        // 개수만 세면 "최신 2개를 지우고 오래된 1개를 남겼다"도 통과한다.
+        // 3회차 실행 직전 목록과 비교해 사라진 것이 가장 오래된 것인지 본다.
+        $this->clearBackups();
+
+        command('db:backup --keep 2');
+        command('db:backup --keep 2');
+        $beforeThird = $this->backups();
+        $this->assertCount(2, $beforeThird);
+
+        command('db:backup --keep 2');
+        $afterThird = $this->backups();
+
+        $this->assertNotContains(
+            $beforeThird[0],
+            $afterThird,
+            '가장 오래된 백업이 지워져야 한다.'
+        );
+        $this->assertContains(
+            $beforeThird[1],
+            $afterThird,
+            '두 번째로 오래된 백업은 남아야 한다.'
+        );
+    }
+
+    public function testInvalidKeepFails(): void
+    {
+        command('db:backup --keep 0');
+
+        $this->assertSame([], $this->backups(), '--keep 이 잘못되면 백업을 만들지 않는다.');
+        $this->assertStringContainsString('--keep', $this->getStreamFilterBuffer());
+    }
 }
