@@ -103,6 +103,37 @@ final class LogsPruneCommandTest extends CIUnitTestCase
         $this->assertCount(2, $this->remaining());
         $this->assertStringContainsString('정리할 로그가 없습니다', $this->getStreamFilterBuffer());
     }
+
+    public function testForceDeletesOldLogs(): void
+    {
+        $old    = $this->makeLog($this->daysAgo(90));
+        $recent = $this->makeLog($this->daysAgo(1));
+
+        $result = $this->prune()->run(['force' => null]);
+
+        $this->assertSame(EXIT_SUCCESS, $result);
+        $this->assertFileDoesNotExist($old, '90일 전 로그는 지워져야 한다.');
+        $this->assertFileExists($recent, '어제 로그는 남아야 한다.');
+        $this->assertSame([basename($recent)], $this->remaining());
+        $this->assertStringContainsString('1개 삭제', $this->getStreamFilterBuffer());
+    }
+
+    /**
+     * 경계가 이 기능의 정확성 전부다.
+     *
+     * --keep-days 30 = 오늘 포함 최근 30개 날짜를 남긴다
+     * → 나이 29일 보존, 나이 30일 삭제.
+     */
+    public function testBoundaryKeepsDay29AndDeletesDay30(): void
+    {
+        $keep   = $this->makeLog($this->daysAgo(29));
+        $delete = $this->makeLog($this->daysAgo(30));
+
+        $this->prune()->run(['force' => null]);
+
+        $this->assertFileExists($keep, '나이 29일 로그는 보존해야 한다.');
+        $this->assertFileDoesNotExist($delete, '나이 30일 로그는 삭제해야 한다.');
+    }
 }
 
 /**

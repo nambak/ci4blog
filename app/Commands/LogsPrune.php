@@ -59,7 +59,31 @@ class LogsPrune extends BaseCommand
             return EXIT_SUCCESS;
         }
 
-        return EXIT_SUCCESS;
+        $deleted = 0;
+        $freed   = 0;
+        $failed  = 0;
+
+        foreach ($stale as $file) {
+            $size = (int) @filesize($file);
+
+            if (@unlink($file)) {
+                $deleted++;
+                $freed += $size;
+
+                continue;
+            }
+
+            $failed++;
+            CLI::error('삭제 실패: ' . basename($file));
+        }
+
+        CLI::write(
+            "로그 정리: {$deleted}개 삭제 (" . $this->humanSize($freed) . ' 확보)',
+            'green'
+        );
+
+        // 커맨드는 실패를 정직하게 보고한다. "배포를 막을지" 는 deploy.sh 가 정한다.
+        return $failed > 0 ? EXIT_ERROR : EXIT_SUCCESS;
     }
 
     /**
@@ -113,6 +137,19 @@ class LogsPrune extends BaseCommand
         }
 
         return $date;
+    }
+
+    private function humanSize(int $bytes): string
+    {
+        if ($bytes >= 1048576) {
+            return round($bytes / 1048576, 1) . ' MB';
+        }
+
+        if ($bytes >= 1024) {
+            return round($bytes / 1024, 1) . ' KB';
+        }
+
+        return $bytes . ' B';
     }
 
     /** 로그 디렉터리. 테스트가 임시 디렉터리로 갈아끼우는 seam 이다. */
