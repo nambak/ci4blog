@@ -134,6 +134,49 @@ final class LogsPruneCommandTest extends CIUnitTestCase
         $this->assertFileExists($keep, '나이 29일 로그는 보존해야 한다.');
         $this->assertFileDoesNotExist($delete, '나이 30일 로그는 삭제해야 한다.');
     }
+
+    /**
+     * 로그 파일이 아닌 것, 이름 규약에 안 맞는 것, 존재하지 않는 날짜는
+     * 아무리 오래돼 보여도 건드리지 않는다.
+     */
+    public function testLeavesFilesThatAreNotDatedLogs(): void
+    {
+        $index   = $this->dir . DIRECTORY_SEPARATOR . 'index.html';
+        $badName = $this->dir . DIRECTORY_SEPARATOR . 'log-bad.log';
+        $badDate = $this->dir . DIRECTORY_SEPARATOR . 'log-2026-13-45.log';
+
+        // 존재하지 않는 날짜는 createFromFormat 이 조용히 넘긴다(경고만 남는다).
+        //   '2026-13-45' → 2027-02-14 (미래로 넘어간다)
+        //   '<약 4개월 전의 달>-00' → 그 전월 말일 (과거로 넘어간다)
+        // 미래로 넘어가는 값은 유효성 검사를 지워도 우연히 보존되므로,
+        // 방어가 실제로 동작하는지는 **과거로 넘어가는 값**이 증명한다.
+        $rollsBackward = $this->dir . DIRECTORY_SEPARATOR . 'log-'
+            . (new DateTimeImmutable('today'))->modify('-90 days')->format('Y-m') . '-00.log';
+
+        file_put_contents($index, 'x');
+        file_put_contents($badName, 'x');
+        file_put_contents($badDate, 'x');
+        file_put_contents($rollsBackward, 'x');
+
+        $this->prune()->run(['force' => null]);
+
+        $this->assertFileExists($index, 'index.html 은 대상이 아니다.');
+        $this->assertFileExists($badName, '날짜 없는 이름은 건드리지 않는다.');
+        $this->assertFileExists($badDate, '존재하지 않는 날짜(13월 45일)는 건드리지 않는다.');
+        $this->assertFileExists($rollsBackward, '0일 같은 값이 과거로 넘어가도 건드리지 않는다.');
+    }
+
+    /** 서버 시계가 앞서 있어 미래 날짜 로그가 생긴 경우에도 지우지 않는다. */
+    public function testLeavesFutureDatedLog(): void
+    {
+        $future = $this->makeLog(
+            (new DateTimeImmutable('today'))->modify('+3 days')->format('Y-m-d')
+        );
+
+        $this->prune()->run(['force' => null]);
+
+        $this->assertFileExists($future, '미래 날짜 로그는 보존해야 한다.');
+    }
 }
 
 /**
