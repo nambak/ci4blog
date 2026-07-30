@@ -45,4 +45,28 @@ final class DeployScriptOrderTest extends CIUnitTestCase
             'db:backup 실패를 삼키면 안 된다.'
         );
     }
+
+    public function testLogPruneRunsInDeploy(): void
+    {
+        $this->assertStringContainsString(
+            'spark logs:prune --force',
+            $this->script,
+            'deploy.sh 가 로그 정리를 실행해야 한다.'
+        );
+    }
+
+    /**
+     * 로그 정리는 백업과 반대다 — 실패해도 배포를 막지 않는다.
+     *
+     * 스크립트가 set -euo pipefail 이므로 `||` 로 받아 주지 않으면
+     * 로그 정리 실패가 곧 배포 실패가 된다.
+     */
+    public function testLogPruneFailureDoesNotStopDeploy(): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/spark logs:prune --force[^\n]*(\\\\\n[^\n]*)?\|\|/',
+            $this->script,
+            '로그 정리 실패는 배포를 멈추지 않아야 한다.'
+        );
+    }
 }
