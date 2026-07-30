@@ -67,8 +67,61 @@ class Uploads extends BaseController
             'immutable',
         ]);
 
+        if ($this->isNotModified($etag, $mtime)) {
+            return $this->response->setStatusCode(304)->setBody('');
+        }
+
         return $this->response
             ->setHeader('Content-Type', $type)
             ->setBody((string) file_get_contents($path));
+    }
+
+    /**
+     * 조건부 요청이 "안 바뀜" 을 뜻하는지 판정한다.
+     *
+     * RFC 9110: If-None-Match 가 있으면 If-Modified-Since 는 보지 않는다.
+     * ETag 가 불일치하면 If-Modified-Since 가 최신이어도 200 을 줘야 한다.
+     */
+    private function isNotModified(string $etag, int $mtime): bool
+    {
+        $ifNoneMatch = trim($this->request->getHeaderLine('If-None-Match'));
+
+        if ($ifNoneMatch !== '') {
+            return $this->etagMatches($ifNoneMatch, $etag);
+        }
+
+        $ifModifiedSince = trim($this->request->getHeaderLine('If-Modified-Since'));
+
+        if ($ifModifiedSince === '') {
+            return false;
+        }
+
+        $since = strtotime($ifModifiedSince);
+
+        // 파싱 실패는 조건부 요청이 없는 것으로 취급한다(200 을 준다).
+        return $since !== false && $mtime <= $since;
+    }
+
+    /** If-None-Match 목록에 이 ETag 가 있는지. */
+    private function etagMatches(string $header, string $etag): bool
+    {
+        if ($header === '*') {
+            return true;
+        }
+
+        foreach (explode(',', $header) as $candidate) {
+            $candidate = trim($candidate);
+
+            // 프록시가 붙일 수 있는 약한 검증자 접두사를 떼고 비교한다.
+            if (str_starts_with($candidate, 'W/')) {
+                $candidate = substr($candidate, 2);
+            }
+
+            if ($candidate === $etag) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -76,6 +76,14 @@ final class UploadServingTest extends CIUnitTestCase
         return WRITEPATH . 'uploads/' . $name;
     }
 
+    /** 픽스처의 ETag(구현과 같은 방식으로 계산). */
+    private function etagOf(string $name): string
+    {
+        $path = $this->pathOf($name);
+
+        return sprintf('"%x-%x"', filemtime($path), filesize($path));
+    }
+
     public function testServesUploadedFile(): void
     {
         $name = $this->makeUpload('png');
@@ -232,5 +240,110 @@ final class UploadServingTest extends CIUnitTestCase
             $result->response()->getHeaderLine('Last-Modified'),
             'Last-Modified 가 filemtime 과 정확히 같아야 한다.'
         );
+    }
+
+    public function testMatchingEtagGetsNotModified(): void
+    {
+        $name = $this->makeUpload('png');
+
+        $result = $this->withHeaders(['If-None-Match' => $this->etagOf($name)])
+            ->call('GET', 'uploads/' . $name);
+
+        $result->assertStatus(304);
+        $this->assertSame('', $result->response()->getBody(), '304 에는 바디가 없어야 한다.');
+    }
+
+    public function testDifferentEtagGetsFullResponse(): void
+    {
+        $name = $this->makeUpload('png');
+
+        $result = $this->withHeaders(['If-None-Match' => '"deadbeef-1"'])
+            ->call('GET', 'uploads/' . $name);
+
+        $result->assertStatus(200);
+        $this->assertNotSame('', $result->response()->getBody(), 'ETag 가 다르면 바디를 보내야 한다.');
+    }
+
+    /** 프록시가 약한 검증자 접두사를 붙여 보낼 수 있다. */
+    public function testWeakEtagPrefixStillMatches(): void
+    {
+        $name = $this->makeUpload('png');
+
+        $result = $this->withHeaders(['If-None-Match' => 'W/' . $this->etagOf($name)])
+            ->call('GET', 'uploads/' . $name);
+
+        $result->assertStatus(304);
+    }
+
+    public function testWildcardIfNoneMatchGetsNotModified(): void
+    {
+        $name = $this->makeUpload('png');
+
+        $result = $this->withHeaders(['If-None-Match' => '*'])
+            ->call('GET', 'uploads/' . $name);
+
+        $result->assertStatus(304);
+    }
+
+    public function testIfModifiedSinceAfterMtimeGetsNotModified(): void
+    {
+        $name  = $this->makeUpload('png');
+        $since = gmdate('D, d M Y H:i:s', filemtime($this->pathOf($name)) + 60) . ' GMT';
+
+        $result = $this->withHeaders(['If-Modified-Since' => $since])
+            ->call('GET', 'uploads/' . $name);
+
+        $result->assertStatus(304);
+    }
+
+    /**
+     * 같은 시각이면 안 바뀐 것이다 — `<=` 의 등호가 지키는 경계다.
+     *
+     * ±60초로 떨어진 위아래 테스트만으로는 `<=` 를 `<` 로 바꿔도 죽지 않는다.
+     * Last-Modified 는 초 단위 해상도라 브라우저가 돌려보내는 값이 mtime 과
+     * 정확히 같은 것이 정상 경로이므로, 이 케이스가 실사용에 해당한다.
+     */
+    public function testIfModifiedSinceEqualToMtimeGetsNotModified(): void
+    {
+        $name  = $this->makeUpload('png');
+        $since = gmdate('D, d M Y H:i:s', filemtime($this->pathOf($name))) . ' GMT';
+
+        $result = $this->withHeaders(['If-Modified-Since' => $since])
+            ->call('GET', 'uploads/' . $name);
+
+        $result->assertStatus(304);
+    }
+
+    public function testIfModifiedSinceBeforeMtimeGetsFullResponse(): void
+    {
+        $name  = $this->makeUpload('png');
+        $since = gmdate('D, d M Y H:i:s', filemtime($this->pathOf($name)) - 60) . ' GMT';
+
+        $result = $this->withHeaders(['If-Modified-Since' => $since])
+            ->call('GET', 'uploads/' . $name);
+
+        $result->assertStatus(200);
+        $this->assertNotSame('', $result->response()->getBody());
+    }
+
+    /**
+     * RFC 9110: If-None-Match 가 있으면 If-Modified-Since 는 보지 않는다.
+     *
+     * ETag 가 불일치하면 If-Modified-Since 가 아무리 최신이어도 200 이어야 한다.
+     * 이 규칙을 빼먹으면 "내용이 바뀌었는데 mtime 만 오래된" 파일에서 낡은 캐시를
+     * 계속 쓰게 된다.
+     */
+    public function testIfNoneMatchTakesPrecedenceOverIfModifiedSince(): void
+    {
+        $name  = $this->makeUpload('png');
+        $since = gmdate('D, d M Y H:i:s', filemtime($this->pathOf($name)) + 60) . ' GMT';
+
+        $result = $this->withHeaders([
+            'If-None-Match'     => '"deadbeef-1"',
+            'If-Modified-Since' => $since,
+        ])->call('GET', 'uploads/' . $name);
+
+        $result->assertStatus(200);
+        $this->assertNotSame('', $result->response()->getBody(), 'ETag 불일치가 우선이므로 바디를 보내야 한다.');
     }
 }
