@@ -69,4 +69,29 @@ final class DeployScriptOrderTest extends CIUnitTestCase
             '로그 정리 실패는 배포를 멈추지 않아야 한다.'
         );
     }
+
+    /**
+     * 로그 정리는 캐시 정리 뒤·권한 보정 앞에 있어야 한다.
+     *
+     * 특히 `composer install` 보다 앞서면 안 된다 — 새로 추가된 커맨드 클래스가
+     * 이전 배포의 최적화된 classmap 에 없어 "command not found" 가 되고,
+     * 그 실패는 `|| echo` 가 삼켜서 조용한 무동작이 된다. 문자열 존재만 보는
+     * 위 두 테스트로는 이 사고를 잡지 못한다.
+     */
+    public function testLogPruneRunsAfterCacheClearAndBeforePermissionFix(): void
+    {
+        $composer   = strpos($this->script, 'composer install');
+        $cacheClear = strpos($this->script, 'spark cache:clear');
+        $logsPrune  = strpos($this->script, 'spark logs:prune');
+        $chown      = strpos($this->script, 'chown -R www-data:www-data writable/');
+
+        $this->assertNotFalse($composer, 'deploy.sh 가 composer install 을 실행해야 한다.');
+        $this->assertNotFalse($cacheClear, 'deploy.sh 가 cache:clear 를 실행해야 한다.');
+        $this->assertNotFalse($logsPrune, 'deploy.sh 가 logs:prune 을 실행해야 한다.');
+        $this->assertNotFalse($chown, 'deploy.sh 가 writable 권한을 보정해야 한다.');
+
+        $this->assertLessThan($logsPrune, $composer, '로그 정리는 의존성 설치보다 뒤에 있어야 한다.');
+        $this->assertLessThan($logsPrune, $cacheClear, '캐시 정리가 로그 정리보다 앞서야 한다.');
+        $this->assertLessThan($chown, $logsPrune, '로그 정리는 권한 보정보다 앞서야 한다.');
+    }
 }
