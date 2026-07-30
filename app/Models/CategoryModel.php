@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Entities\Category;
+use App\Entities\Post;
 use App\Models\Concerns\GeneratesSlug;
 use CodeIgniter\Model;
 
@@ -73,6 +74,40 @@ class CategoryModel extends Model
     public function menu(): array
     {
         return $this->where('is_visible', 1)->orderBy('name', 'ASC')->findAll();
+    }
+
+    /**
+     * sitemap 용 공개 카테고리 목록. 발행글이 1건 이상인 것만. (#124)
+     *
+     * 빈 목록 페이지는 검색엔진이 thin content 로 보는 전형이라 색인 대상에서 뺀다.
+     *
+     * "발행글이 있는 것만" 을 실제로 강제하는 것은 아래 두 가지이고, 둘 중 하나만
+     * 있어도 결과가 같다 — LEFT JOIN 이라도 WHERE 가 우측 테이블(p.status)을
+     * 요구하면 매칭 없는 행의 NULL 이 조건에서 걸러져 INNER 와 동치가 되기 때문이다.
+     *  - INNER JOIN: 매칭 없는 카테고리를 조인 단계에서 뺀다
+     *  - WHERE p.status: 발행글이 아닌 행을 뺀다(초안만 있는 카테고리도 여기서 빠진다)
+     * 그래서 조인 종류만 LEFT 로 바꾸는 뮤테이션은 테스트로 잡히지 않는다(실측).
+     * INNER 를 명시해 두는 것은 의도를 읽는 사람에게 드러내는 값이다.
+     *
+     * ⚠️ ORDER BY 를 c.name 으로 바꾸면 안 된다 — GROUP BY 에 없는 열이라
+     * MySQL 의 ONLY_FULL_GROUP_BY(5.7+ 기본 활성) 위반이다. 테스트 DB(SQLite)는
+     * 관대해서 통과하고 개발 DB(MySQL)에서만 깨진다.
+     *
+     * 모델의 공유 빌더를 오염시키지 않도록 별도 빌더를 쓴다(statusCounts() 관례).
+     *
+     * @return list<array{slug: string, last_updated: string|null}>
+     */
+    public function visibleWithPublishedPosts(): array
+    {
+        return $this->db->table($this->table . ' c')
+            ->select('c.slug AS slug, MAX(p.updated_at) AS last_updated')
+            ->join('posts p', 'p.category_id = c.id', 'inner')
+            ->where('p.status', Post::STATUS_PUBLISHED)
+            ->where('c.is_visible', 1)
+            ->groupBy('c.id, c.slug')
+            ->orderBy('c.slug', 'ASC')
+            ->get()
+            ->getResultArray();
     }
 
     /**
