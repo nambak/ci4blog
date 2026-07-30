@@ -182,4 +182,55 @@ final class UploadServingTest extends CIUnitTestCase
             '라우트와 basename() 두 겹이 모두 경로 탈출을 막아야 한다.'
         );
     }
+
+    /**
+     * 캐시 정책은 정확 일치로 단언하고 no-store 부재까지 확인한다.
+     *
+     * setHeader('Cache-Control', ...) 를 쓰면 생성자의 noCache() 가 남긴 배열에
+     * 덧붙어 `no-store, max-age=0, no-cache, public, max-age=..., immutable` 이
+     * 된다(실측). no-store 가 앞에 있으면 캐싱이 통째로 무효인데도
+     * assertStringContainsString('immutable', ...) 류는 통과한다 — 그래서
+     * 정확 일치 + 음성 단언 둘 다 필요하다.
+     */
+    public function testSendsImmutableCacheControl(): void
+    {
+        $name = $this->makeUpload('png');
+
+        $result = $this->call('GET', 'uploads/' . $name);
+
+        $result->assertHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        $this->assertStringNotContainsString(
+            'no-store',
+            $result->response()->getHeaderLine('Cache-Control'),
+            'no-store 가 남아 있으면 캐싱이 통째로 무효다.'
+        );
+    }
+
+    public function testSendsStatBasedEtag(): void
+    {
+        $name = $this->makeUpload('png');
+        $path = $this->pathOf($name);
+
+        $result = $this->call('GET', 'uploads/' . $name);
+
+        $this->assertSame(
+            sprintf('"%x-%x"', filemtime($path), filesize($path)),
+            $result->response()->getHeaderLine('ETag'),
+            'ETag 는 filemtime 과 filesize 로 만든다 — 파일을 읽지 않고 304 를 판정하려는 것이다.'
+        );
+    }
+
+    public function testSendsLastModified(): void
+    {
+        $name = $this->makeUpload('png');
+        $path = $this->pathOf($name);
+
+        $result = $this->call('GET', 'uploads/' . $name);
+
+        $this->assertSame(
+            gmdate('D, d M Y H:i:s', filemtime($path)) . ' GMT',
+            $result->response()->getHeaderLine('Last-Modified'),
+            'Last-Modified 가 filemtime 과 정확히 같아야 한다.'
+        );
+    }
 }

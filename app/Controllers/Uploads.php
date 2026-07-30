@@ -48,6 +48,25 @@ class Uploads extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
+        $mtime = (int) filemtime($path);
+        $size  = (int) filesize($path);
+        $etag  = sprintf('"%x-%x"', $mtime, $size);
+
+        // 반드시 setCache() 를 쓴다. setHeader('Cache-Control', ...) 는 생성자의
+        // noCache() 가 남긴 "배열" 값에 덧붙어 no-store 가 앞에 남고(캐싱 무효),
+        // 배열을 넘기면 appendHeader 의 ?string 타입 때문에 TypeError 로 죽는다.
+        // setCache() 는 removeHeader('Cache-Control') 를 먼저 한다.
+        //
+        // last-modified 를 문자열로 넘기는 것도 의도다 — setLastModified() 는
+        // DateTime 만 받고 DateTimeImmutable 은 instanceof 가 false 라 조용히 무시된다.
+        $this->response->setCache([
+            'etag'          => $etag,
+            'last-modified' => gmdate('D, d M Y H:i:s', $mtime) . ' GMT',
+            'public',
+            'max-age'       => self::MAX_AGE,
+            'immutable',
+        ]);
+
         return $this->response
             ->setHeader('Content-Type', $type)
             ->setBody((string) file_get_contents($path));
