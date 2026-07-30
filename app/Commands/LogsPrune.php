@@ -40,7 +40,13 @@ class LogsPrune extends BaseCommand
     public function run(array $params)
     {
         $force    = array_key_exists('force', $params) || CLI::getOption('force');
-        $keepDays = self::DEFAULT_KEEP_DAYS;
+        $keepDays = $this->keepDaysOption($params);
+
+        if ($keepDays < 1) {
+            CLI::error('--keep-days 는 1 이상의 정수여야 합니다.');
+
+            return EXIT_ERROR;
+        }
 
         $stale = $this->staleFiles($keepDays);
 
@@ -77,8 +83,9 @@ class LogsPrune extends BaseCommand
             CLI::error('삭제 실패: ' . basename($file));
         }
 
+        // 보관 일수를 함께 찍는다 — 배포 로그만 보고도 어떤 기준으로 지웠는지 알 수 있어야 한다.
         CLI::write(
-            "로그 정리: {$deleted}개 삭제 (" . $this->humanSize($freed) . ' 확보)',
+            "로그 정리: {$deleted}개 삭제 (보관 {$keepDays}일, " . $this->humanSize($freed) . ' 확보)',
             'green'
         );
 
@@ -137,6 +144,23 @@ class LogsPrune extends BaseCommand
         }
 
         return $date;
+    }
+
+    /**
+     * --keep-days 값. CI4 의 command() 파서는 `--keep-days 30` 형태만 값으로
+     * 읽는다(`--keep-days=30` 은 옵션 이름 자체가 'keep-days=30' 이 된다).
+     */
+    private function keepDaysOption(array $params): int
+    {
+        $raw = $params['keep-days'] ?? CLI::getOption('keep-days');
+
+        if ($raw === null || $raw === true || $raw === '') {
+            return self::DEFAULT_KEEP_DAYS;
+        }
+
+        // (int) 캐스팅은 '3a' 를 3, '1.5' 를 1 로 조용히 받아 준다.
+        // 숫자로만 이뤄진 문자열만 받고 나머지는 0 으로 넘겨 호출부 가드에 걸리게 한다.
+        return ctype_digit((string) $raw) ? (int) $raw : 0;
     }
 
     private function humanSize(int $bytes): string

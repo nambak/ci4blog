@@ -177,6 +177,66 @@ final class LogsPruneCommandTest extends CIUnitTestCase
 
         $this->assertFileExists($future, '미래 날짜 로그는 보존해야 한다.');
     }
+
+    public function testCustomKeepDaysIsApplied(): void
+    {
+        $deleted = $this->makeLog($this->daysAgo(20));
+        $kept    = $this->makeLog($this->daysAgo(10));
+
+        $result = $this->prune()->run(['force' => null, 'keep-days' => '14']);
+
+        $this->assertSame(EXIT_SUCCESS, $result);
+        $this->assertFileDoesNotExist($deleted, '--keep-days 14 면 20일 전 로그는 지워야 한다.');
+        $this->assertFileExists($kept, '10일 전 로그는 남아야 한다.');
+        $this->assertStringContainsString('보관 14일', $this->getStreamFilterBuffer());
+    }
+
+    /**
+     * (int) 캐스팅은 '3a' 를 3 으로 조용히 받아 준다. --keep-days 3O 같은
+     * 오타가 보존 기간을 3일로 만들어 로그를 통째로 날리는 사고가 되므로,
+     * 숫자 문자열만 받고 나머지는 거부한다(db:backup --keep 과 같은 자리).
+     */
+    public function testNonNumericKeepDaysIsRejectedAndDeletesNothing(): void
+    {
+        $old = $this->makeLog($this->daysAgo(90));
+
+        $result = $this->prune()->run(['force' => null, 'keep-days' => '3a']);
+
+        $this->assertSame(EXIT_ERROR, $result);
+        $this->assertFileExists($old, '입력이 잘못되면 아무것도 지우지 않아야 한다.');
+        $this->assertStringContainsString('--keep-days', $this->getStreamFilterBuffer());
+    }
+
+    public function testZeroKeepDaysIsRejectedAndDeletesNothing(): void
+    {
+        $today = $this->makeLog($this->daysAgo(0));
+
+        $result = $this->prune()->run(['force' => null, 'keep-days' => '0']);
+
+        $this->assertSame(EXIT_ERROR, $result);
+        $this->assertFileExists($today, '0 은 오늘 로그까지 지우게 되므로 거부해야 한다.');
+    }
+
+    /**
+     * 커맨드가 등록돼 spark 로 불릴 수 있는지만 본다.
+     *
+     * seam 을 쓰는 다른 테스트들은 실제 writable/logs 를 보지 않으므로
+     * "커맨드 이름이 틀렸다" 같은 배선 사고를 못 잡는다. --force 를 주지 않아
+     * 삭제가 일어나지 않으므로 개발자의 실제 로그는 안전하다.
+     */
+    public function testCommandIsRegisteredAndRunsAsScan(): void
+    {
+        command('logs:prune');
+
+        $output = $this->getStreamFilterBuffer();
+
+        $this->assertMatchesRegularExpression(
+            '/정리 대상 \d+개|정리할 로그가 없습니다/',
+            $output,
+            'logs:prune 이 등록돼 있고 스캔 결과를 출력해야 한다.'
+        );
+        $this->assertStringNotContainsString('삭제', $output, '배선 테스트가 파일을 지워서는 안 된다.');
+    }
 }
 
 /**
