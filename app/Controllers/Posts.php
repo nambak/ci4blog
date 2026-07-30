@@ -353,23 +353,6 @@ class Posts extends BaseController
     }
 
     /**
-     * writable/uploads 의 이미지를 스트리밍한다(웹 루트 밖이라 컨트롤러로 서빙).
-     */
-    public function image(string $name): ResponseInterface
-    {
-        $name = basename($name); // 경로 탈출 방지
-        $path = WRITEPATH . 'uploads/' . $name;
-
-        if (! is_file($path)) {
-            throw PageNotFoundException::forPageNotFound();
-        }
-
-        return $this->response
-            ->setHeader('Content-Type', mime_content_type($path) ?: 'application/octet-stream')
-            ->setBody((string) file_get_contents($path));
-    }
-
-    /**
      * 글을 삭제한다. 작성자 본인 또는 관리자만 가능하다.
      */
     public function delete(int $id): ResponseInterface|RedirectResponse
