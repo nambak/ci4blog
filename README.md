@@ -135,6 +135,22 @@ php spark db:backup --keep 30  # 보관 개수 조정
 4. 파일 소유자를 PHP-FPM 실행 사용자로 맞춥니다(`chown`).
 5. 서비스를 다시 올리고 `GET /health` 가 `{"status":"ok","db":"ok"}` 인지 확인합니다.
 
+## 운영 — 로그 정리
+
+배포(`scripts/deploy.sh`)가 끝머리에서 오래된 일자별 로그를 지웁니다. 서버에 따로 크론을 걸 필요가 없습니다.
+
+```bash
+php spark logs:prune                        # 몇 개가 지워질지만 본다
+php spark logs:prune --force                # 실제로 지운다
+php spark logs:prune --force --keep-days 14 # 보관 일수 조정
+```
+
+- 대상: `writable/logs/log-YYYY-MM-DD.log`. 이름이 이 형식이 아니거나 날짜가 유효하지 않은 파일은 건드리지 않습니다.
+- 기본 보관: **30일** — 오늘 포함 최근 30개 날짜를 남깁니다.
+- 되돌릴 수 없는 삭제이므로 기본 동작은 **개수 보고**이고, `--force` 를 줘야 지웁니다.
+- 배포에서는 실패해도 배포를 멈추지 않습니다(백업과 반대 — 로그 정리는 서비스 동작과 무관합니다).
+- 배포가 뜸한 환경이라면 크론으로도 돌릴 수 있습니다: `0 4 * * * cd /var/www/ci4blog && sudo -u www-data php spark logs:prune --force`
+
 ## 프로젝트 구조
 
 ```text
