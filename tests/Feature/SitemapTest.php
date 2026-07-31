@@ -68,7 +68,7 @@ final class SitemapTest extends CIUnitTestCase
      *
      * 기대값을 site_url() 로 만들지 않는다 — 컨트롤러와 같은 함수를 쓰면 인코딩이
      * 통째로 빠져도 양쪽이 함께 틀려 통과한다. 게다가 site_url() 은 내부 parse_url()
-     * 때문에 macOS 에서 한글 바이트를 '_' 로 뭉갠다(Sitemap::url() 주석 참조).
+     * 때문에 macOS 에서 한글 바이트를 '_' 로 뭉갠다(link_helper.php 의 absolute_url() 주석 참조).
      */
     private function baseUrl(): string
     {

@@ -204,6 +204,8 @@ class PostModel extends Model
      *
      * id 2차 정렬은 같은 초에 들어간 글들의 순서를 고정하기 위한 것이다 —
      * 2차 키가 없으면 순서가 DB 구현에 맡겨진다.
+     *
+     * @return list<Post>
      */
     public function recentForFeed(int $limit = 20): array
     {
