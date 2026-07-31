@@ -9,6 +9,7 @@
         <nav class="home-footer-nav">
             <a class="nav-link" href="<?= site_url('posts') ?>">아카이브</a>
             <a class="nav-link" href="<?= site_url('about') ?>">About</a>
+            <a class="nav-link" href="<?= site_url('feed') ?>">RSS</a>
             <a class="nav-link" href="https://github.com/nambak/ci4blog" rel="noopener" target="_blank">GitHub</a>
         </nav>
     </div>
