@@ -64,6 +64,10 @@ class Posts extends BaseController
             'categories'     => model(CategoryModel::class)->menu(),
             'activeCategory' => $activeCategory,
             'search'         => $search,
+            // 같은 메서드가 /posts 와 /categories/{slug} 를 모두 처리한다(#113).
+            'meta'           => [
+                'title' => $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
+            ],
         ]);
     }
 

@@ -194,4 +194,30 @@ final class MetaTagsTest extends CIUnitTestCase
         $this->assertStringNotContainsString('&amp;amp;', $html, '이중 이스케이프됐다.');
         $this->assertStringContainsString('content="정규식 &amp; 패턴"', $html);
     }
+
+    public function testPostListHasOwnTitle(): void
+    {
+        $html = $this->decodedBody($this->call('GET', 'posts'));
+
+        $this->assertSame('글 목록', $this->metaContent($html, 'property', 'og:title'));
+        // 설명은 사이트 기본값을 그대로 쓴다.
+        $this->assertSame(config('Blog')->description, $this->metaContent($html, 'property', 'og:description'));
+    }
+
+    public function testCategoryPageHasCategoryTitle(): void
+    {
+        $categories = model(\App\Models\CategoryModel::class);
+        $categories->insert(['name' => '회고', 'slug' => 'retro']);
+
+        $html = $this->decodedBody($this->call('GET', 'categories/retro'));
+
+        $this->assertSame('회고 글', $this->metaContent($html, 'property', 'og:title'));
+    }
+
+    public function testAboutHasOwnTitle(): void
+    {
+        $html = $this->decodedBody($this->call('GET', 'about'));
+
+        $this->assertSame('소개', $this->metaContent($html, 'property', 'og:title'));
+    }
 }
