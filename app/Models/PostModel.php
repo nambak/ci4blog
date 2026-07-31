@@ -177,6 +177,25 @@ class PostModel extends Model
     }
 
     /**
+     * sitemap 용 발행글 목록. slug 와 updated_at 만 있으면 된다. (#124)
+     *
+     * published() 스코프를 그대로 쓴다 — 발행 상태와 숨김 카테고리 제외가 이미
+     * 그 안에 있어, 공개 화면과 sitemap 의 판정이 갈라질 수 없다.
+     *
+     * updated_at DESC 정렬은 취향이 아니라 계약이다: 첫 행의 updated_at 이 곧
+     * 사이트 전체의 최신 시각이라, 홈·목록의 lastmod 를 얻는 집계 쿼리가 없어진다.
+     *
+     * @return list<Post>
+     */
+    public function publishedForSitemap(): array
+    {
+        return $this->published()
+            ->select($this->table . '.slug, ' . $this->table . '.updated_at')
+            ->orderBy($this->table . '.updated_at', 'DESC')
+            ->findAll();
+    }
+
+    /**
      * 상태별 글 수. 관리 화면의 탭 카운트와 통계 카드가 쓴다.
      *
      * $search 가 주어지면 제목 like 로 좁힌 결과의 분포를 돌려준다(탭 숫자와
