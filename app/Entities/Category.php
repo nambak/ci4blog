@@ -27,6 +27,6 @@ class Category extends Entity
      */
     public function getUrl(): string
     {
-        return site_url('categories/' . $this->attributes['slug']);
+        return category_url($this->attributes['slug']);
     }
 }

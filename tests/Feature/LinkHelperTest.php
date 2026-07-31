@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Entities\Category;
+use App\Entities\Post;
 use CodeIgniter\Test\CIUnitTestCase;
 
 /**
@@ -77,5 +79,31 @@ final class LinkHelperTest extends CIUnitTestCase
     public function testQuerySeparatorInSlugStaysEncoded(): void
     {
         $this->assertStringEndsWith('posts/a%3Fb', post_url('a?b'));
+    }
+
+    /**
+     * 뷰는 $post->url 로 접근한다.
+     *
+     * 접근자가 헬퍼를 거치는지는 위 헬퍼 테스트가 계약을 고정하므로, 여기서는
+     * 접근자가 존재하고 slug 를 반영하는지만 본다.
+     */
+    public function testPostEntityExposesEncodedUrl(): void
+    {
+        $post = new Post(['slug' => '한글-제목-글']);
+
+        $this->assertStringEndsWith(
+            'posts/%ED%95%9C%EA%B8%80-%EC%A0%9C%EB%AA%A9-%EA%B8%80',
+            $post->url
+        );
+    }
+
+    public function testCategoryEntityExposesEncodedUrl(): void
+    {
+        $category = new Category(['slug' => '한글-분류']);
+
+        $this->assertStringEndsWith(
+            'categories/%ED%95%9C%EA%B8%80-%EB%B6%84%EB%A5%98',
+            $category->url
+        );
     }
 }

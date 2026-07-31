@@ -110,6 +110,17 @@ class Post extends Entity
     }
 
     /**
+     * 이 글의 상세 URL.
+     *
+     * 뷰에서 `$post->url` 로 접근한다. slug 인코딩을 뷰마다 반복하지 않기 위해
+     * 헬퍼를 거친다(#127).
+     */
+    public function getUrl(): string
+    {
+        return post_url($this->attributes['slug']);
+    }
+
+    /**
      * 이 글이 공개 화면에 노출되는 상태인지. 상세 가드·미리보기 배너가 쓴다.
      */
     public function isPublished(): bool
