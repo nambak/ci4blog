@@ -10,6 +10,11 @@ use CodeIgniter\Test\CIUnitTestCase;
  * 잡을 수 없다 — glibc 는 UTF-8 로케일에서도 0x80~0x9F 를 제어문자로 보지 않는다.
  * 그래서 값이 아니라 구조를 지킨다.
  *
+ * **이것은 정적 분석기가 아니다.** 경로를 쪼개 쓰거나(`'posts' . '/' . $slug`)
+ * 변수에 담아 넘기면(`$p = 'posts/'; site_url($p . $slug)`) 빠져나간다. 정규식을
+ * 넓혀도 우회는 계속 남으므로, 완전성 대신 **기존 줄을 복사해 붙이는 재발 경로**를
+ * 막는 데 목적을 둔다. 그 형태가 실제로 이 저장소에서 12곳을 만든 경로였다.
+ *
  * @internal
  */
 final class SlugUrlAssemblyTest extends CIUnitTestCase
