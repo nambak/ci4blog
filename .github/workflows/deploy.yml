@@ -40,8 +40,11 @@ jobs:
     environment: production
     steps:
       # smoke.sh 를 러너로 가져온다. 이 잡은 원래 체크아웃하지 않았다.
+      # 이후 git 작업이 없으므로 자격증명을 .git/config 에 남기지 않는다.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0

@@ -78,6 +78,22 @@ final class DeployWorkflowTest extends CIUnitTestCase
         $this->assertLessThan($smoke, $checkout, '체크아웃은 smoke test 보다 앞서야 한다.');
     }
 
+    /**
+     * 체크아웃이 자격증명을 러너에 남기지 않아야 한다.
+     *
+     * actions/checkout 은 기본적으로 .git/config 에 토큰을 남긴다. 이 스텝은
+     * smoke.sh 를 가져오는 용도라 이후 git 작업이 없으므로 남길 이유가 없다.
+     * 설정이 조용히 빠져도 아무 증상이 없는 종류라 테스트로 지킨다.
+     */
+    public function testCheckoutDoesNotPersistCredentials(): void
+    {
+        $this->assertStringContainsString(
+            'persist-credentials: false',
+            $this->stepBlock('Checkout'),
+            '체크아웃이 자격증명을 남기지 않아야 한다.'
+        );
+    }
+
     public function testSmokeTestRunsAgainstProductionUrl(): void
     {
         $this->assertStringContainsString(
