@@ -9,6 +9,8 @@ $routes->get('health', 'Health::index');   // 헬스체크(#112) — 공개, ses
 // 검색엔진용 사이트맵(#124) — 공개, session 그룹 밖. 점을 이스케이프하는 이유는
 // CI4 가 라우트 문자열을 정규식에 그대로 넣어(Router::handle) '.' 이 임의 문자가 되기 때문.
 $routes->get('sitemap\.xml', 'Sitemap::index');
+// 구독자용 RSS 2.0 피드(#113) — 공개, session 그룹 밖. 리더는 로그인하지 않는다.
+$routes->get('feed', 'Feed::index');
 $routes->get('posts', 'Posts::index');
 // 카테고리별 글 목록. 목록 화면(index)을 슬러그로 거른다.
 $routes->get('categories/(:segment)', 'Posts::index/$1');
