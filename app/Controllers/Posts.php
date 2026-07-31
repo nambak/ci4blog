@@ -132,6 +132,16 @@ class Posts extends BaseController
             'authorName'   => $authorName,
             'authorAvatar' => $authorAvatar,
             'category'     => $category,
+            // SNS 미리보기·검색 스니펫용(#113). partial 이 이스케이프하므로 원문을 넘긴다.
+            'meta'         => [
+                'type'        => 'article',
+                'title'       => $post->title,
+                'description' => $post->getExcerpt(155),
+                // 이미지가 없으면 키 자체를 넣지 않는다 — partial 이 태그를 생략한다.
+                ...($post->image !== null && $post->image !== ''
+                    ? ['image' => site_url('uploads/' . $post->image)]
+                    : []),
+            ],
         ]);
     }
 

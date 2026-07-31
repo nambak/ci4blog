@@ -92,4 +92,106 @@ final class MetaTagsTest extends CIUnitTestCase
         $this->assertNull($this->metaContent($html, 'property', 'og:image'));
         $this->assertSame('summary', $this->metaContent($html, 'name', 'twitter:card'));
     }
+
+    private function makeUser(): \CodeIgniter\Shield\Entities\User
+    {
+        $users = auth()->getProvider();
+        $user  = new \CodeIgniter\Shield\Entities\User([
+            'username' => 'writer',
+            'email'    => 'writer@example.com',
+            'password' => 'secret-password-123',
+        ]);
+        $users->save($user);
+
+        return $users->findById($users->getInsertID());
+    }
+
+    /** @return \App\Entities\Post */
+    private function makePost(int $userId, string $title, string $body, ?string $image = null)
+    {
+        $posts = model(\App\Models\PostModel::class);
+        $posts->insert([
+            'user_id' => $userId,
+            'title'   => $title,
+            'body'    => $body,
+            'image'   => $image,
+            'status'  => \App\Entities\Post::STATUS_PUBLISHED,
+        ]);
+
+        return $posts->find($posts->getInsertID());
+    }
+
+    public function testPostDetailHasArticleOgTags(): void
+    {
+        $user = $this->makeUser();
+        $post = $this->makePost($user->id, '오지에스 태그 시험', '본문 첫 문장이다. 두 번째 문장.', 'cover.png');
+
+        $html = $this->decodedBody($this->call('GET', 'posts/' . $post->slug));
+
+        $this->assertSame('article', $this->metaContent($html, 'property', 'og:type'));
+        $this->assertSame('오지에스 태그 시험', $this->metaContent($html, 'property', 'og:title'));
+        $this->assertStringContainsString('본문 첫 문장이다', (string) $this->metaContent($html, 'property', 'og:description'));
+    }
+
+    /** 이미지는 절대 URL 이어야 SNS 가 가져갈 수 있다. */
+    public function testPostImageIsAbsoluteUrl(): void
+    {
+        $user = $this->makeUser();
+        $post = $this->makePost($user->id, '이미지 있는 글', '본문', 'cover.png');
+
+        $html  = $this->decodedBody($this->call('GET', 'posts/' . $post->slug));
+        $image = $this->metaContent($html, 'property', 'og:image');
+
+        $this->assertNotNull($image, 'og:image 가 있어야 한다.');
+        $this->assertStringStartsWith('http', $image);
+        $this->assertStringEndsWith('/uploads/cover.png', $image);
+        $this->assertSame('summary_large_image', $this->metaContent($html, 'name', 'twitter:card'));
+    }
+
+    public function testPostWithoutImageOmitsOgImage(): void
+    {
+        $user = $this->makeUser();
+        $post = $this->makePost($user->id, '이미지 없는 글', '본문');
+
+        $html = $this->decodedBody($this->call('GET', 'posts/' . $post->slug));
+
+        $this->assertNull($this->metaContent($html, 'property', 'og:image'));
+        $this->assertSame('summary', $this->metaContent($html, 'name', 'twitter:card'));
+    }
+
+    /**
+     * 설명은 검색 스니펫 길이에 맞춰 잘린다.
+     *
+     * 목록 카드용 기본값(80)을 그대로 쓰면 스니펫이 너무 짧아진다. 155 를
+     * 넘겨 자르므로 최대 길이는 155 + 말줄임표 1자다.
+     */
+    public function testDescriptionIsTrimmedToSnippetLength(): void
+    {
+        $user = $this->makeUser();
+        $post = $this->makePost($user->id, '아주 긴 글', str_repeat('가나다라마바사아자차', 40));
+
+        $html        = $this->decodedBody($this->call('GET', 'posts/' . $post->slug));
+        $description = (string) $this->metaContent($html, 'property', 'og:description');
+
+        $this->assertSame(156, mb_strlen($description), '155자 + 말줄임표여야 한다.');
+        $this->assertStringEndsWith('…', $description);
+    }
+
+    /**
+     * 제목에 & 가 들어가도 이중 이스케이프되지 않는다.
+     *
+     * 이 설계의 핵심 방지망이다. 컨트롤러가 esc() 한 값을 넘기거나 제목을
+     * renderSection 에서 재사용하면 `&amp;amp;` 가 나온다.
+     */
+    public function testTitleIsNotDoubleEscaped(): void
+    {
+        $user = $this->makeUser();
+        $post = $this->makePost($user->id, '정규식 & 패턴', '본문');
+
+        // 여기서는 디코드하지 않은 원본 HTML 을 본다 — 이스케이프 상태 자체가 검증 대상이다.
+        $html = $this->call('GET', 'posts/' . $post->slug)->getBody();
+
+        $this->assertStringNotContainsString('&amp;amp;', $html, '이중 이스케이프됐다.');
+        $this->assertStringContainsString('content="정규식 &amp; 패턴"', $html);
+    }
 }
