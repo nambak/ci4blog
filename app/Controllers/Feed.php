@@ -44,15 +44,21 @@ class Feed extends BaseController
                 // 라우트가 없는 식별자 문자열이다 — RssXml 이 isPermaLink="false" 로
                 // 선언한다. slug 를 쓰면 제목 수정 시 slug 가 바뀌어 같은 글이
                 // 구독자에게 새 글로 다시 뜬다(git-as-CMS 라 실제로 일어난다).
-                'guid'        => absolute_url('posts/id/' . $post->id),
-                'pubDate'     => $post->created_at->format(DATE_RSS),
+                'guid' => absolute_url('posts/id/' . $post->id),
+                // created_at 은 마이그레이션상 nullable 이다 — 값이 없으면 태그를
+                // 뺀다(RssXml 이 생략한다). 무조건 format() 을 부르면 그 한 행 때문에
+                // 문서 전체가 500 이 된다.
+                'pubDate'     => $post->created_at?->format(DATE_RSS),
                 'description' => $post->getExcerpt(self::EXCERPT_LIMIT),
             ];
         }
 
-        // 목록이 최신순이라 첫 글이 곧 피드 전체의 최신 시각이다.
-        // 글이 하나도 없으면 근거가 없으므로 태그를 비운다(RssXml 이 생략한다).
-        $lastBuildDate = isset($posts[0]) ? $posts[0]->updated_at->format(DATE_RSS) : null;
+        // 채널 내용이 마지막으로 바뀐 시각 = 실린 항목들의 updated_at 최대값.
+        // 정렬이 created_at 기준이라 첫 글이 최대값이라는 보장이 없다(sitemap 과
+        // 다른 점 — sitemap 은 updated_at DESC 정렬이라 첫 행이 곧 최대값이다).
+        // updated_at 도 nullable 이므로 null 인 항목은 최대값 계산에서 제외한다.
+        $timestamps    = array_filter(array_map(static fn ($p) => $p->updated_at, $posts));
+        $lastBuildDate = $timestamps === [] ? null : max($timestamps)->format(DATE_RSS);
 
         // 반드시 setCache() 를 쓴다 — setHeader('Cache-Control', …) 는 생성자의
         // noCache() 가 남긴 배열 값에 덧붙어 no-store 가 앞에 남는다(Sitemap 참조).

@@ -76,10 +76,10 @@ final class SmokeScriptTest extends CIUnitTestCase
         $this->assertStringContainsString('usage:', $result['output']);
     }
 
-    /** 대표 4경로를 모두 검사해야 한다. */
-    public function testChecksAllFourPaths(): void
+    /** 대표 5경로를 모두 검사해야 한다. */
+    public function testChecksAllFivePaths(): void
     {
-        foreach (['/health', '/posts', '/sitemap.xml'] as $path) {
+        foreach (['/health', '/posts', '/sitemap.xml', '/feed'] as $path) {
             $this->assertStringContainsString(
                 $path,
                 $this->script,
@@ -138,7 +138,7 @@ final class SmokeScriptTest extends CIUnitTestCase
     }
 
     /**
-     * 첫 실패에서 멈추지 않는다 — 4경로를 모두 검사하고 끝에 요약한다.
+     * 첫 실패에서 멈추지 않는다 — 5경로를 모두 검사하고 끝에 요약한다.
      *
      * /health 만 죽었는지 전부 죽었는지가 원인 판단(DB 문제 vs 앱 전체 다운)에
      * 직접 쓰인다. 첫 실패에서 exit 해 버리면 실패 표시가 하나만 남아 이 구분이
@@ -152,10 +152,10 @@ final class SmokeScriptTest extends CIUnitTestCase
         );
 
         $this->assertSame(
-            4,
+            5,
             substr_count($result['output'], '✗'),
-            "4경로 모두 실패 표시가 있어야 한다. 출력: {$result['output']}"
+            "5경로 모두 실패 표시가 있어야 한다. 출력: {$result['output']}"
         );
-        $this->assertStringContainsString('4/4', $result['output']);
+        $this->assertStringContainsString('5/5', $result['output']);
     }
 }

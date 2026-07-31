@@ -248,4 +248,68 @@ final class FeedTest extends CIUnitTestCase
         );
         $this->assertStringEndsWith(rawurlencode($post->slug), $feedLink);
     }
+
+    /**
+     * 🔴 회귀 테스트 — lastBuildDate 는 목록 첫 글(창작순 최신)이 아니라 실린
+     * 글들의 updated_at 최대값을 써야 한다.
+     *
+     * "오래 전에 작성됐지만 최근에 수정된 글"이 있으면, created_at DESC 정렬의
+     * 첫 항목은 그 글이 아니다 — 첫 항목의 updated_at 만 보면 그 수정을 놓친다.
+     * sitemap 은 updated_at DESC 정렬이라 이 문제가 없지만(첫 행이 곧 최대값),
+     * 피드는 정렬 기준이 달라 실제로 어긋난다.
+     *
+     * 기대값을 format(DATE_RSS) 로 만들지 않는다 — 구현과 같은 함수를 쓰면 계산이
+     * 통째로 틀려도 양쪽이 함께 틀려 통과한다. RFC 822 문자열을 하드코딩해서 본다.
+     */
+    public function testLastBuildDateUsesMaxUpdatedAtAcrossItems(): void
+    {
+        $posts = model(PostModel::class);
+
+        $posts->insert([
+            'user_id'     => null,
+            'category_id' => null,
+            'title'       => '오래된 글',
+            'body'        => '본문',
+            'status'      => Post::STATUS_PUBLISHED,
+        ]);
+        $oldPostId = $posts->getInsertID();
+
+        $posts->insert([
+            'user_id'     => null,
+            'category_id' => null,
+            'title'       => '새 글',
+            'body'        => '본문',
+            'status'      => Post::STATUS_PUBLISHED,
+        ]);
+        $newPostId = $posts->getInsertID();
+
+        // $useTimestamps 가 채우므로 insert 로는 임의 시각을 못 넣는다 — 직접 갱신한다
+        // (PostModel::builder() 는 protected 라 db_connect() 를 거친다).
+        $db = db_connect();
+
+        // created_at 은 오래됐지만, 목록에 실린 글들 중 updated_at 이 가장 최근이다.
+        $db->table('posts')->where('id', $oldPostId)->update([
+            'created_at' => '2020-01-01 00:00:00',
+            'updated_at' => '2026-07-31 09:00:00',
+        ]);
+
+        // created_at 이 더 최근이라 목록 첫 항목이 되지만, updated_at 은 위 글보다 이전이다.
+        $db->table('posts')->where('id', $newPostId)->update([
+            'created_at' => '2026-07-30 00:00:00',
+            'updated_at' => '2026-07-30 00:00:00',
+        ]);
+
+        $channel = $this->parsedFeed()->channel;
+
+        $this->assertSame(
+            '새 글',
+            (string) $channel->item[0]->title,
+            '전제 확인 — created_at 이 더 최근인 글이 목록 첫 항목이어야 한다.'
+        );
+        $this->assertSame(
+            'Fri, 31 Jul 2026 09:00:00 +0000',
+            (string) $channel->lastBuildDate,
+            'lastBuildDate 가 목록 첫 글의 updated_at 만 썼다면(구 구현) 2026-07-30 이 나와 이 값과 달라진다.'
+        );
+    }
 }

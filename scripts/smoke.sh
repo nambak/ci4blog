@@ -101,6 +101,7 @@ check /health      'application/json' '"status":"ok"' '"db":"ok"'
 check /            'text/html'
 check /posts       'text/html'
 check /sitemap.xml 'application/xml'  '<urlset'
+check /feed        'application/rss+xml' '<rss'
 
 echo
 

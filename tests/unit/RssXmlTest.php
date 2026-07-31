@@ -95,6 +95,33 @@ final class RssXmlTest extends CIUnitTestCase
         $this->assertStringNotContainsString('lastBuildDate', $without);
     }
 
+    /**
+     * pubDate 값이 없으면 태그 자체가 없어야 한다.
+     *
+     * posts.created_at 은 마이그레이션상 nullable 이라 실제로 null 이 들어올 수
+     * 있다(#113 최종 리뷰 I1). 빈 <pubDate></pubDate> 는 규격 위반이므로, 값이
+     * 있을 때와 없을 때를 함께 봐야 "항상 넣는" 구현을 배제할 수 있다.
+     */
+    public function testOmitsPubDateWhenMissing(): void
+    {
+        $rss = new RssXml();
+
+        $item = static fn ($pubDate) => [
+            'title'       => '첫 글',
+            'link'        => 'https://example.com/posts/first',
+            'guid'        => 'https://example.com/posts/id/1',
+            'pubDate'     => $pubDate,
+            'description' => '요약',
+        ];
+
+        $withDate = $rss->render($this->channel(), [$item('Fri, 31 Jul 2026 10:30:00 +0900')]);
+        $without  = $rss->render($this->channel(), [$item(null)]);
+
+        $this->assertStringContainsString('<pubDate>Fri, 31 Jul 2026 10:30:00 +0900</pubDate>', $withDate);
+        $this->assertStringNotContainsString('<pubDate>', $without);
+        $this->assertNotFalse(simplexml_load_string($without), 'pubDate 가 없어도 유효한 XML 이어야 한다.');
+    }
+
     /** item 필드가 전부 실린다. */
     public function testRendersItemFields(): void
     {
@@ -170,5 +197,90 @@ final class RssXmlTest extends CIUnitTestCase
         $xml = (new RssXml())->render($this->channel(), []);
 
         $this->assertStringStartsWith('<?xml version="1.0" encoding="UTF-8"?>', $xml);
+    }
+
+    /**
+     * XML 1.0 이 금지하는 제어문자가 자유 텍스트(제목)에 섞여도 파싱이 깨지지
+     * 않아야 한다. (#113 최종 리뷰 M1)
+     *
+     * htmlspecialchars 는 이런 제어문자를 이스케이프하지 않고 그대로 통과시킨다 —
+     * 하나라도 남으면 문서 전체가 파싱 불가가 된다. 제어문자만 사라지고 나머지
+     * 텍스트는 보존되는지 함께 봐야 "통째로 지워 버리는" 구현도 걸린다.
+     */
+    public function testStripsXmlIllegalControlCharactersFromFreeText(): void
+    {
+        // \x0B(수직탭)·\x0C(폼피드) 는 XML 1.0 이 금지하는 제어문자다.
+        $title = "제목\x0B중간\x0C끝";
+
+        $xml = (new RssXml())->render($this->channel(), [[
+            'title'       => $title,
+            'link'        => 'https://example.com/posts/first',
+            'guid'        => 'https://example.com/posts/id/1',
+            'pubDate'     => 'Fri, 31 Jul 2026 10:30:00 +0900',
+            'description' => '요약',
+        ]]);
+
+        $parsed = simplexml_load_string($xml);
+
+        $this->assertNotFalse($parsed, '제어문자가 섞이면 파싱이 깨진다.');
+        $this->assertSame(
+            '제목중간끝',
+            (string) $parsed->channel->item[0]->title,
+            '제어문자만 사라지고 나머지 텍스트는 보존돼야 한다.'
+        );
+    }
+
+    /**
+     * 탭·개행·캐리지리턴은 XML 1.0 이 허용하는 제어문자라 지우면 안 된다.
+     *
+     * 위 테스트와 짝을 이룬다 — "제어문자를 전부 지우는" 과잉 구현이 아니라
+     * "금지된 것만" 지우는 구현인지를 이 테스트가 가른다.
+     */
+    public function testKeepsAllowedWhitespaceControlCharacters(): void
+    {
+        $description = "첫 줄\n둘째 줄\t끝";
+
+        $xml = (new RssXml())->render($this->channel(), [[
+            'title'       => '제목',
+            'link'        => 'https://example.com/posts/first',
+            'guid'        => 'https://example.com/posts/id/1',
+            'pubDate'     => 'Fri, 31 Jul 2026 10:30:00 +0900',
+            'description' => $description,
+        ]]);
+
+        $parsed = simplexml_load_string($xml);
+
+        $this->assertNotFalse($parsed);
+        $this->assertSame($description, (string) $parsed->channel->item[0]->description);
+    }
+
+    /**
+     * 유효하지 않은 UTF-8 이 섞여도 엘리먼트가 통째로 비지 않는다. (#113 최종 리뷰 M1)
+     *
+     * ENT_SUBSTITUTE 없이 htmlspecialchars 를 쓰면 유효하지 않은 UTF-8 입력에
+     * 빈 문자열을 돌려준다 — 값이 있는데 조용히 사라지는 것은 제어문자가
+     * 남는 것보다 알아채기 어렵다(파싱은 되지만 내용이 없다).
+     */
+    public function testInvalidUtf8DoesNotBlankOutTheElement(): void
+    {
+        // "제목" 뒤에 잘못된 연속 바이트(0x80)를 붙여 유효하지 않은 UTF-8 을 만든다.
+        $title = "제목\x80끝";
+
+        $xml = (new RssXml())->render($this->channel(), [[
+            'title'       => $title,
+            'link'        => 'https://example.com/posts/first',
+            'guid'        => 'https://example.com/posts/id/1',
+            'pubDate'     => 'Fri, 31 Jul 2026 10:30:00 +0900',
+            'description' => '요약',
+        ]]);
+
+        $parsed = simplexml_load_string($xml);
+
+        $this->assertNotFalse($parsed, '유효하지 않은 UTF-8 이 섞이면 파싱이 깨진다.');
+        $this->assertNotSame(
+            '',
+            (string) $parsed->channel->item[0]->title,
+            'ENT_SUBSTITUTE 가 없으면 엘리먼트가 통째로 비어 버린다.'
+        );
     }
 }

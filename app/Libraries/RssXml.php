@@ -16,7 +16,7 @@ class RssXml
 
     /**
      * @param array{title: string, link: string, description: string, feedUrl: string, lastBuildDate?: string|null} $channel
-     * @param list<array{title: string, link: string, guid: string, pubDate: string, description: string}>          $items
+     * @param list<array{title: string, link: string, guid: string, pubDate: string|null, description: string}>     $items
      */
     public function render(array $channel, array $items): string
     {
@@ -41,17 +41,34 @@ class RssXml
             $xml .= '    <item>' . "\n"
                 . '      <title>' . $this->escape($item['title']) . '</title>' . "\n"
                 . '      <link>' . $this->escape($item['link']) . '</link>' . "\n"
-                . '      <guid isPermaLink="false">' . $this->escape($item['guid']) . '</guid>' . "\n"
-                . '      <pubDate>' . $this->escape($item['pubDate']) . '</pubDate>' . "\n"
-                . '      <description>' . $this->escape($item['description']) . '</description>' . "\n"
+                . '      <guid isPermaLink="false">' . $this->escape($item['guid']) . '</guid>' . "\n";
+
+            // pubDate 는 RSS 2.0 규격상 선택 항목이다 — 값이 없으면 태그 자체를
+            // 뺀다(lastBuildDate 와 같은 규칙). 빈 <pubDate></pubDate> 는 규격 위반이다.
+            if (isset($item['pubDate']) && $item['pubDate'] !== '') {
+                $xml .= '      <pubDate>' . $this->escape($item['pubDate']) . '</pubDate>' . "\n";
+            }
+
+            $xml .= '      <description>' . $this->escape($item['description']) . '</description>' . "\n"
                 . '    </item>' . "\n";
         }
 
         return $xml . '  </channel>' . "\n" . '</rss>' . "\n";
     }
 
+    /**
+     * SitemapXml 의 escape() 보다 방어가 하나 더 필요하다 — sitemap 은 이미
+     * 인코딩된 ASCII URL 과 날짜만 직렬화하지만, 이쪽은 작성자가 쓴 자유
+     * 텍스트(제목·요약)를 처음으로 이 직렬화기에 태운다.
+     */
     private function escape(string $value): string
     {
-        return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        // XML 1.0 이 금지하는 제어문자(탭·개행·캐리지리턴은 허용)를 먼저 없앤다.
+        // 남겨 두면 htmlspecialchars 를 그대로 통과해 문서 전체가 파싱 불가가 된다.
+        $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $value);
+
+        // ENT_SUBSTITUTE 가 없으면 유효하지 않은 UTF-8 이 섞였을 때 htmlspecialchars
+        // 가 전체를 빈 문자열로 돌려줘 엘리먼트가 조용히 비어 버린다.
+        return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 }
