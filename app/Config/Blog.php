@@ -21,4 +21,7 @@ class Blog extends BaseConfig
      * 헤더 브랜드·푸터·브라우저 탭에 쓰이는 사이트 제목.
      */
     public string $title = 'CI4 Blog';
+
+    /** 메타 설명·OG 의 기본 문구. about 페이지 첫 문장과 같은 내용을 유지한다. */
+    public string $description = 'CodeIgniter 4로 한 회차씩 만들어 가는 학습용 블로그입니다.';
 }
