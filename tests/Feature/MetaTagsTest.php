@@ -207,6 +207,93 @@ final class MetaTagsTest extends CIUnitTestCase
      * 엔티티까지 디코드해 버려 비교가 통과하기 때문이다. 그래서 원본 바디에서
      * 형태를 직접 본다.
      */
+    /**
+     * 레이아웃을 쓰는 화면은 모두 meta 를 명시적으로 넘긴다. (#113)
+     *
+     * 넘기지 않으면 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과해
+     * 엉뚱한 제목이 나간다(testMetaDoesNotLeakBetweenPages 참조). 그런데 그
+     * 누수는 렌더 순서가 맞아떨어져야 드러나므로, 새 화면이 meta 를 빠뜨려도
+     * 값 기반 테스트로는 잡히지 않는다. 그래서 배선 자체를 검사한다.
+     *
+     * 이 테스트가 실패하면 새로 만든 컨트롤러 액션에 다음을 더하면 된다.
+     *   'meta' => ['title' => '화면 이름'],
+     */
+    public function testEveryLayoutViewPassesMeta(): void
+    {
+        $layoutViews = [];
+
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(APPPATH . 'Views'));
+
+        foreach ($files as $file) {
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $source = (string) file_get_contents($file->getPathname());
+
+            if (! str_contains($source, "extend('layouts/default')")) {
+                continue;
+            }
+
+            // app/Views/posts/show.php → posts/show
+            $layoutViews[] = str_replace(
+                [APPPATH . 'Views' . DIRECTORY_SEPARATOR, '.php'],
+                '',
+                $file->getPathname()
+            );
+        }
+
+        $this->assertNotEmpty($layoutViews, '레이아웃을 쓰는 뷰를 찾지 못했다.');
+
+        // 각 view() 호출을 "다음 view() 직전까지"로 잘라 둔다. 한 덩어리로 두고
+        // `.*?` 로 찾으면 이웃 호출의 'meta' 를 삼켜 위반을 놓친다(실측으로 확인).
+        $callsByView = [];
+
+        $ctrlFiles = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(APPPATH . 'Controllers'));
+
+        foreach ($ctrlFiles as $file) {
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $source = (string) file_get_contents($file->getPathname());
+
+            preg_match_all('/view\(\s*[\'"]([^\'"]+)[\'"]/', $source, $calls, PREG_OFFSET_CAPTURE);
+
+            foreach ($calls[0] as $i => [, $offset]) {
+                $viewName = $calls[1][$i][0];
+                $next     = $calls[0][$i + 1][1] ?? strlen($source);
+
+                $callsByView[$viewName][] = substr($source, $offset, $next - $offset);
+            }
+        }
+
+        $missing = [];
+
+        foreach ($layoutViews as $view) {
+            $chunks = $callsByView[$view] ?? [];
+
+            // 그 뷰를 렌더하는 호출이 하나라도 meta 를 빠뜨리면 위반이다.
+            $hasAll = $chunks !== [] && array_reduce(
+                $chunks,
+                static fn (bool $carry, string $chunk): bool => $carry && str_contains($chunk, "'meta'"),
+                true
+            );
+
+            if (! $hasAll) {
+                $missing[] = $view;
+            }
+        }
+
+        sort($missing);
+
+        $this->assertSame(
+            [],
+            $missing,
+            "레이아웃을 쓰는데 meta 를 넘기지 않는 화면:\n" . implode("\n", $missing)
+        );
+    }
+
     public function testMetaContentAvoidsNumericEntities(): void
     {
         $html = $this->call('GET', '/')->response()->getBody();

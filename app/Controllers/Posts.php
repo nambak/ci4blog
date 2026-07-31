@@ -159,6 +159,9 @@ class Posts extends BaseController
         return view('posts/create', [
             // 폼은 숨김 카테고리도 고를 수 있어야 한다 — forForm() 주석 참고(#67).
             'categories' => model(CategoryModel::class)->forForm(),
+            // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
+            // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
+            'meta' => ['title' => '새 글 작성'],
         ]);
     }
 
@@ -227,6 +230,9 @@ class Posts extends BaseController
             'post' => $post,
             // 이 글이 숨김 카테고리에 속해 있어도 목록에 있어야 선택이 유지된다(#67).
             'categories' => model(CategoryModel::class)->forForm(),
+            // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
+            // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
+            'meta' => ['title' => '글 수정'],
         ]);
     }
 

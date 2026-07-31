@@ -27,6 +27,9 @@ class Categories extends BaseController
             'categories'    => $categories,
             'uncategorized' => $uncategorized,
             'search'        => $search,
+            // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
+            // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
+            'meta' => ['title' => '카테고리 관리'],
         ]);
     }
 
@@ -52,7 +55,12 @@ class Categories extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
-        return view('admin/categories/edit', ['category' => $category]);
+        // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
+        // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
+        return view('admin/categories/edit', [
+            'category' => $category,
+            'meta'     => ['title' => '카테고리 수정'],
+        ]);
     }
 
     public function update(int $id): RedirectResponse
