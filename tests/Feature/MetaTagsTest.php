@@ -188,11 +188,39 @@ final class MetaTagsTest extends CIUnitTestCase
         $user = $this->makeUser();
         $post = $this->makePost($user->id, '정규식 & 패턴', '본문');
 
-        // 여기서는 디코드하지 않은 원본 HTML 을 본다 — 이스케이프 상태 자체가 검증 대상이다.
-        $html = $this->call('GET', 'posts/' . $post->slug)->getBody();
+        // 이스케이프 상태 자체가 검증 대상이라 디코드하지 않은 원본을 본다.
+        // TestResponse::getBody() 는 DOMParser 를 거치므로 response() 로 실제 바디를 꺼낸다.
+        $html = $this->call('GET', 'posts/' . $post->slug)->response()->getBody();
 
         $this->assertStringNotContainsString('&amp;amp;', $html, '이중 이스케이프됐다.');
         $this->assertStringContainsString('content="정규식 &amp; 패턴"', $html);
+    }
+
+    /**
+     * 메타 content 에 숫자 엔티티가 섞이지 않는다. (#113)
+     *
+     * `esc($v, 'attr')` 은 영숫자 외 모든 문자를 숫자 엔티티로 바꾼다 — 공백조차
+     * `&#x20;` 이다. 그러면 한국어 설명이 5배로 부풀어 156자 description 이
+     * 1000자를 넘기고, 파서에 따라 잘려 나간다.
+     *
+     * 값을 비교하는 다른 테스트들은 이걸 못 잡는다. decodedBody() 가 숫자
+     * 엔티티까지 디코드해 버려 비교가 통과하기 때문이다. 그래서 원본 바디에서
+     * 형태를 직접 본다.
+     */
+    public function testMetaContentAvoidsNumericEntities(): void
+    {
+        $html = $this->call('GET', '/')->response()->getBody();
+
+        preg_match_all('/<meta [^>]*content="([^"]*)"/', $html, $matches);
+        $this->assertNotEmpty($matches[1], '메타 태그를 찾지 못했다.');
+
+        foreach ($matches[1] as $content) {
+            $this->assertStringNotContainsString(
+                '&#x',
+                $content,
+                "메타 content 에 숫자 엔티티가 있다(attr 이스케이프를 쓴 듯): {$content}"
+            );
+        }
     }
 
     public function testPostListHasOwnTitle(): void
