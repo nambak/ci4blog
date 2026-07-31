@@ -220,4 +220,31 @@ final class MetaTagsTest extends CIUnitTestCase
 
         $this->assertSame('소개', $this->metaContent($html, 'property', 'og:title'));
     }
+
+    /**
+     * 앞서 렌더된 페이지의 meta 가 다음 페이지로 새지 않는다. (#113)
+     *
+     * view() 는 setData 로 데이터를 누적하고 renderer 는 shared 서비스다. 그래서
+     * 컨트롤러가 meta 를 넘기지 않으면 뷰 스코프에 **이전 렌더의 $meta 가 남아**
+     * `$meta ?? []` 의 `??` 를 통과해 버린다. 실측으로 확인한 증상이다 —
+     * about 을 본 뒤 홈을 렌더하면 홈의 og:title 이 '소개' 로 나왔다.
+     *
+     * setUp 의 resetSingle 로는 막지 못한다(한 요청 사이클 안의 문제가 아니라
+     * 같은 프로세스에서 이어지는 렌더의 문제다). 컨트롤러가 빈 배열이라도
+     * 명시적으로 넘겨야 값이 확정된다.
+     */
+    public function testMetaDoesNotLeakBetweenPages(): void
+    {
+        // 자기 제목을 가진 페이지를 먼저 렌더한다.
+        $this->call('GET', 'about');
+
+        // 그 다음 사이트 기본값을 쓰는 페이지를 렌더한다.
+        $html = $this->decodedBody($this->call('GET', '/'));
+
+        $this->assertSame(
+            config('Blog')->title,
+            $this->metaContent($html, 'property', 'og:title'),
+            '앞 페이지의 meta 가 남았다.'
+        );
+    }
 }
