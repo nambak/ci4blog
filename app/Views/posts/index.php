@@ -27,13 +27,13 @@
             <?php foreach ($posts as $post): ?>
                 <li<?= $post->image !== null && $post->image !== '' ? ' class="has-thumb"' : '' ?>>
                     <?php if ($post->image !== null && $post->image !== ''): ?>
-                        <a class="post-thumb" href="<?= site_url('posts/' . $post->slug) ?>"
+                        <a class="post-thumb" href="<?= $post->url ?>"
                            aria-label="<?= esc($post->title) ?>">
                             <img src="<?= esc(site_url('uploads/thumb_' . $post->image), 'attr') ?>" alt="" loading="lazy">
                         </a>
                     <?php endif ?>
                     <div class="post-summary">
-                    <h2><a href="<?= site_url('posts/' . $post->slug) ?>"><?= esc($post->title) ?></a></h2>
+                    <h2><a href="<?= $post->url ?>"><?= esc($post->title) ?></a></h2>
                     <p><?= esc($post->excerpt) ?></p>
                     <?php if ($post->created_at !== null): ?>
                         <time datetime="<?= esc($post->created_at->format('Y-m-d')) ?>">

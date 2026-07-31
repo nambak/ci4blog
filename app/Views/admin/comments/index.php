@@ -156,7 +156,7 @@
                                 </div>
 
                                 <div class="ct-post">
-                                    <a href="<?= site_url('posts/' . $comment->post_slug) ?>"><?= esc($comment->post_title ?? '(삭제된 글)') ?></a>
+                                    <a href="<?= post_url($comment->post_slug) ?>"><?= esc($comment->post_title ?? '(삭제된 글)') ?></a>
                                 </div>
 
                                 <p class="ct-body"><?= nl2br(esc($comment->body)) ?></p>

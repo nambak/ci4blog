@@ -63,6 +63,6 @@
         </div>
 
         <button type="submit" class="btn">수정</button>
-        <a class="btn btn-ghost" href="<?= site_url('posts/' . $post->slug) ?>">취소</a>
+        <a class="btn btn-ghost" href="<?= $post->url ?>">취소</a>
     </form>
 <?= $this->endSection() ?>

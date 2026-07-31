@@ -40,7 +40,7 @@
                     <ul class="dash-list">
                         <?php foreach ($recentPosts as $post): ?>
                             <li>
-                                <a href="<?= site_url('posts/' . $post->slug) ?>" class="dash-list-title"><?= esc($post->title) ?></a>
+                                <a href="<?= $post->url ?>" class="dash-list-title"><?= esc($post->title) ?></a>
                                 <span class="dash-list-meta"><?= esc($post->created_at) ?></span>
                             </li>
                         <?php endforeach ?>
@@ -59,7 +59,7 @@
                     <ul class="dash-list">
                         <?php foreach ($recentComments as $comment): ?>
                             <li>
-                                <a href="<?= site_url('posts/' . $comment->post_slug) ?>" class="dash-list-title"><?= esc($comment->body) ?></a>
+                                <a href="<?= post_url($comment->post_slug) ?>" class="dash-list-title"><?= esc($comment->body) ?></a>
                                 <span class="dash-list-meta"><?= esc($comment->post_title) ?> · <?= esc($comment->created_at) ?></span>
                             </li>
                         <?php endforeach ?>
