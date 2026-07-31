@@ -12,7 +12,14 @@ use CodeIgniter\Test\CIUnitTestCase;
  */
 final class DeployWorkflowTest extends CIUnitTestCase
 {
-    private string $workflow;
+    /**
+     * deploy 잡 부분만 담는다.
+     *
+     * 파일 전체를 보면 안 된다 — `actions/checkout` 은 test 잡에도 있어서,
+     * deploy 잡의 Checkout 을 통째로 지워도 test 잡의 것이 잡혀 통과한다.
+     * 실제로 뮤테이션 검증에서 이 위양성이 드러났다.
+     */
+    private string $job;
 
     protected function setUp(): void
     {
@@ -20,20 +27,25 @@ final class DeployWorkflowTest extends CIUnitTestCase
 
         $path = ROOTPATH . '.github/workflows/deploy.yml';
         $this->assertFileExists($path);
-        $this->workflow = (string) file_get_contents($path);
+        $workflow = (string) file_get_contents($path);
+
+        $start = strpos($workflow, "\n  deploy:");
+        $this->assertNotFalse($start, '워크플로에 deploy 잡이 있어야 한다.');
+
+        $this->job = substr($workflow, $start);
     }
 
     /** 스텝 하나의 블록(다음 `- name:` 직전까지)을 잘라 낸다. */
     private function stepBlock(string $name): string
     {
-        $start = strpos($this->workflow, "- name: {$name}");
-        $this->assertNotFalse($start, "워크플로에 '{$name}' 스텝이 있어야 한다.");
+        $start = strpos($this->job, "- name: {$name}");
+        $this->assertNotFalse($start, "deploy 잡에 '{$name}' 스텝이 있어야 한다.");
 
-        $next = strpos($this->workflow, '- name: ', $start + 1);
+        $next = strpos($this->job, '- name: ', $start + 1);
 
         return $next === false
-            ? substr($this->workflow, $start)
-            : substr($this->workflow, $start, $next - $start);
+            ? substr($this->job, $start)
+            : substr($this->job, $start, $next - $start);
     }
 
     /**
@@ -43,8 +55,8 @@ final class DeployWorkflowTest extends CIUnitTestCase
      */
     public function testSmokeTestRunsAfterDeploy(): void
     {
-        $deploy = strpos($this->workflow, '- name: Deploy over SSH');
-        $smoke  = strpos($this->workflow, '- name: Smoke test');
+        $deploy = strpos($this->job, '- name: Deploy over SSH');
+        $smoke  = strpos($this->job, '- name: Smoke test');
 
         $this->assertNotFalse($deploy, '워크플로가 SSH 배포를 실행해야 한다.');
         $this->assertNotFalse($smoke, '워크플로가 smoke test 를 실행해야 한다.');
@@ -59,8 +71,8 @@ final class DeployWorkflowTest extends CIUnitTestCase
      */
     public function testCheckoutPrecedesSmokeTest(): void
     {
-        $checkout = strpos($this->workflow, 'actions/checkout');
-        $smoke    = strpos($this->workflow, '- name: Smoke test');
+        $checkout = strpos($this->job, 'actions/checkout');
+        $smoke    = strpos($this->job, '- name: Smoke test');
 
         $this->assertNotFalse($checkout, 'Deploy 잡이 저장소를 체크아웃해야 한다.');
         $this->assertLessThan($smoke, $checkout, '체크아웃은 smoke test 보다 앞서야 한다.');
@@ -70,7 +82,7 @@ final class DeployWorkflowTest extends CIUnitTestCase
     {
         $this->assertStringContainsString(
             './scripts/smoke.sh https://blog.unwanted.me',
-            $this->workflow,
+            $this->job,
             'smoke test 는 운영 도메인을 검사해야 한다.'
         );
     }
