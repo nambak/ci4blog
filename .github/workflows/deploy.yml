@@ -39,6 +39,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      # smoke.sh 를 러너로 가져온다. 이 잡은 원래 체크아웃하지 않았다.
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -49,3 +53,25 @@ jobs:
           script: |
             cd /var/www/ci4blog
             ./scripts/deploy.sh
+
+      # SSH 성공은 "스크립트가 끝났다"는 뜻일 뿐이다. 앱이 실제로 응답하는지는
+      # 공인 도메인으로 직접 확인한다(DNS·TLS·Nginx·PHP 전체 경로).
+      - name: Smoke test
+        run: ./scripts/smoke.sh https://blog.unwanted.me
+
+      # 실패 원인을 보려고 서버에 들어가지 않아도 되게 한다.
+      # SSH 배포 자체가 실패했을 때도 돈다.
+      - name: Collect diagnostics
+        if: failure()
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            echo "===== 최근 애플리케이션 로그 ====="
+            ls -t /var/www/ci4blog/writable/logs/*.log 2>/dev/null | head -1 | xargs -r tail -50
+            echo "===== php-fpm 상태 ====="
+            systemctl status php8.3-fpm --no-pager | head -20
