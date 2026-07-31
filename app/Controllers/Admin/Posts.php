@@ -83,6 +83,9 @@ class Posts extends BaseController
             // 지우지 말 것.
             // 숨김 카테고리로도 옮길 수 있어야 하므로 forForm()(숨김 포함)을 쓴다(#67).
             'categories' => model(CategoryModel::class)->forForm(),
+            // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
+            // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
+            'meta' => ['title' => '게시글 관리'],
         ]);
     }
 

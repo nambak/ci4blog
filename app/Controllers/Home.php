@@ -36,6 +36,12 @@ class Home extends BaseController
             'authorAvatar' => $authorAvatar,
             'posts'        => $posts,
             'categories'   => model(CategoryModel::class)->menu(),
+            // 홈은 사이트 기본값을 그대로 쓰지만 빈 배열을 **명시적으로** 넘긴다.
+            // view() 는 setData 로 데이터를 누적하고 renderer 는 shared 라, 넘기지
+            // 않으면 같은 프로세스에서 앞서 렌더된 페이지의 meta 가 `$meta ?? []`
+            // 의 `??` 를 통과해 살아남는다(#113 실측: about → 홈 순서로 렌더하면
+            // 홈의 og:title 이 '소개' 로 나왔다).
+            'meta'         => [],
         ]);
     }
 }

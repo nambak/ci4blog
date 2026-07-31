@@ -64,6 +64,10 @@ class Posts extends BaseController
             'categories'     => model(CategoryModel::class)->menu(),
             'activeCategory' => $activeCategory,
             'search'         => $search,
+            // 같은 메서드가 /posts 와 /categories/{slug} 를 모두 처리한다(#113).
+            'meta'           => [
+                'title' => $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
+            ],
         ]);
     }
 
@@ -132,6 +136,16 @@ class Posts extends BaseController
             'authorName'   => $authorName,
             'authorAvatar' => $authorAvatar,
             'category'     => $category,
+            // SNS 미리보기·검색 스니펫용(#113). partial 이 이스케이프하므로 원문을 넘긴다.
+            'meta'         => [
+                'type'        => 'article',
+                'title'       => $post->title,
+                'description' => $post->getExcerpt(155),
+                // 이미지가 없으면 키 자체를 넣지 않는다 — partial 이 태그를 생략한다.
+                ...($post->image !== null && $post->image !== ''
+                    ? ['image' => site_url('uploads/' . $post->image)]
+                    : []),
+            ],
         ]);
     }
 
@@ -145,6 +159,9 @@ class Posts extends BaseController
         return view('posts/create', [
             // 폼은 숨김 카테고리도 고를 수 있어야 한다 — forForm() 주석 참고(#67).
             'categories' => model(CategoryModel::class)->forForm(),
+            // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
+            // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
+            'meta' => ['title' => '새 글 작성'],
         ]);
     }
 
@@ -213,6 +230,9 @@ class Posts extends BaseController
             'post' => $post,
             // 이 글이 숨김 카테고리에 속해 있어도 목록에 있어야 선택이 유지된다(#67).
             'categories' => model(CategoryModel::class)->forForm(),
+            // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
+            // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
+            'meta' => ['title' => '글 수정'],
         ]);
     }
 

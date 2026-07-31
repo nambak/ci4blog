@@ -63,6 +63,9 @@ class Admin extends BaseController
             'recentPosts'    => $recentPosts,
             'recentComments' => $recentComments,
             'categoryDist'   => $categoryDist,
+            // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
+            // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
+            'meta' => ['title' => '관리자 대시보드'],
         ]);
     }
 }
