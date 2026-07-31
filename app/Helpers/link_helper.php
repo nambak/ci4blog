@@ -29,3 +29,23 @@ if (! function_exists('category_url')) {
         return site_url('categories/' . rawurlencode($slug));
     }
 }
+
+if (! function_exists('absolute_url')) {
+    /**
+     * 사이트 절대 URL. 경로 세그먼트를 직접 퍼센트 인코딩한다. (#113 에서 승격)
+     *
+     * sitemap 의 <loc>, RSS 의 <link>·<guid> 처럼 **정식 절대 URL** 이 필요한
+     * 문서가 쓴다. 리더·크롤러는 이 값을 정본으로 저장하므로 index.php 가 붙은
+     * 형태가 한 번이라도 나가면 같은 글이 두 항목으로 갈라진다.
+     *
+     * site_url() 을 쓰지 않는 이유는 위 post_url() 주석과 같다 — 상대 경로가
+     * parse_url() 을 거치면서 macOS 에서 한글 바이트가 '_' 로 뭉개진다.
+     * base_url() 은 경로를 넘기지 않으면 parse_url 에 태울 비ASCII 가 없어 안전하다.
+     */
+    function absolute_url(string $relativePath = ''): string
+    {
+        $encoded = implode('/', array_map('rawurlencode', explode('/', $relativePath)));
+
+        return rtrim(base_url(), '/') . '/' . $encoded;
+    }
+}
