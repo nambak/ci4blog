@@ -40,7 +40,7 @@
                     <ul class="dash-list">
                         <?php foreach ($recentPosts as $post): ?>
                             <li>
-                                <a href="<?= site_url('posts/' . $post->slug) ?>" class="dash-list-title"><?= esc($post->title) ?></a>
+                                <a href="<?= $post->url ?>" class="dash-list-title"><?= esc($post->title) ?></a>
                                 <span class="dash-list-meta"><?= esc($post->created_at) ?></span>
                             </li>
                         <?php endforeach ?>
@@ -59,8 +59,13 @@
                     <ul class="dash-list">
                         <?php foreach ($recentComments as $comment): ?>
                             <li>
-                                <a href="<?= site_url('posts/' . $comment->post_slug) ?>" class="dash-list-title"><?= esc($comment->body) ?></a>
-                                <span class="dash-list-meta"><?= esc($comment->post_title) ?> · <?= esc($comment->created_at) ?></span>
+                                <?php if ($comment->post_slug !== null): ?>
+                                    <a href="<?= post_url($comment->post_slug) ?>" class="dash-list-title"><?= esc($comment->body) ?></a>
+                                <?php else: ?>
+                                    <?php // 최근 댓글 쿼리가 posts 를 LEFT JOIN 하므로 원글이 사라지면 slug 가 null 이다. ?>
+                                    <span class="dash-list-title"><?= esc($comment->body) ?></span>
+                                <?php endif ?>
+                                <span class="dash-list-meta"><?= esc($comment->post_title ?? '(삭제된 글)') ?> · <?= esc($comment->created_at) ?></span>
                             </li>
                         <?php endforeach ?>
                     </ul>

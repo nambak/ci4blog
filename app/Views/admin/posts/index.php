@@ -152,7 +152,7 @@
                                     </td>
                                     <td class="col-actions">
                                         <a class="posts-action" href="<?= site_url('posts/' . $post->id . '/edit') ?>">수정</a>
-                                        <a class="posts-action" href="<?= site_url('posts/' . $post->slug) ?>">보기</a>
+                                        <a class="posts-action" href="<?= $post->url ?>">보기</a>
                                     </td>
                                 </tr>
                             <?php endforeach ?>

@@ -72,7 +72,7 @@ $siteTitle = config('Blog')->title;
                         <span class="hero-kicker-label">· 추천 글</span>
                     </div>
                     <h1 class="hero-title text-pretty">
-                        <a href="<?= site_url('posts/' . $featured->slug) ?>"><?= esc($featured->title) ?></a>
+                        <a href="<?= $featured->url ?>"><?= esc($featured->title) ?></a>
                     </h1>
                     <p class="hero-excerpt text-pretty"><?= esc($featured->getExcerpt(120)) ?></p>
                     <div class="hero-meta">
@@ -88,7 +88,7 @@ $siteTitle = config('Blog')->title;
                         <span><?= esc((string) $featured->read_time) ?>분 읽기</span>
                     </div>
                 </div>
-                <a class="cover hero-cover" href="<?= site_url('posts/' . $featured->slug) ?>"
+                <a class="cover hero-cover" href="<?= $featured->url ?>"
                    <?php if ($featured->image !== null && $featured->image !== ''): ?>
                        style="background-image:url('<?= site_url('uploads/thumb_' . $featured->image) ?>');background-size:cover;background-position:center"
                    <?php else: ?>
@@ -115,7 +115,7 @@ $siteTitle = config('Blog')->title;
                                     <?php if ($post->created_at !== null): ?><?= esc($post->created_at->format('Y.m.d')) ?><?php endif ?>
                                 </div>
                                 <h3 class="post-card-title">
-                                    <a href="<?= site_url('posts/' . $post->slug) ?>"><?= esc($post->title) ?></a>
+                                    <a href="<?= $post->url ?>"><?= esc($post->title) ?></a>
                                 </h3>
                                 <p class="post-card-excerpt line-clamp-2"><?= esc($post->getExcerpt(90)) ?></p>
                                 <div class="read-time">
@@ -123,7 +123,7 @@ $siteTitle = config('Blog')->title;
                                     <?= esc((string) $post->read_time) ?>분
                                 </div>
                             </div>
-                            <a class="cover post-card-cover" href="<?= site_url('posts/' . $post->slug) ?>"
+                            <a class="cover post-card-cover" href="<?= $post->url ?>"
                                <?php if ($post->image !== null && $post->image !== ''): ?>
                                    style="background-image:url('<?= site_url('uploads/thumb_' . $post->image) ?>');background-size:cover;background-position:center"
                                <?php else: ?>
