@@ -208,6 +208,75 @@ final class MetaTagsTest extends CIUnitTestCase
      * 형태를 직접 본다.
      */
     /**
+     * 컨트롤러 소스에서 `view('경로', …)` 호출을 뽑아 "뷰 이름 → 호출 전체 텍스트" 로 모은다.
+     *
+     * 정규식으로 범위를 자르면 이웃 호출이나 뒤따르는 무관한 코드를 삼킨다 —
+     * 이 저장소에서 두 번 겪었다(SlugUrlAssemblyTest, 그리고 이 테스트의 첫 버전).
+     * PHP 토크나이저는 문자열·주석을 하나의 토큰으로 주므로 괄호 짝을 정확히 셀 수 있다.
+     *
+     * @return array<string, list<string>>
+     */
+    private function viewCalls(string $source): array
+    {
+        $tokens = token_get_all($source);
+        $calls  = [];
+        $count  = count($tokens);
+
+        foreach ($tokens as $i => $token) {
+            if (! is_array($token) || $token[0] !== T_STRING || $token[1] !== 'view') {
+                continue;
+            }
+
+            // `$this->view(...)` 같은 메서드 호출은 헬퍼 view() 가 아니다.
+            $prev = $tokens[$i - 1] ?? null;
+            if (is_array($prev) && in_array($prev[0], [T_OBJECT_OPERATOR, T_DOUBLE_COLON], true)) {
+                continue;
+            }
+
+            // 다음 유의미 토큰이 '(' 여야 호출이다.
+            $j = $i + 1;
+            while ($j < $count && is_array($tokens[$j]) && in_array($tokens[$j][0], [T_WHITESPACE, T_COMMENT], true)) {
+                $j++;
+            }
+            if (($tokens[$j] ?? null) !== '(') {
+                continue;
+            }
+
+            // 괄호 짝을 세어 호출 전체를 모은다. 첫 인자가 뷰 이름이다.
+            $depth    = 0;
+            $chunk    = '';
+            $viewName = null;
+
+            for ($k = $j; $k < $count; $k++) {
+                $piece = is_array($tokens[$k]) ? $tokens[$k][1] : $tokens[$k];
+                $chunk .= $piece;
+
+                if ($viewName === null
+                    && is_array($tokens[$k])
+                    && $tokens[$k][0] === T_CONSTANT_ENCAPSED_STRING) {
+                    $viewName = trim($tokens[$k][1], "'\"");
+                }
+
+                if ($piece === '(') {
+                    $depth++;
+                } elseif ($piece === ')') {
+                    $depth--;
+
+                    if ($depth === 0) {
+                        break;
+                    }
+                }
+            }
+
+            if ($viewName !== null) {
+                $calls[$viewName][] = $chunk;
+            }
+        }
+
+        return $calls;
+    }
+
+    /**
      * 레이아웃을 쓰는 화면은 모두 meta 를 명시적으로 넘긴다. (#113)
      *
      * 넘기지 않으면 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과해
@@ -231,7 +300,9 @@ final class MetaTagsTest extends CIUnitTestCase
 
             $source = (string) file_get_contents($file->getPathname());
 
-            if (! str_contains($source, "extend('layouts/default')")) {
+            // 인용부호·공백 변형을 허용한다. 정확한 문자열만 찾으면 뷰가
+            // extend("layouts/default") 로 바뀌는 순간 검사 대상에서 통째로 빠진다.
+            if (preg_match('/extend\s*\(\s*[\'"]layouts\/default[\'"]\s*\)/', $source) !== 1) {
                 continue;
             }
 
@@ -245,26 +316,15 @@ final class MetaTagsTest extends CIUnitTestCase
 
         $this->assertNotEmpty($layoutViews, '레이아웃을 쓰는 뷰를 찾지 못했다.');
 
-        // 각 view() 호출을 "다음 view() 직전까지"로 잘라 둔다. 한 덩어리로 두고
-        // `.*?` 로 찾으면 이웃 호출의 'meta' 를 삼켜 위반을 놓친다(실측으로 확인).
         $callsByView = [];
 
         $ctrlFiles = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(APPPATH . 'Controllers'));
 
         foreach ($ctrlFiles as $file) {
-            if ($file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $source = (string) file_get_contents($file->getPathname());
-
-            preg_match_all('/view\(\s*[\'"]([^\'"]+)[\'"]/', $source, $calls, PREG_OFFSET_CAPTURE);
-
-            foreach ($calls[0] as $i => [, $offset]) {
-                $viewName = $calls[1][$i][0];
-                $next     = $calls[0][$i + 1][1] ?? strlen($source);
-
-                $callsByView[$viewName][] = substr($source, $offset, $next - $offset);
+            if ($file->getExtension() === 'php') {
+                foreach ($this->viewCalls((string) file_get_contents($file->getPathname())) as $view => $chunks) {
+                    $callsByView[$view] = array_merge($callsByView[$view] ?? [], $chunks);
+                }
             }
         }
 
