@@ -26,6 +26,19 @@ final class LinkHelperTest extends CIUnitTestCase
         helper('link');
     }
 
+    /**
+     * 헬퍼가 자동 로드되어야 한다.
+     *
+     * 아래 테스트들은 setUp 에서 helper('link') 를 직접 부르므로, Autoload 에서
+     * 'link' 가 빠져도 전부 통과한다. 그런데 뷰는 자동 로드에 기대고 있어
+     * 등록이 사라지면 화면에서 undefined function 으로 500 이 난다.
+     * 그 계약을 따로 붙잡는다.
+     */
+    public function testLinkHelperIsAutoloaded(): void
+    {
+        $this->assertContains('link', config('Autoload')->helpers);
+    }
+
     /** 한글 slug 는 퍼센트 인코딩된다. */
     public function testPostUrlEncodesKoreanSlug(): void
     {

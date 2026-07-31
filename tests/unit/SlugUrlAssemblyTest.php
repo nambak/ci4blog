@@ -23,11 +23,14 @@ final class SlugUrlAssemblyTest extends CIUnitTestCase
     private const DIRS = ['Views', 'Entities'];
 
     /**
-     * @param callable(string): bool $isViolation
+     * 파일 전체를 정규식으로 훑어 위반 위치를 모은다.
+     *
+     * 줄 단위로 보면 표현이 여러 줄에 걸치거나 따옴표가 달라지는 순간 놓친다.
+     * 그래서 파일 내용을 통째로 매칭하고 오프셋으로 줄 번호를 되짚는다.
      *
      * @return list<string> "파일:라인: 내용" 형태의 위반 목록
      */
-    private function violations(callable $isViolation): array
+    private function violations(string $pattern): array
     {
         $found = [];
 
@@ -41,13 +44,17 @@ final class SlugUrlAssemblyTest extends CIUnitTestCase
                     continue;
                 }
 
-                $lines = file($file->getPathname(), FILE_IGNORE_NEW_LINES);
+                $source = (string) file_get_contents($file->getPathname());
 
-                foreach ($lines as $i => $line) {
-                    if ($isViolation($line)) {
-                        $rel     = str_replace(APPPATH, 'app/', $file->getPathname());
-                        $found[] = sprintf('%s:%d: %s', $rel, $i + 1, trim($line));
-                    }
+                if (preg_match_all($pattern, $source, $matches, PREG_OFFSET_CAPTURE) === 0) {
+                    continue;
+                }
+
+                $rel = str_replace(APPPATH, 'app/', $file->getPathname());
+
+                foreach ($matches[0] as [$text, $offset]) {
+                    $line     = substr_count($source, "\n", 0, $offset) + 1;
+                    $found[] = sprintf('%s:%d: %s', $rel, $line, trim(preg_replace('/\s+/', ' ', $text)));
                 }
             }
         }
@@ -65,9 +72,8 @@ final class SlugUrlAssemblyTest extends CIUnitTestCase
      */
     public function testNoDirectCategoryUrlAssembly(): void
     {
-        $violations = $this->violations(
-            static fn (string $line): bool => str_contains($line, "site_url('categories/")
-        );
+        // 따옴표 종류를 가리지 않고, site_url( 과 경로 사이의 공백·줄바꿈도 허용한다.
+        $violations = $this->violations('/site_url\(\s*[\'"]categories\//');
 
         $this->assertSame(
             [],
@@ -84,11 +90,9 @@ final class SlugUrlAssemblyTest extends CIUnitTestCase
      */
     public function testNoDirectPostSlugUrlAssembly(): void
     {
-        $violations = $this->violations(
-            static fn (string $line): bool => str_contains($line, 'site_url(')
-                && str_contains($line, "'posts/'")
-                && str_contains($line, 'slug')
-        );
+        // site_url('posts/' … slug …) — 인자 안 어디든 slug 가 있으면 위반이다.
+        // [^)]* 가 닫는 괄호 전까지만 보므로 뒤따르는 다른 호출을 삼키지 않는다.
+        $violations = $this->violations('/site_url\(\s*[\'"]posts\/[\'"][^)]*slug[^)]*\)/');
 
         $this->assertSame(
             [],

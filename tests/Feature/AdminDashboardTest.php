@@ -231,6 +231,29 @@ final class AdminDashboardTest extends CIUnitTestCase
             ->update(['created_at' => date('Y-m-d H:i:s', strtotime("-{$daysAgo} days"))]);
     }
 
+
+    /**
+     * 자식 행을 남긴 채 글만 지운다 — 운영에 실재하는 고아 상태를 재현한다.
+     *
+     * 운영 SQLite 는 FK 가 적용되지 않아 고아 댓글이 남는다(#110 이 db:prune 을
+     * 만든 부채가 그것이다). 테스트 DB 는 foreignKeys=true 라 CASCADE 로 댓글까지
+     * 지워지므로 제약을 잠시 꺼야 한다.
+     *
+     * finally 로 되돌리는 것이 핵심이다. 예외로 빠져나가면 PRAGMA 가 꺼진 채
+     * 남아 **이후 모든 테스트의 데이터 정합성이 무너진다**(실제로 겪었다).
+     */
+    private function deletePostIgnoringForeignKeys(int $postId): void
+    {
+        $db = db_connect();
+        $db->query('PRAGMA foreign_keys = OFF');
+
+        try {
+            $db->table('posts')->where('id', $postId)->delete();
+        } finally {
+            $db->query('PRAGMA foreign_keys = ON');
+        }
+    }
+
     public function testDashboardShowsCommentDeltaWhenThisWeekExceeds(): void
     {
         $admin = $this->makeAdmin();
@@ -260,5 +283,28 @@ final class AdminDashboardTest extends CIUnitTestCase
         $this->assertStringContainsString('kpi-delta-flat', $body);
         $this->assertStringContainsString('지난주 대비 변화 없음', $body);
         $this->assertStringNotContainsString('kpi-delta-up', $body);
+    }
+
+    /**
+     * 원글이 사라진 댓글이 있어도 대시보드가 뜬다. (#127)
+     *
+     * 최근 댓글 쿼리가 posts 를 LEFT JOIN 하므로 글이 없으면 post_slug 가 null 이다.
+     * 뷰가 그 값을 그대로 URL 헬퍼에 넘기면 타입 오류로 대시보드 전체가 500 이 된다.
+     */
+    public function testDashboardRendersWhenRecentCommentPostIsMissing(): void
+    {
+        $admin = $this->makeAdmin();
+        $post  = $this->makePost($admin->id);
+        $this->commentDaysAgo($post->id, $admin->id, 1);
+
+        // 운영 SQLite 는 FK 가 적용되지 않아 고아 댓글이 실재한다(#110 이 db:prune 을
+        // 만든 부채가 그것이다). 테스트 DB 는 foreignKeys=true 라 CASCADE 로 댓글까지
+        // 지워지므로, 그 상태를 재현하려면 제약을 잠시 꺼야 한다.
+        $this->deletePostIgnoringForeignKeys($post->id);
+
+        $result = $this->actingAs($admin)->call('GET', 'admin');
+
+        $result->assertStatus(200);
+        $this->assertStringContainsString('(삭제된 글)', $this->decodedBody($result));
     }
 }

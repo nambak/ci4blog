@@ -156,7 +156,12 @@
                                 </div>
 
                                 <div class="ct-post">
-                                    <a href="<?= post_url($comment->post_slug) ?>"><?= esc($comment->post_title ?? '(삭제된 글)') ?></a>
+                                    <?php if ($comment->post_slug !== null): ?>
+                                        <a href="<?= post_url($comment->post_slug) ?>"><?= esc($comment->post_title) ?></a>
+                                    <?php else: ?>
+                                        <?php // 목록 쿼리가 posts 를 LEFT JOIN 하므로 원글이 사라지면 slug 가 null 이다. ?>
+                                        <span>(삭제된 글)</span>
+                                    <?php endif ?>
                                 </div>
 
                                 <p class="ct-body"><?= nl2br(esc($comment->body)) ?></p>
