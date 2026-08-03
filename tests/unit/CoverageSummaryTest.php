@@ -170,12 +170,25 @@ final class CoverageSummaryTest extends CIUnitTestCase
      *
      * 0/0 을 0% 로 표시하면 순위표 맨 위를 인터페이스·설정 클래스가 차지해
      * 진짜 공백이 밀려난다.
+     *
+     * 종료코드를 먼저 단언하는 이유: 가드가 사라지면 0/0 나눗셈이 표에 새는 게
+     * 아니라 DivisionByZeroError 로 스크립트가 죽는다. 그러면 출력이 비어
+     * 아래 음성 단언이 공허하게 통과해 버린다.
      */
     public function testSkipsFilesWithNoStatements(): void
     {
-        $output = $this->runSummary($this->fixture())['output'];
+        $result = $this->runSummary($this->fixture());
 
-        $this->assertStringNotContainsString('EmptyOne.php', $output, '실행 가능 줄이 0인 파일은 표에 없어야 한다.');
+        $this->assertSame(
+            0,
+            $result['exit'],
+            "정상 입력은 종료코드 0 이어야 한다 — 스크립트가 죽으면 아래 음성 단언이 공허하게 통과한다. 출력: {$result['output']}"
+        );
+        $this->assertStringNotContainsString(
+            'EmptyOne.php',
+            $result['output'],
+            '실행 가능 줄이 0인 파일은 표에 없어야 한다.'
+        );
     }
 
     /** 프로젝트 루트 접두어를 떼어 읽기 쉬운 경로로 보여 준다. */
