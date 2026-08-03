@@ -15,6 +15,16 @@ final class CoverageConfigTest extends CIUnitTestCase
     /** @var list<string> */
     private array $excluded = [];
 
+    /**
+     * 디렉터리 제외의 경로 => suffix 속성.
+     *
+     * 경로만 맞고 suffix 가 틀리면 그 디렉터리의 PHP 파일이 실제로는 제외되지
+     * 않는다 — 경로 문자열만 보는 검사로는 안 걸린다.
+     *
+     * @var array<string, string>
+     */
+    private array $directorySuffixes = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -35,7 +45,10 @@ final class CoverageConfigTest extends CIUnitTestCase
         );
 
         foreach ($exclude->directory as $directory) {
-            $this->excluded[] = trim((string) $directory);
+            $path = trim((string) $directory);
+
+            $this->excluded[]                 = $path;
+            $this->directorySuffixes[$path] = (string) $directory['suffix'];
         }
 
         foreach ($exclude->file as $file) {
@@ -91,5 +104,28 @@ final class CoverageConfigTest extends CIUnitTestCase
         sort($actual);
 
         $this->assertSame($expected, $actual, '제외 목록에 새 항목이 늘면 커버리지 수치가 조용히 올라간다.');
+    }
+
+    /**
+     * 디렉터리 제외는 PHP 파일을 겨냥해야 한다.
+     *
+     * `<directory suffix=".php">` 의 suffix 가 다른 값으로 바뀌면 그 디렉터리의
+     * PHP 파일이 제외되지 않아 측정 대상에 다시 들어온다. 경로 문자열만 보는
+     * 위 테스트들은 그때도 통과한다 — 경로는 그대로이기 때문이다.
+     *
+     * 앞의 assertNotEmpty 가 없으면 디렉터리 제외가 통째로 사라졌을 때
+     * 루프가 한 번도 돌지 않아 단언 0건으로 통과한다.
+     */
+    public function testExcludedDirectoriesTargetPhpFiles(): void
+    {
+        $this->assertNotEmpty($this->directorySuffixes, '디렉터리 제외가 하나는 있어야 한다.');
+
+        foreach ($this->directorySuffixes as $path => $suffix) {
+            $this->assertSame(
+                '.php',
+                $suffix,
+                "{$path} 의 suffix 가 .php 가 아니면 그 디렉터리의 PHP 파일이 제외되지 않는다."
+            );
+        }
     }
 }

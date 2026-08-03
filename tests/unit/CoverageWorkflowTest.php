@@ -92,6 +92,36 @@ final class CoverageWorkflowTest extends CIUnitTestCase
     }
 
     /**
+     * 이 job 의 GITHUB_TOKEN 은 읽기만 할 수 있어야 한다.
+     *
+     * 선언이 없으면 저장소·조직 기본값을 그대로 받는다 — 그 기본값이 나중에
+     * 넓어지면 이 job 도 조용히 함께 넓어진다. 하는 일은 체크아웃·테스트·요약·
+     * 아티팩트가 전부라 쓰기 권한이 필요 없다.
+     *
+     * 워크플로 레벨이 아니라 **job 레벨**이어야 한다 — 위에 두면 deploy job 까지
+     * 함께 묶여, 이 테스트가 통과하면서도 배포 쪽 권한을 예상 밖으로 바꾼다.
+     */
+    public function testGrantsOnlyReadPermission(): void
+    {
+        $this->assertSame(
+            1,
+            preg_match('/^ {4}permissions:\n((?:^ {6}\S.*\n)+)/m', $this->job, $matches),
+            'coverage job 에 permissions 블록이 있어야 한다 — 없으면 저장소 기본값을 그대로 받는다.'
+        );
+
+        // 블록 안을 통째로 비교한다. job 텍스트 전체에서 'write' 를 찾는 식으로
+        // 쓰면 "Write coverage summary" 같은 스텝 이름과 대소문자로만 갈려,
+        // 권한과 무관한 이유로 깨지거나 통과한다.
+        $granted = array_values(array_filter(array_map('trim', explode("\n", $matches[1]))));
+
+        $this->assertSame(
+            ['contents: read'],
+            $granted,
+            'coverage job 은 contents: read 하나만 가져야 한다 — 쓰기 권한이 필요 없다.'
+        );
+    }
+
+    /**
      * PHPUnit 은 테스트 실패 시에도 clover/html 리포트를 쓴다. 앞 스텝
      * (Run tests with coverage)이 실패하면 뒤의 두 스텝이 스킵되던 것을
      * if: always() 로 고쳤다 — 실패한 순간이야말로 리포트가 가장 보고 싶을
