@@ -38,6 +38,10 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
+    # concurrency(deploy-production, cancel-in-progress: false)와 겹치면 이 job이
+    # 걸려 있는 동안 다음 push의 배포가 그만큼 대기열에 갇힌다. 기본 360분 대신
+    # 상한을 둔다.
+    timeout-minutes: 20
     steps:
       # 이후 git 작업이 없으므로 자격증명을 .git/config 에 남기지 않는다.
       - name: Checkout
@@ -60,10 +64,14 @@ jobs:
       - name: Run tests with coverage
         run: composer test
 
+      # PHPUnit 은 테스트가 실패해도 clover/html 리포트를 쓴다. 실패한 순간이야말로
+      # 리포트가 가장 보고 싶을 때이므로, 앞 스텝이 실패해도 건너뛰지 않는다.
       - name: Write coverage summary
+        if: always()
         run: php scripts/coverage-summary.php build/logs/clover.xml >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload HTML report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-html
