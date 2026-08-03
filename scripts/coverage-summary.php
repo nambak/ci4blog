@@ -12,7 +12,10 @@
  *  - 실행 가능한 줄이 0 인 파일은 표에서 뺀다. 0/0 을 0% 로 적으면 순위표 위쪽을
  *    인터페이스·설정 클래스가 차지해 진짜 공백이 밀려난다.
  *  - 비율은 게이트가 아니다. 이 스크립트는 수치를 보여 줄 뿐 종료코드로 판정하지
- *    않는다(배포를 막지 않는다는 계약).
+ *    않는다(배포를 막지 않는다는 계약). 다만 합산된 statements 가 0 이면 얘기가
+ *    다르다 — 이는 "커버리지가 낮다"가 아니라 "입력이 퇴화했다"는 뜻이고, 파일
+ *    없음·XML 파싱 실패와 같은 부류의 오류다(예: pcov.directory 휴리스틱이
+ *    빗나가 아무 것도 계측되지 않은 경우). 그래서 이 경우만 exit(1) 한다.
  */
 
 /** 표에 싣는 저커버리지 파일 개수. */
@@ -51,11 +54,13 @@ $methods          = 0;
 $coveredMethods   = 0;
 
 foreach ($xml->xpath('//file') ?: [] as $file) {
-    $metrics = $file->metrics;
-
-    if ($metrics === null) {
+    // SimpleXML 은 없는 자식에 null 이 아니라 빈 객체를 준다 — null 비교가 아니라
+    // isset 으로 물어야 실제로 걸러진다.
+    if (! isset($file->metrics)) {
         continue;
     }
+
+    $metrics = $file->metrics;
 
     $fileStatements = (int) $metrics['statements'];
     $fileCovered    = (int) $metrics['coveredstatements'];
@@ -82,6 +87,15 @@ foreach ($xml->xpath('//file') ?: [] as $file) {
         'total'     => $fileStatements,
         'ratio'     => $fileCovered / $fileStatements,
     ];
+}
+
+// 이 job 의 존재 이유가 "수치를 보이게 하는 것"인데, 0 이면 초록불에 빈 표만
+// 낸다. 예를 들어 shivammathur/setup-php 의 pcov.directory 휴리스틱이 빗나가면
+// 드라이버는 켜져도 아무 것도 계측되지 않는다 — 그때 조용히 통과하면 안 된다.
+if ($statements === 0) {
+    fwrite(STDERR, "커버리지가 한 줄도 수집되지 않았다(드라이버·pcov.directory 확인): {$path}\n");
+
+    exit(1);
 }
 
 // 낮은 순. 같으면 구멍이 큰(줄 수가 많은) 쪽을 먼저, 그래도 같으면 이름순 —

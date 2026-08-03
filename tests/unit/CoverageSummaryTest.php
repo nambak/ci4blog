@@ -229,4 +229,37 @@ final class CoverageSummaryTest extends CIUnitTestCase
 
         $this->assertSame(1, $result['exit'], "파싱 실패는 종료코드 1이어야 한다. 출력: {$result['output']}");
     }
+
+    /**
+     * <file> 이 하나도 없어 statements 합계가 0 이면 실패해야 한다.
+     *
+     * pcov.directory 휴리스틱이 빗나가는 등으로 커버리지가 한 줄도 안 잡히면,
+     * 이 스크립트는 표를 못 채우는 게 아니라 초록불에 빈 표를 내는 조용한
+     * 실패가 된다. 이 job 의 존재 이유가 "수치를 보이게 하는 것"이므로 여기서는
+     * 종료코드 1 로 잡아야 한다(파일 없음·파싱 실패와 같은 부류).
+     */
+    public function testFailsWhenNoStatementsAreCollected(): void
+    {
+        $clover = <<<'XML'
+            <?xml version="1.0" encoding="UTF-8"?>
+            <coverage generated="1785754917">
+              <project timestamp="1785754917">
+                <metrics files="0" statements="0" coveredstatements="0" methods="0" coveredmethods="0"/>
+              </project>
+            </coverage>
+            XML;
+
+        $result = $this->runSummary($clover);
+
+        $this->assertSame(
+            1,
+            $result['exit'],
+            "커버리지가 0줄이면 종료코드 1이어야 한다. 출력: {$result['output']}"
+        );
+        $this->assertStringContainsString(
+            '한 줄도 수집되지',
+            $result['output'],
+            '사유가 출력에 남아야 한다.'
+        );
+    }
 }
