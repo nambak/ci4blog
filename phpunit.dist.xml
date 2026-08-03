@@ -38,6 +38,11 @@
         </include>
         <exclude>
             <directory suffix=".php">./app/Views</directory>
+            <!-- 부트 훅은 PHPUnit 부트스트랩 경로에서 실행되지 않고, Constants.php 는
+                 계측이 시작되기 전에 로드된다. 둘 다 영원히 0% 라 저커버리지
+                 순위표를 오염시킨다. 마이그레이션·시더는 실제로 덮여 있으므로 남긴다. (#115) -->
+            <directory suffix=".php">./app/Config/Boot</directory>
+            <file>./app/Config/Constants.php</file>
             <file>./app/Config/Routes.php</file>
         </exclude>
     </source>
