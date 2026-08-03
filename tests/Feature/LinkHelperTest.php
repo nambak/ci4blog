@@ -119,4 +119,52 @@ final class LinkHelperTest extends CIUnitTestCase
             $category->url
         );
     }
+
+    /**
+     * 사이트 루트 — 인자가 없으면 끝 슬래시 하나만 붙는다.
+     *
+     * sitemap 의 <loc> 첫 항목이 이 형태였다(Sitemap::url('') 의 기존 동작).
+     * 승격이 동작을 바꾸지 않았다는 증거다.
+     */
+    public function testAbsoluteUrlWithoutPathReturnsSiteRoot(): void
+    {
+        $this->assertSame(rtrim(base_url(), '/') . '/', absolute_url());
+    }
+
+    /**
+     * 한글 경로는 퍼센트 인코딩된다.
+     *
+     * 기대값을 rawurlencode() 로 만들지 않는다 — 구현과 같은 함수를 쓰면 인코딩이
+     * 통째로 빠져도 양쪽이 함께 틀려 통과한다.
+     */
+    public function testAbsoluteUrlEncodesKoreanSegment(): void
+    {
+        $this->assertStringEndsWith(
+            '/posts/%ED%95%9C%EA%B8%80-%EC%A0%9C%EB%AA%A9-%EA%B8%80',
+            absolute_url('posts/한글-제목-글')
+        );
+    }
+
+    /**
+     * 슬래시는 구분자로 남고 세그먼트만 인코딩된다.
+     *
+     * 경로 전체를 한 번에 rawurlencode 하면 '/' 가 %2F 로 바뀌어 경로가
+     * 통째로 한 세그먼트가 된다. 그 구현을 배제한다.
+     */
+    public function testAbsoluteUrlKeepsSlashAsSeparator(): void
+    {
+        $this->assertStringEndsWith('/posts/id/42', absolute_url('posts/id/42'));
+        $this->assertStringNotContainsString('%2F', absolute_url('posts/id/42'));
+    }
+
+    /**
+     * site_url() 을 쓰지 않는다 — index.php 가 끼어들면 안 되는 정식 URL 이다.
+     *
+     * indexPage 가 설정된 환경에서 site_url() 기반 구현은 'index.php/posts/...' 를
+     * 낸다. 그 구현을 배제한다.
+     */
+    public function testAbsoluteUrlNeverContainsIndexPage(): void
+    {
+        $this->assertStringNotContainsString('index.php', absolute_url('feed'));
+    }
 }

@@ -196,6 +196,26 @@ class PostModel extends Model
     }
 
     /**
+     * 피드에 실을 최근 발행글. (#113)
+     *
+     * sitemap 과 정렬 기준이 다르다 — sitemap 의 updated_at 은 크롤러에게 "최근
+     * 바뀐 것" 을 알리는 값이지만, 피드는 "새로 나온 순" 이 구독 계약이다.
+     * created_at 을 쓰면 오래된 글을 고쳐도 구독자 리더에서 순서가 흔들리지 않는다.
+     *
+     * id 2차 정렬은 같은 초에 들어간 글들의 순서를 고정하기 위한 것이다 —
+     * 2차 키가 없으면 순서가 DB 구현에 맡겨진다.
+     *
+     * @return list<Post>
+     */
+    public function recentForFeed(int $limit = 20): array
+    {
+        return $this->published()
+            ->orderBy($this->table . '.created_at', 'DESC')
+            ->orderBy($this->table . '.id', 'DESC')
+            ->findAll($limit);
+    }
+
+    /**
      * 상태별 글 수. 관리 화면의 탭 카운트와 통계 카드가 쓴다.
      *
      * $search 가 주어지면 제목 like 로 좁힌 결과의 분포를 돌려준다(탭 숫자와

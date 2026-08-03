@@ -17,6 +17,9 @@ use CodeIgniter\I18n\Time;
  * DB 오류를 삼키지 않는 것은 의도다. 빈 200 sitemap 은 크롤러에게 "URL 이
  * 사라졌다" 로 읽혀 색인이 빠질 수 있지만, 500 은 그냥 재시도로 이어진다.
  * (헬스체크가 예외를 삼키는 것과 정반대다.)
+ *
+ * URL 조립은 absolute_url() 헬퍼가 한다(#113 에서 승격) — RSS 피드와 규칙을
+ * 공유해야 <loc> 과 <link> 가 갈라지지 않는다.
  */
 class Sitemap extends BaseController
 {
@@ -33,22 +36,22 @@ class Sitemap extends BaseController
         $latest = isset($posts[0]) ? $this->formatDate($posts[0]->updated_at) : null;
 
         $entries = [
-            ['loc' => $this->url(''), 'lastmod' => $latest],
-            ['loc' => $this->url('posts'), 'lastmod' => $latest],
+            ['loc' => absolute_url(''), 'lastmod' => $latest],
+            ['loc' => absolute_url('posts'), 'lastmod' => $latest],
             // /about 은 변경 시각의 근거가 없다 — 지어내지 않고 비운다.
-            ['loc' => $this->url('about'), 'lastmod' => null],
+            ['loc' => absolute_url('about'), 'lastmod' => null],
         ];
 
         foreach ($posts as $post) {
             $entries[] = [
-                'loc'     => $this->url('posts/' . $post->slug),
+                'loc'     => absolute_url('posts/' . $post->slug),
                 'lastmod' => $this->formatDate($post->updated_at),
             ];
         }
 
         foreach ($categories as $category) {
             $entries[] = [
-                'loc'     => $this->url('categories/' . $category['slug']),
+                'loc'     => absolute_url('categories/' . $category['slug']),
                 'lastmod' => $this->formatDate($category['last_updated']),
             ];
         }
@@ -60,26 +63,6 @@ class Sitemap extends BaseController
         return $this->response
             ->setContentType('application/xml')
             ->setBody((new SitemapXml())->render($entries));
-    }
-
-    /**
-     * 사이트 절대 URL. 경로 세그먼트를 직접 퍼센트 인코딩한다.
-     *
-     * site_url() 을 쓰지 않는 이유가 있다 — SiteURI 생성자가 상대 경로를
-     * parse_url() 에 통과시키는데(SiteURI.php:128), PHP 의 parse_url 은 제어문자를
-     * '_' 로 치환하고 **macOS 의 iscntrl 은 0x80~0x9F 바이트까지 제어문자로 본다**.
-     * 그래서 한글 slug 의 일부 바이트가 '_' 로 뭉개진다(로컬 실측:
-     * '한글-제목-글' → '%ED__%EA%B8_-...'). 리눅스(CI·운영)에서는 정상이라
-     * 라이브 링크는 멀쩡했지만, sitemap 의 <loc> 은 정확한 절대 URL 이어야 하는
-     * 문서라 플랫폼에 따라 결과가 달라지는 것을 허용할 수 없다.
-     *
-     * base_url() 은 경로를 넘기지 않으면 parse_url 에 태울 비ASCII 가 없어 안전하다.
-     */
-    private function url(string $relativePath): string
-    {
-        $encoded = implode('/', array_map('rawurlencode', explode('/', $relativePath)));
-
-        return rtrim(base_url(), '/') . '/' . $encoded;
     }
 
     /**
