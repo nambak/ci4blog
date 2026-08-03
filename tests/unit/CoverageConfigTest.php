@@ -26,7 +26,13 @@ final class CoverageConfigTest extends CIUnitTestCase
         $this->assertNotFalse($xml, 'phpunit.dist.xml 을 파싱할 수 있어야 한다.');
 
         $exclude = $xml->source->exclude;
-        $this->assertNotNull($exclude, '<source><exclude> 가 있어야 한다.');
+        // SimpleXML 은 없는 자식에 null 이 아니라 빈 객체를 준다 — assertNotNull 은
+        // 절대 실패하지 않는다. 실제로 항목이 있는지는 개수로 물어야 한다.
+        $this->assertGreaterThan(
+            0,
+            count($exclude->directory) + count($exclude->file),
+            '<source><exclude> 에 항목이 있어야 한다.'
+        );
 
         foreach ($exclude->directory as $directory) {
             $this->excluded[] = trim((string) $directory);
@@ -58,21 +64,32 @@ final class CoverageConfigTest extends CIUnitTestCase
     }
 
     /**
-     * 과잉 제외 금지 — 수치를 부풀리지 않는다.
+     * 과잉 제외 금지 — 제외 목록을 정확한 집합으로 못 박는다.
      *
-     * 마이그레이션(80~100%)과 시더(98.6~100%)는 실제로 잘 덮여 있다. 빼면
-     * down() 미커버라는 정보가 사라지고 비율만 좋아 보인다. 실제 앱 코드
-     * (Controllers·Models·Commands 등)를 통째로 빼는 것도 마찬가지다.
+     * 이전에는 알려진 몇몇 경로(./app, ./app/Database, ./app/Commands 등)만
+     * assertNotSame 으로 나열하는 블랙리스트였다. 그러면 목록에 없는 새 경로
+     * (예: ./app/Models, ./app/Controllers)가 제외에 추가돼도 테스트는 그대로
+     * 통과하고 커버리지 수치만 조용히 올라간다 — 막으려던 바로 그 일이 열거에
+     * 없는 경로로 그대로 일어난다.
+     *
+     * 화이트리스트(정확 집합)로 뒤집으면 제외 목록에 무엇이 늘거나 줄어도
+     * 반드시 이 테스트가 걸린다. 마이그레이션(80~100%)과 시더(98.6~100%)는
+     * 실제로 잘 덮여 있으므로 목록에 없다 — 빼면 down() 미커버라는 정보가
+     * 사라지고 비율만 좋아 보인다.
      */
-    public function testDoesNotExcludeMeasurableAppCode(): void
+    public function testExcludesNothingBeyondTheUnmeasurable(): void
     {
-        foreach ($this->excluded as $entry) {
-            $this->assertNotSame('./app', $entry, 'app 전체를 제외하면 측정이 무의미하다.');
-            $this->assertNotSame('./app/Database', $entry, '마이그레이션·시더는 실제로 커버되므로 남긴다.');
-            $this->assertNotSame('./app/Database/Migrations', $entry, '마이그레이션은 남긴다.');
-            $this->assertNotSame('./app/Database/Seeds', $entry, '시더는 남긴다.');
-            $this->assertNotSame('./app/Commands', $entry, '커맨드는 남긴다(PostsImport 공백이 보여야 한다).');
-            $this->assertNotSame('./app/Config', $entry, 'Config 전체가 아니라 측정 불가능한 항목만 뺀다.');
-        }
+        $expected = [
+            './app/Views',
+            './app/Config/Boot',
+            './app/Config/Constants.php',
+            './app/Config/Routes.php',
+        ];
+
+        sort($expected);
+        $actual = $this->excluded;
+        sort($actual);
+
+        $this->assertSame($expected, $actual, '제외 목록에 새 항목이 늘면 커버리지 수치가 조용히 올라간다.');
     }
 }
