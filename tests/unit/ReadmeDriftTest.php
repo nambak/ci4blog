@@ -48,37 +48,43 @@ final class ReadmeDriftTest extends CIUnitTestCase
     }
 
     /**
-     * 구조도가 gitignore 된 경로를 안내하면 안 된다.
+     * 구조도의 경로는 저장소(HEAD)에 추적돼 있어야 한다.
      *
      * 위 테스트와 나누어 둔 이유가 있다 — `docs/` 처럼 **로컬에는 있지만
      * 저장소에는 없는** 경로는 존재 검사만으로는 걸리지 않는다.
+     *
+     * `git check-ignore` 로 묻지 않는다. 그 명령은 무시될 때만 0 을 주는데,
+     * 저장소 밖이거나 git 이 없어 실패해도 0 이 아니라 **거짓 통과**한다.
+     * `ls-tree` 로 "HEAD 에 항목이 있는가" 를 직접 묻고, 명령 실패는 실패로 본다.
      */
-    public function testStructureDiagramHasNoIgnoredPaths(): void
+    public function testStructureDiagramPathsAreTracked(): void
     {
         $paths = $this->structurePaths();
 
         $this->assertNotEmpty($paths);
 
         foreach ($paths as $path) {
-            $output   = [];
-            $exitCode = 0;
-            exec(
-                'git -C ' . escapeshellarg(rtrim(ROOTPATH, '/'))
-                    . ' check-ignore ' . escapeshellarg($path) . ' 2>/dev/null',
-                $output,
-                $exitCode
-            );
+            [$entries, $exitCode] = $this->gitLsTree($path);
 
-            // check-ignore 는 무시되는 경로일 때 0 을 돌려준다.
-            $this->assertNotSame(
+            $this->assertSame(
                 0,
                 $exitCode,
-                "{$path} 는 gitignore 대상이라 클론한 사람에게는 없다 — 구조도에서 빼야 한다."
+                "git ls-tree 가 실패했다({$path}) — 결과를 신뢰할 수 없다."
+            );
+            $this->assertNotEmpty(
+                $entries,
+                "{$path} 가 HEAD 에 없다 — 클론한 사람에게는 보이지 않으므로 구조도에서 빼야 한다."
             );
         }
     }
 
-    /** README 가 말하는 PHP 버전이 composer.json 의 요구와 같아야 한다. */
+    /**
+     * README 가 말하는 PHP 버전이 composer.json 의 요구와 같아야 한다.
+     *
+     * 굵게 표시(`**PHP**`)나 공백 같은 서식에 기대지 않는다 — 서식만 바꿔도
+     * 깨지는 검사는 이 클래스가 피하려는 바로 그것이다. "PHP … N.N 이상" 이라고
+     * 말하는 **모든** 자리를 찾아 전부 composer 와 같은지 본다.
+     */
     public function testPhpVersionMatchesComposer(): void
     {
         $composer = json_decode((string) file_get_contents(ROOTPATH . 'composer.json'), true);
@@ -92,31 +98,93 @@ final class ReadmeDriftTest extends CIUnitTestCase
 
         $version = $matches[1];
 
-        $this->assertStringContainsString(
-            "PHP** {$version} 이상",
-            $this->readme,
-            "README 의 기술 스택이 composer.json({$require})과 다른 PHP 버전을 말한다."
+        $found = preg_match_all('/PHP[^\n\d]*(\d+\.\d+)\s*이상/u', $this->readme, $mentions);
+
+        $this->assertNotSame(false, $found);
+        $this->assertGreaterThanOrEqual(
+            2,
+            $found,
+            'README 는 기술 스택과 사전 준비물 두 곳에서 PHP 버전을 말해야 한다.'
         );
-        $this->assertStringContainsString(
-            "PHP {$version} 이상",
-            $this->readme,
-            "README 의 사전 준비물이 composer.json({$require})과 다른 PHP 버전을 말한다."
-        );
+
+        foreach ($mentions[1] as $mentioned) {
+            $this->assertSame(
+                $version,
+                $mentioned,
+                "README 가 PHP {$mentioned} 이상이라 하는데 composer.json 은 {$require} 를 요구한다."
+            );
+        }
     }
 
     /** 운영 .env 예시는 운영과 같은 드라이버여야 한다. */
     public function testProductionEnvExampleUsesSqlite(): void
     {
-        $path = ROOTPATH . 'env.production.example';
-        $this->assertFileExists($path);
-
-        $env = (string) file_get_contents($path);
+        $env = $this->productionEnv();
 
         $this->assertMatchesRegularExpression(
             '/^database\.default\.DBDriver\s*=\s*SQLite3\s*$/m',
             $env,
             '운영은 SQLite 다 — 예시가 다른 드라이버를 기본값으로 두면 그대로 복사한 서버가 어긋난다.'
         );
+    }
+
+    /**
+     * DB 파일은 절대경로이고 웹 루트 밖이어야 한다.
+     *
+     * 드라이버만 맞고 경로가 상대경로거나 `public/` 아래면, 그대로 복사한 서버가
+     * 엉뚱한 곳에 DB 를 만들거나 DB 파일이 그대로 다운로드된다.
+     */
+    public function testProductionEnvExampleKeepsDatabaseOutsideWebRoot(): void
+    {
+        $env = $this->productionEnv();
+
+        $this->assertSame(
+            1,
+            preg_match('/^database\.default\.database\s*=\s*(\S+)\s*$/m', $env, $matches),
+            'env.production.example 에 database.default.database 가 있어야 한다.'
+        );
+
+        $dbPath = $matches[1];
+
+        $this->assertStringStartsWith(
+            '/',
+            $dbPath,
+            "DB 경로는 절대경로여야 한다(현재: {$dbPath}) — 상대경로는 실행 위치에 따라 달라진다."
+        );
+        $this->assertStringNotContainsString(
+            '/public/',
+            $dbPath,
+            "DB 파일이 웹 루트 안에 있으면 그대로 다운로드된다(현재: {$dbPath})."
+        );
+    }
+
+    /** 운영 .env 예시 원문. */
+    private function productionEnv(): string
+    {
+        $path = ROOTPATH . 'env.production.example';
+        $this->assertFileExists($path);
+
+        return (string) file_get_contents($path);
+    }
+
+    /**
+     * HEAD 에서 그 경로 아래 추적 항목을 나열한다.
+     *
+     * @return array{0: list<string>, 1: int} [항목 목록, 종료 코드]
+     */
+    private function gitLsTree(string $path): array
+    {
+        $output   = [];
+        $exitCode = 0;
+
+        exec(
+            'git -C ' . escapeshellarg(rtrim(ROOTPATH, '/'))
+                . ' ls-tree -r --name-only HEAD -- ' . escapeshellarg($path) . ' 2>/dev/null',
+            $output,
+            $exitCode
+        );
+
+        return [$output, $exitCode];
     }
 
     /**
