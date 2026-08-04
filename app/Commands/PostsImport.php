@@ -37,9 +37,6 @@ class PostsImport extends BaseCommand
         '--author'  => '모든 글의 작성자(user_id)를 이 값으로 지정한다.',
     ];
 
-    /** content/posts 디렉터리 경로 */
-    private string $contentDir = ROOTPATH . 'content/posts';
-
     public function run(array $params)
     {
         $only   = $params['only']   ?? CLI::getOption('only');
@@ -47,13 +44,13 @@ class PostsImport extends BaseCommand
         $author = $params['author'] ?? CLI::getOption('author');
         $author = ($author === null || $author === '') ? null : (int) $author;
 
-        if (! is_dir($this->contentDir)) {
-            CLI::error("content/posts 디렉터리가 없습니다: {$this->contentDir}");
+        if (! is_dir($this->contentDir())) {
+            CLI::error("content/posts 디렉터리가 없습니다: {$this->contentDir()}");
 
             return EXIT_ERROR;
         }
 
-        $pattern = $this->contentDir . '/' . ($only ? $only . '.md' : '*.md');
+        $pattern = $this->contentDir() . '/' . ($only ? $only . '.md' : '*.md');
         $files   = glob($pattern) ?: [];
 
         if ($files === []) {
@@ -125,6 +122,16 @@ class PostsImport extends BaseCommand
         CLI::write(sprintf('완료 — 생성 %d · 갱신 %d · 건너뜀 %d', $created, $updated, $skipped), 'green');
 
         return EXIT_SUCCESS;
+    }
+
+    /**
+     * 원고 디렉터리.
+     *
+     * 테스트가 픽스처 위치를 가리키는 seam 이다(DbBackup::backupDir() 과 같은 형태).
+     */
+    protected function contentDir(): string
+    {
+        return ROOTPATH . 'content/posts';
     }
 
     /**
