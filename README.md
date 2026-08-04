@@ -21,20 +21,20 @@ CodeIgniter 4 프레임워크로 블로그를 **처음부터** 만들어 보는 
 
 ## 기술 스택
 
-- **PHP** 8.1 이상
+- **PHP** 8.2 이상
 - **CodeIgniter** 4 (appstarter 기본 구조)
 - **Composer** (의존성 관리)
 - **Shield** — CodeIgniter 공식 인증 라이브러리
 - **PHPUnit** — Feature/Unit 테스트
-- 데이터베이스: MySQL/MariaDB 또는 SQLite (테스트는 SQLite 메모리 권장)
+- 데이터베이스: 개발은 MySQL/MariaDB 또는 SQLite, **운영은 SQLite** (테스트는 SQLite 메모리)
 
 ## 시작하기
 
 ### 사전 준비물
 
-- PHP 8.1 이상 (`intl`, `mbstring` 등 CI4 권장 확장 포함)
+- PHP 8.2 이상 (`intl`, `mbstring` 등 CI4 권장 확장 포함)
 - Composer
-- 데이터베이스 (MySQL/MariaDB 또는 SQLite)
+- 데이터베이스 (개발: MySQL/MariaDB 또는 SQLite / 운영: SQLite)
 
 ### 설치
 
@@ -99,6 +99,16 @@ php spark cache:clear
 - [ ] 웹 서버의 **document root 가 `public/`** 인지 (그 위 디렉터리가 공개되면 안 됨)
 - [ ] `.env` 와 운영 비밀값이 저장소·CI 에 올라가지 않는지
 
+> **보안 설정은 두 곳에서 온다.** 응답 헤더는 코드가 항상 붙이므로 `.env` 와 무관하고, `.env` 가 좌우하는 것은 HTTPS 리다이렉트와 쿠키 `Secure` 뿐입니다. `.env` 를 빠뜨려도 헤더가 통째로 사라지지는 않습니다.
+
+| 설정 | 어디서 결정되나 |
+| --- | --- |
+| `X-Content-Type-Options`·`Referrer-Policy`·`X-Frame-Options` | 코드 (`app/Filters/SecurityHeaders.php`, 전역 after 필터) — 항상 |
+| `Strict-Transport-Security` | 코드 — HTTPS 요청일 때만 |
+| `Content-Security-Policy-Report-Only` | 코드 (`app/Config/Csp.php`) |
+| HTTPS 강제 (`app.forceGlobalSecureRequests`) | **`.env`** |
+| 쿠키 `Secure` (`cookie.secure`) | **`.env`** |
+
 ### writable/ 권한
 
 `writable/` 아래(`cache`, `logs`, `session`, `uploads`, `backups`)는 **웹 서버가 쓸 수 있어야** 합니다. 소유자를 웹 서버 사용자로 두거나 그룹 쓰기를 허용합니다.
@@ -151,23 +161,89 @@ php spark logs:prune --force --keep-days 14 # 보관 일수 조정
 - 배포에서는 실패해도 배포를 멈추지 않습니다(백업과 반대 — 로그 정리는 서비스 동작과 무관합니다).
 - 배포가 뜸한 환경이라면 크론으로도 돌릴 수 있습니다: `0 4 * * * cd /var/www/ci4blog && sudo -u www-data php spark logs:prune --force`
 
+## 운영 — 배포와 롤백
+
+`main` 에 push 하면 GitHub Actions 가 다음 순서로 움직입니다.
+
+1. **Test** — 전체 스위트를 돌립니다(커버리지 없이). 여기서 실패하면 배포가 시작되지 않습니다.
+2. **Coverage** — Test 와 **병렬**로 커버리지를 측정해 Job Summary 와 HTML 아티팩트를 남깁니다. 이 잡이 실패해도 배포를 막지 않습니다.
+3. **Deploy** — `production` 환경이라 **수동 승인**이 필요합니다. 승인하면 서버에서 `scripts/deploy.sh` 가 돕니다.
+4. **Smoke test** — 배포 직후 GitHub Actions 러너가 공인 도메인으로 5경로(`/health`·`/`·`/posts`·`/sitemap.xml`·`/feed`)를 확인합니다. SSH 성공은 "스크립트가 끝났다"는 뜻일 뿐이라, 앱이 실제로 응답하는지는 이 단계가 봅니다.
+
+`deploy.sh` 는 8단계입니다.
+
+| 단계 | 하는 일 |
+| --- | --- |
+| 1 | `main` 최신 코드 받기 |
+| 2 | 운영 의존성 설치(`--no-dev`) |
+| 3 | **DB 백업** — 실패하면 배포가 그 자리에서 멈춥니다 |
+| 4 | 마이그레이션 |
+| 5 | 강의 글 발행(`posts:import`) |
+| 6 | 캐시 정리 |
+| 7 | 오래된 로그 정리 |
+| 8 | `writable/` 권한 보정 |
+
+### 롤백
+
+**코드**를 되돌릴 때는 되돌리는 커밋을 새로 만들어 배포합니다. 서버에서 직접 이전 커밋으로 옮기지 않습니다 — `deploy.sh` 가 `git pull` 로 `main` 을 따라오기 때문에 다음 배포에서 원상복귀합니다.
+
+```bash
+git revert <되돌릴 커밋>
+git push origin main          # Test 통과 후 Deploy 를 다시 승인
+```
+
+**DB** 를 되돌려야 하면 위 "운영 — 백업과 복구" 의 복구 절차를 따릅니다. 배포는 마이그레이션 **직전**에 스냅샷을 만들므로, 그 배포로 생긴 스키마 변경은 되돌릴 백업이 있습니다.
+
+> ⚠️ 롤백 절차는 아직 실제로 리허설된 적이 없습니다. 위 내용은 배포 파이프라인의 동작에서 도출한 것입니다.
+
+## 운영 — 장애 대응
+
+**1. 먼저 헬스체크를 봅니다.**
+
+```bash
+curl -s https://<도메인>/health
+# {"status":"ok","db":"ok"}
+```
+
+`db` 가 `ok` 가 아니면 DB 파일 권한이나 경로를 먼저 의심합니다(운영은 SQLite 이고 경로는 `.env` 의 `database.default.database` 입니다).
+
+**2. 배포가 실패한 경우라면 서버에 들어가기 전에 워크플로 로그를 봅니다.** 배포 잡에는 `if: failure()` 진단 스텝이 있어, 실패 시 **최근 애플리케이션 로그와 php-fpm 상태**를 자동으로 남깁니다.
+
+**3. 애플리케이션 로그는 서버의 `writable/logs/log-YYYY-MM-DD.log` 입니다.** 배포가 30일 지난 것을 지우므로 그 이전 기록은 없습니다.
+
+```bash
+ls -t /var/www/ci4blog/writable/logs/*.log | head -1 | xargs tail -50
+```
+
+**4. DB 를 되돌려야 하면** 위 "운영 — 백업과 복구" 절차를 따릅니다. 백업은 `writable/backups/` 에 최근 10개가 있습니다.
+
 ## 프로젝트 구조
 
 ```text
 ci4blog/
 ├─ app/
-│  ├─ Config/         # 라우트, 필터, DB, Auth 설정
-│  ├─ Controllers/    # Pages, Posts, Comments
-│  ├─ Models/         # PostModel, CommentModel, CategoryModel
-│  ├─ Entities/       # Post, Comment, Category
+│  ├─ Commands/       # spark 커맨드 (db:backup, db:prune, logs:prune, posts:import)
+│  ├─ Config/         # 라우트, 필터, DB, Auth, CSP 설정
+│  ├─ Controllers/    # Home, Posts, Comments, Profile, Feed, Health, Pages
+│  │  └─ Admin/       # 관리자 화면 (Posts, Comments, Categories)
 │  ├─ Database/       # Migrations, Seeds
-│  └─ Views/          # layouts, partials, pages, posts, comments
-├─ tests/Feature/     # 엔드포인트 단위 Feature 테스트
+│  ├─ Entities/       # Post, Comment, Category
+│  ├─ Filters/        # SecurityHeaders, RateLimit
+│  ├─ Helpers/        # link, acl, db, stats 헬퍼
+│  ├─ Libraries/      # RssXml, UploadStorage
+│  ├─ Models/         # PostModel, CommentModel, CategoryModel, UserModel
+│  └─ Views/          # layouts, partials, home, posts, comments, admin
+├─ tests/
+│  ├─ Feature/        # 엔드포인트 단위 Feature 테스트
+│  └─ unit/           # 스크립트·설정·워크플로 검사
+├─ scripts/           # deploy.sh, smoke.sh, coverage-summary.php
+├─ content/posts/     # 발행 원고(.md) — 파일 자체는 저장소에 올리지 않습니다
+├─ .github/workflows/ # CI/CD (test → coverage → deploy → smoke)
 ├─ writable/          # 캐시·로그·업로드·DB 백업
-├─ docs/
-│  └─ curriculum.md   # 전체 회차별 커밋 빌드 가이드
 └─ public/            # 웹 루트 (index.php)
 ```
+
+> 설계 문서와 커리큘럼은 `docs/` 에 로컬 보관하며 저장소에는 올리지 않습니다.
 
 ## 커리큘럼 개요
 
