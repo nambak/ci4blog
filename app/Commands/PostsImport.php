@@ -37,9 +37,6 @@ class PostsImport extends BaseCommand
         '--author'  => '모든 글의 작성자(user_id)를 이 값으로 지정한다.',
     ];
 
-    /** content/posts 디렉터리 경로 */
-    private string $contentDir = ROOTPATH . 'content/posts';
-
     public function run(array $params)
     {
         $only   = $params['only']   ?? CLI::getOption('only');
@@ -47,13 +44,13 @@ class PostsImport extends BaseCommand
         $author = $params['author'] ?? CLI::getOption('author');
         $author = ($author === null || $author === '') ? null : (int) $author;
 
-        if (! is_dir($this->contentDir)) {
-            CLI::error("content/posts 디렉터리가 없습니다: {$this->contentDir}");
+        if (! is_dir($this->contentDir())) {
+            CLI::error("content/posts 디렉터리가 없습니다: {$this->contentDir()}");
 
             return EXIT_ERROR;
         }
 
-        $pattern = $this->contentDir . '/' . ($only ? $only . '.md' : '*.md');
+        $pattern = $this->contentDir() . '/' . ($only ? $only . '.md' : '*.md');
         $files   = glob($pattern) ?: [];
 
         if ($files === []) {
@@ -128,6 +125,16 @@ class PostsImport extends BaseCommand
     }
 
     /**
+     * 원고 디렉터리.
+     *
+     * 테스트가 픽스처 위치를 가리키는 seam 이다(DbBackup::backupDir() 과 같은 형태).
+     */
+    protected function contentDir(): string
+    {
+        return ROOTPATH . 'content/posts';
+    }
+
+    /**
      * front matter(상단 --- 블록) 와 본문을 분리한다.
      *
      * @return array{0: array<string,mixed>, 1: string} [front matter 배열, 본문]
@@ -137,7 +144,12 @@ class PostsImport extends BaseCommand
         // BOM 제거 후 선두 공백 정리
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
 
-        if (! preg_match('/^---\s*\R(.*?)\R---\s*\R?(.*)$/s', $raw, $m)) {
+        // 개행은 아래 parseYamlish() 와 같은 이유로 명시한다 — \R 은 바이트 0x85 를
+        // 개행으로 보는데 그 바이트가 한글 UTF-8 인코딩 가운데 나타난다. 여기는 앞뒤
+        // `---` 앵커 덕분에 실질적으로 안전했지만, 파이프라인 전체에서 \R 을 없애 두면
+        // "여기는 왜 예외인가" 를 따질 필요가 없다. `\s*` 는 그대로 둔다 — `[ \t]*` 로
+        // 좁히면 `---` 뒤 빈 줄이 front matter 블록에 딸려 들어와 동작이 달라진다.
+        if (! preg_match('/^---\s*(?:\r\n|\n|\r)(.*?)(?:\r\n|\n|\r)---\s*(?:\r\n|\n|\r)?(.*)$/s', $raw, $m)) {
             // front matter 가 없으면 전체를 본문으로 본다.
             return [[], $raw];
         }
@@ -155,7 +167,14 @@ class PostsImport extends BaseCommand
     {
         $out = [];
 
-        foreach (preg_split('/\R/', $block) as $line) {
+        // \R 은 NEL(0x85)까지 줄바꿈으로 본다. 그런데 0x85 는 일부 한글 완성형 음절의
+        // UTF-8 인코딩 가운데 바이트로도 나타나(예: `테` = ED 85 8C) 문자를 바이트
+        // 단위로 쪼갠다. 명시적인 개행 3종만 매치하도록 고정해 이 오탐을 막는다.
+        // /u 플래그로 "정리"하는 것도 답이 아니다 — 유효하지 않은 UTF-8 을 만나면
+        // preg_split() 이 false 를 돌려주고 foreach(false as …) 가 Warning 을 내는데,
+        // 이 저장소는 failOnWarning=true 라 그 Warning 이 곧 테스트 실패다(phpunit.dist.xml:11).
+        // 개행을 \n·\r 로 한정하는 것은 YAML 1.2 규격이 인정하는 개행 문자와도 일치한다.
+        foreach (preg_split('/\r\n|\n|\r/', $block) as $line) {
             $line = trim($line);
             if ($line === '' || str_starts_with($line, '#')) {
                 continue;
