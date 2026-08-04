@@ -271,7 +271,12 @@ final class PostsImportCommandTest extends CIUnitTestCase
         $this->assertSame(
             '2026-03-01 08:00:00',
             $after[0]['created_at'],
-            '생성 시각은 갱신되지 않아야 한다.'
+            '현재 동작: update 는 created_at 을 재동기화하지 않는다(별도 이슈에서 재검토).'
+        );
+        $this->assertNotSame(
+            '2026-03-01 08:00:00',
+            $after[0]['updated_at'],
+            '갱신 시각은 front matter 가 아니라 실행 시각으로 바뀐다(현재 동작).'
         );
     }
 
@@ -292,7 +297,7 @@ final class PostsImportCommandTest extends CIUnitTestCase
 
         $this->assertSame(EXIT_SUCCESS, $status);
         $this->assertSame([], $this->rows(), 'dry-run 은 DB 를 바꾸지 않아야 한다.');
-        $this->assertStringContainsString('dry-run', $this->getStreamFilterBuffer());
+        $this->assertStringContainsString('[dry-run]', $this->getStreamFilterBuffer());
         $this->assertStringContainsString('dry-run-post', $this->getStreamFilterBuffer(), '무엇이 반영될지는 보여 줘야 한다.');
 
         // 대조: 같은 픽스처를 실제로 돌리면 들어간다.

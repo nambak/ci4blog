@@ -144,6 +144,8 @@ class PostsImport extends BaseCommand
         // BOM 제거 후 선두 공백 정리
         $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
 
+        // 여기의 \R 은 아래 parseYamlish() 가 겪은 오탐과 다르다 — 앞뒤가 `---` 앵커로
+        // 둘러싸여 있어 잘못 매치돼도 백트래킹으로 회복하므로 실질적으로 안전하다.
         if (! preg_match('/^---\s*\R(.*?)\R---\s*\R?(.*)$/s', $raw, $m)) {
             // front matter 가 없으면 전체를 본문으로 본다.
             return [[], $raw];
@@ -165,6 +167,10 @@ class PostsImport extends BaseCommand
         // \R 은 NEL(0x85)까지 줄바꿈으로 본다. 그런데 0x85 는 일부 한글 완성형 음절의
         // UTF-8 인코딩 가운데 바이트로도 나타나(예: `테` = ED 85 8C) 문자를 바이트
         // 단위로 쪼갠다. 명시적인 개행 3종만 매치하도록 고정해 이 오탐을 막는다.
+        // /u 플래그로 "정리"하는 것도 답이 아니다 — 유효하지 않은 UTF-8 을 만나면
+        // preg_split() 이 false 를 돌려주고 foreach(false as …) 가 Warning 을 내는데,
+        // 이 저장소는 failOnWarning=true 라 그 Warning 이 곧 테스트 실패다(phpunit.dist.xml:11).
+        // 개행을 \n·\r 로 한정하는 것은 YAML 1.2 규격이 인정하는 개행 문자와도 일치한다.
         foreach (preg_split('/\r\n|\n|\r/', $block) as $line) {
             $line = trim($line);
             if ($line === '' || str_starts_with($line, '#')) {
