@@ -8,52 +8,55 @@ use CodeIgniter\Test\CIUnitTestCase;
  * 측정이 원리상 불가능한 것만 빼고, 나머지는 남긴다. 제외를 늘리면 수치가
  * 조용히 올라가므로 **과잉 제외를 막는 쪽이 이 테스트의 핵심**이다.
  *
+ * 디렉터리 제외와 파일 제외를 **한 목록으로 합치지 않는다**. 합치면 경로는
+ * 그대로 둔 채 `<directory>` 를 `<file>` 로(또는 그 반대로) 바꾸는 변경을 못
+ * 잡는다 — PHPUnit 이 디렉터리를 파일로 취급해 제외가 실제로는 무효가 되는데
+ * 목록에는 같은 문자열이 남기 때문이다.
+ *
  * @internal
  */
 final class CoverageConfigTest extends CIUnitTestCase
 {
-    /** @var list<string> */
-    private array $excluded = [];
-
     /**
-     * 디렉터리 제외의 경로 => suffix 속성.
+     * 디렉터리 제외: 경로 => suffix 속성.
      *
      * 경로만 맞고 suffix 가 틀리면 그 디렉터리의 PHP 파일이 실제로는 제외되지
      * 않는다 — 경로 문자열만 보는 검사로는 안 걸린다.
      *
      * @var array<string, string>
      */
-    private array $directorySuffixes = [];
+    private array $excludedDirectories = [];
+
+    /** @var list<string> 파일 제외 경로. */
+    private array $excludedFiles = [];
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $path = ROOTPATH . 'phpunit.dist.xml';
-        $this->assertFileExists($path);
+        $configPath = ROOTPATH . 'phpunit.dist.xml';
+        $this->assertFileExists($configPath);
 
-        $xml = simplexml_load_file($path);
+        $xml = simplexml_load_file($configPath);
         $this->assertNotFalse($xml, 'phpunit.dist.xml 을 파싱할 수 있어야 한다.');
 
         $exclude = $xml->source->exclude;
+
+        foreach ($exclude->directory as $directory) {
+            $this->excludedDirectories[trim((string) $directory)] = (string) $directory['suffix'];
+        }
+
+        foreach ($exclude->file as $file) {
+            $this->excludedFiles[] = trim((string) $file);
+        }
+
         // SimpleXML 은 없는 자식에 null 이 아니라 빈 객체를 준다 — assertNotNull 은
         // 절대 실패하지 않는다. 실제로 항목이 있는지는 개수로 물어야 한다.
         $this->assertGreaterThan(
             0,
-            count($exclude->directory) + count($exclude->file),
+            count($this->excludedDirectories) + count($this->excludedFiles),
             '<source><exclude> 에 항목이 있어야 한다.'
         );
-
-        foreach ($exclude->directory as $directory) {
-            $path = trim((string) $directory);
-
-            $this->excluded[]                 = $path;
-            $this->directorySuffixes[$path] = (string) $directory['suffix'];
-        }
-
-        foreach ($exclude->file as $file) {
-            $this->excluded[] = trim((string) $file);
-        }
     }
 
     /**
@@ -62,18 +65,28 @@ final class CoverageConfigTest extends CIUnitTestCase
      * Boot/*: 부트 훅이라 PHPUnit 부트스트랩 경로에서 실행되지 않는다.
      * Constants.php: 계측이 시작되기 전에 로드된다.
      * 둘 다 영원히 0% 로 남아 저커버리지 순위표를 오염시킨다.
+     *
+     * 각각 제 타입으로 있어야 한다 — Boot 은 디렉터리, Constants.php 는 파일.
      */
     public function testExcludesUnmeasurableFiles(): void
     {
-        $this->assertContains('./app/Config/Boot', $this->excluded, 'Config/Boot 은 측정 대상에서 빠져야 한다.');
-        $this->assertContains('./app/Config/Constants.php', $this->excluded, 'Constants.php 는 측정 대상에서 빠져야 한다.');
+        $this->assertArrayHasKey(
+            './app/Config/Boot',
+            $this->excludedDirectories,
+            'Config/Boot 은 디렉터리 제외로 빠져야 한다.'
+        );
+        $this->assertContains(
+            './app/Config/Constants.php',
+            $this->excludedFiles,
+            'Constants.php 는 파일 제외로 빠져야 한다.'
+        );
     }
 
-    /** 기존 제외는 유지된다. */
+    /** 기존 제외는 유지된다(타입까지 그대로). */
     public function testKeepsExistingExclusions(): void
     {
-        $this->assertContains('./app/Views', $this->excluded);
-        $this->assertContains('./app/Config/Routes.php', $this->excluded);
+        $this->assertArrayHasKey('./app/Views', $this->excludedDirectories);
+        $this->assertContains('./app/Config/Routes.php', $this->excludedFiles);
     }
 
     /**
@@ -86,24 +99,30 @@ final class CoverageConfigTest extends CIUnitTestCase
      * 없는 경로로 그대로 일어난다.
      *
      * 화이트리스트(정확 집합)로 뒤집으면 제외 목록에 무엇이 늘거나 줄어도
-     * 반드시 이 테스트가 걸린다. 마이그레이션(80~100%)과 시더(98.6~100%)는
-     * 실제로 잘 덮여 있으므로 목록에 없다 — 빼면 down() 미커버라는 정보가
-     * 사라지고 비율만 좋아 보인다.
+     * 반드시 이 테스트가 걸린다. 디렉터리와 파일을 따로 비교하므로 타입만
+     * 바꾸는 변경도 걸린다. 마이그레이션(80~100%)과 시더(98.6~100%)는 실제로
+     * 잘 덮여 있으므로 목록에 없다 — 빼면 down() 미커버라는 정보가 사라지고
+     * 비율만 좋아 보인다.
      */
     public function testExcludesNothingBeyondTheUnmeasurable(): void
     {
-        $expected = [
-            './app/Views',
-            './app/Config/Boot',
-            './app/Config/Constants.php',
-            './app/Config/Routes.php',
-        ];
+        $directories = array_keys($this->excludedDirectories);
+        sort($directories);
 
-        sort($expected);
-        $actual = $this->excluded;
-        sort($actual);
+        $this->assertSame(
+            ['./app/Config/Boot', './app/Views'],
+            $directories,
+            '디렉터리 제외가 늘면 커버리지 수치가 조용히 올라간다.'
+        );
 
-        $this->assertSame($expected, $actual, '제외 목록에 새 항목이 늘면 커버리지 수치가 조용히 올라간다.');
+        $files = $this->excludedFiles;
+        sort($files);
+
+        $this->assertSame(
+            ['./app/Config/Constants.php', './app/Config/Routes.php'],
+            $files,
+            '파일 제외가 늘면 커버리지 수치가 조용히 올라간다.'
+        );
     }
 
     /**
@@ -118,9 +137,9 @@ final class CoverageConfigTest extends CIUnitTestCase
      */
     public function testExcludedDirectoriesTargetPhpFiles(): void
     {
-        $this->assertNotEmpty($this->directorySuffixes, '디렉터리 제외가 하나는 있어야 한다.');
+        $this->assertNotEmpty($this->excludedDirectories, '디렉터리 제외가 하나는 있어야 한다.');
 
-        foreach ($this->directorySuffixes as $path => $suffix) {
+        foreach ($this->excludedDirectories as $path => $suffix) {
             $this->assertSame(
                 '.php',
                 $suffix,
