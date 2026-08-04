@@ -140,4 +140,138 @@ final class PostsImportCommandTest extends CIUnitTestCase
         $this->assertStringContainsString('대상 파일이 없습니다', $this->getStreamFilterBuffer());
         $this->assertSame([], $this->rows());
     }
+
+    /**
+     * front matter 가 컬럼에 매핑된다.
+     *
+     * published_at 은 created_at·updated_at 양쪽에 들어간다(신규 생성 시).
+     */
+    public function testMapsFrontMatterToColumns(): void
+    {
+        $this->writeMarkdown('ep07.md', $this->post([
+            'title'        => '테스트 회차',
+            'slug'         => 'test-episode',
+            'published_at' => '2026-01-15 10:30:00',
+            'author'       => '7',
+        ], "본문 첫 줄\n\n둘째 문단"));
+
+        $status = $this->importer()->run([]);
+
+        $this->assertSame(EXIT_SUCCESS, $status);
+
+        $rows = $this->rows();
+        $this->assertCount(1, $rows, '글 한 건이 생성돼야 한다.');
+
+        $row = $rows[0];
+        $this->assertSame('테스트 회차', $row['title']);
+        $this->assertSame('test-episode', $row['slug']);
+        $this->assertSame(7, (int) $row['user_id'], 'front matter 의 author 가 user_id 가 돼야 한다.');
+        $this->assertSame('2026-01-15 10:30:00', $row['created_at'], 'published_at 이 created_at 이 돼야 한다.');
+        $this->assertSame('2026-01-15 10:30:00', $row['updated_at'], '생성 시에는 updated_at 도 published_at 이다.');
+    }
+
+    /**
+     * front matter 의 slug 를 그대로 쓴다.
+     *
+     * PostModel 은 저장 시 제목으로 slug 를 자동 생성한다. 이 커맨드가 모델이
+     * 아니라 쿼리 빌더로 직접 쓰는 이유가 바로 이것이라, 제목에서 만들어질
+     * 법한 slug 와 **다른** 값을 줘서 덮이지 않는지 본다.
+     */
+    public function testKeepsSlugFromFrontMatter(): void
+    {
+        $this->writeMarkdown('ep08.md', $this->post([
+            'title' => '아주 긴 한글 제목 여덟 번째',
+            'slug'  => 'ep08-custom',
+        ], '본문'));
+
+        $this->importer()->run([]);
+
+        $rows = $this->rows();
+        $this->assertCount(1, $rows);
+        $this->assertSame('ep08-custom', $rows[0]['slug'], '제목에서 만든 slug 로 덮이면 안 된다.');
+    }
+
+    /**
+     * body 는 마크다운 원문 그대로 저장한다(표시용 변환은 Entity 접근자 담당).
+     */
+    public function testStoresRawMarkdownBody(): void
+    {
+        $body = "# 헤딩\n\n- 목록 하나\n- 목록 둘\n\n**굵게** 그리고 `코드`";
+
+        $this->writeMarkdown('ep09.md', $this->post([
+            'title' => '마크다운 원문',
+            'slug'  => 'raw-markdown',
+        ], $body));
+
+        $this->importer()->run([]);
+
+        $rows = $this->rows();
+        $this->assertCount(1, $rows);
+        $this->assertSame($body, $rows[0]['body'], '마크다운이 HTML 로 변환되면 안 된다.');
+        $this->assertStringNotContainsString('<h1', $rows[0]['body']);
+        $this->assertStringNotContainsString('<strong', $rows[0]['body']);
+    }
+
+    /**
+     * slug 기준 멱등 upsert — 두 번 돌려도 결과가 같다.
+     *
+     * 행 수만 세면 위양성이다(내용이 바뀌어도 통과). 컬럼 값까지 통째로 비교한다.
+     */
+    public function testIsIdempotentAcrossRuns(): void
+    {
+        $this->writeMarkdown('ep10.md', $this->post([
+            'title'        => '멱등 확인',
+            'slug'         => 'idempotent',
+            'published_at' => '2026-02-01 09:00:00',
+        ], '본문'));
+
+        $this->importer()->run([]);
+        $first = $this->rows();
+
+        $this->importer()->run([]);
+        $second = $this->rows();
+
+        $this->assertCount(1, $second, '두 번 돌려도 행이 늘면 안 된다.');
+        $this->assertSame(
+            array_intersect_key($first[0], array_flip(['id', 'title', 'slug', 'body', 'user_id', 'created_at'])),
+            array_intersect_key($second[0], array_flip(['id', 'title', 'slug', 'body', 'user_id', 'created_at'])),
+            'id·내용·생성시각이 그대로여야 한다.'
+        );
+    }
+
+    /**
+     * 갱신은 내용을 바꾸고 created_at 은 건드리지 않는다.
+     *
+     * 같은 slug 로 제목·본문을 바꿔 다시 import 한다.
+     */
+    public function testUpdateChangesContentButKeepsCreatedAt(): void
+    {
+        $this->writeMarkdown('ep11.md', $this->post([
+            'title'        => '처음 제목',
+            'slug'         => 'updatable',
+            'published_at' => '2026-03-01 08:00:00',
+        ], '처음 본문'));
+
+        $this->importer()->run([]);
+        $before = $this->rows()[0];
+
+        $this->writeMarkdown('ep11.md', $this->post([
+            'title'        => '바뀐 제목',
+            'slug'         => 'updatable',
+            'published_at' => '2026-03-01 08:00:00',
+        ], '바뀐 본문'));
+
+        $this->importer()->run([]);
+        $after = $this->rows();
+
+        $this->assertCount(1, $after, '갱신이지 생성이 아니다.');
+        $this->assertSame('바뀐 제목', $after[0]['title']);
+        $this->assertSame('바뀐 본문', $after[0]['body']);
+        $this->assertSame($before['id'], $after[0]['id'], '같은 행이어야 한다.');
+        $this->assertSame(
+            '2026-03-01 08:00:00',
+            $after[0]['created_at'],
+            '생성 시각은 갱신되지 않아야 한다.'
+        );
+    }
 }
