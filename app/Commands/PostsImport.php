@@ -162,7 +162,10 @@ class PostsImport extends BaseCommand
     {
         $out = [];
 
-        foreach (preg_split('/\R/', $block) as $line) {
+        // \R 은 NEL(0x85)까지 줄바꿈으로 본다. 그런데 0x85 는 일부 한글 완성형 음절의
+        // UTF-8 인코딩 가운데 바이트로도 나타나(예: `테` = ED 85 8C) 문자를 바이트
+        // 단위로 쪼갠다. 명시적인 개행 3종만 매치하도록 고정해 이 오탐을 막는다.
+        foreach (preg_split('/\r\n|\n|\r/', $block) as $line) {
             $line = trim($line);
             if ($line === '' || str_starts_with($line, '#')) {
                 continue;
