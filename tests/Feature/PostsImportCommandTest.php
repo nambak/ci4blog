@@ -274,4 +274,125 @@ final class PostsImportCommandTest extends CIUnitTestCase
             '생성 시각은 갱신되지 않아야 한다.'
         );
     }
+
+    /**
+     * --dry-run 은 DB 를 건드리지 않는다.
+     *
+     * "안 바뀐다"만 단언하면 커맨드가 아무것도 안 해도 통과한다. 같은 픽스처를
+     * 실제로 실행해 바뀌는 것을 대조로 확인해야 이 테스트가 의미를 갖는다.
+     */
+    public function testDryRunLeavesDatabaseUntouched(): void
+    {
+        $this->writeMarkdown('ep12.md', $this->post([
+            'title' => '드라이런',
+            'slug'  => 'dry-run-post',
+        ], '본문'));
+
+        $status = $this->importer()->run(['dry-run' => null]);
+
+        $this->assertSame(EXIT_SUCCESS, $status);
+        $this->assertSame([], $this->rows(), 'dry-run 은 DB 를 바꾸지 않아야 한다.');
+        $this->assertStringContainsString('dry-run', $this->getStreamFilterBuffer());
+        $this->assertStringContainsString('dry-run-post', $this->getStreamFilterBuffer(), '무엇이 반영될지는 보여 줘야 한다.');
+
+        // 대조: 같은 픽스처를 실제로 돌리면 들어간다.
+        $this->importer()->run([]);
+        $this->assertCount(1, $this->rows(), '실제 실행에서는 들어가야 한다(대조군).');
+    }
+
+    /** --only 는 지정한 파일만 처리한다. */
+    public function testOnlyProcessesTheNamedEpisode(): void
+    {
+        $this->writeMarkdown('ep13.md', $this->post([
+            'title' => '열셋',
+            'slug'  => 'ep13-slug',
+        ], '본문 13'));
+        $this->writeMarkdown('ep14.md', $this->post([
+            'title' => '열넷',
+            'slug'  => 'ep14-slug',
+        ], '본문 14'));
+
+        $this->importer()->run(['only' => 'ep13']);
+
+        $rows = $this->rows();
+        $this->assertCount(1, $rows, '지정한 하나만 들어가야 한다.');
+        $this->assertSame('ep13-slug', $rows[0]['slug']);
+    }
+
+    /** --author 는 front matter 의 author 보다 우선한다. */
+    public function testAuthorOptionOverridesFrontMatter(): void
+    {
+        $this->writeMarkdown('ep15.md', $this->post([
+            'title'  => '작성자 덮어쓰기',
+            'slug'   => 'author-override',
+            'author' => '7',
+        ], '본문'));
+
+        $this->importer()->run(['author' => 42]);
+
+        $rows = $this->rows();
+        $this->assertCount(1, $rows);
+        $this->assertSame(42, (int) $rows[0]['user_id'], '--author 가 front matter 를 이겨야 한다.');
+    }
+
+    /**
+     * front matter 가 없으면 건너뛴다.
+     *
+     * 현재 content/posts 의 30개 원고가 전부 이 경우다.
+     */
+    public function testSkipsFileWithoutFrontMatter(): void
+    {
+        $this->writeMarkdown('ep16.md', "# 제목만 있는 순수 마크다운\n\n본문입니다.");
+
+        $status = $this->importer()->run([]);
+
+        $this->assertSame(EXIT_SUCCESS, $status);
+        $this->assertSame([], $this->rows(), 'front matter 가 없으면 저장하지 않는다.');
+
+        $output = $this->getStreamFilterBuffer();
+        $this->assertStringContainsString('건너뜀', $output);
+        $this->assertStringContainsString('ep16.md', $output, '어떤 파일을 건너뛰었는지 알려 줘야 한다.');
+        $this->assertStringContainsString('건너뜀 1', $output, '요약에 건너뜀 건수가 나와야 한다.');
+    }
+
+    /** title·slug·body 중 하나라도 비면 건너뛴다. */
+    public function testSkipsFileWithMissingRequiredField(): void
+    {
+        $this->writeMarkdown('ep17.md', $this->post([
+            'title' => '슬러그가 없다',
+        ], '본문은 있다'));
+        $this->writeMarkdown('ep18.md', $this->post([
+            'slug' => 'no-title',
+        ], '본문은 있다'));
+        $this->writeMarkdown('ep19.md', $this->post([
+            'title' => '본문이 없다',
+            'slug'  => 'no-body',
+        ], '   '));
+
+        $status = $this->importer()->run([]);
+
+        $this->assertSame(EXIT_SUCCESS, $status);
+        $this->assertSame([], $this->rows(), '필수값이 빠지면 저장하지 않는다.');
+        $this->assertStringContainsString('건너뜀 3', $this->getStreamFilterBuffer());
+    }
+
+    /** 정상 파일과 건너뛸 파일이 섞여 있으면 정상인 것만 들어간다. */
+    public function testProcessesValidFilesAlongsideSkipped(): void
+    {
+        $this->writeMarkdown('ep20.md', $this->post([
+            'title' => '정상',
+            'slug'  => 'valid-one',
+        ], '본문'));
+        $this->writeMarkdown('ep21.md', "# front matter 없음\n\n본문");
+
+        $this->importer()->run([]);
+
+        $rows = $this->rows();
+        $this->assertCount(1, $rows, '정상 파일만 들어가야 한다.');
+        $this->assertSame('valid-one', $rows[0]['slug']);
+
+        $output = $this->getStreamFilterBuffer();
+        $this->assertStringContainsString('생성 1', $output);
+        $this->assertStringContainsString('건너뜀 1', $output);
+    }
 }
