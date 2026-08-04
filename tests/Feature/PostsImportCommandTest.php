@@ -261,7 +261,12 @@ final class PostsImportCommandTest extends CIUnitTestCase
             'published_at' => '2026-03-01 08:00:00',
         ], '바뀐 본문'));
 
+        // 실행 시각을 앞뒤로 재 둔다. "front matter 값과 다르다" 만 보면 update 가
+        // 엉뚱한 고정 시각을 넣어도 통과하므로, 실제로 이 실행 중에 찍혔는지까지 본다.
+        $startedAt = time();
         $this->importer()->run([]);
+        $finishedAt = time();
+
         $after = $this->rows();
 
         $this->assertCount(1, $after, '갱신이지 생성이 아니다.');
@@ -273,10 +278,18 @@ final class PostsImportCommandTest extends CIUnitTestCase
             $after[0]['created_at'],
             '현재 동작: update 는 created_at 을 재동기화하지 않는다(별도 이슈에서 재검토).'
         );
-        $this->assertNotSame(
-            '2026-03-01 08:00:00',
-            $after[0]['updated_at'],
-            '갱신 시각은 front matter 가 아니라 실행 시각으로 바뀐다(현재 동작).'
+
+        $updatedAt = strtotime($after[0]['updated_at']);
+        $this->assertNotFalse($updatedAt, 'updated_at 이 해석 가능한 시각이어야 한다.');
+        $this->assertGreaterThanOrEqual(
+            $startedAt,
+            $updatedAt,
+            '갱신 시각은 front matter 가 아니라 이 실행의 시각이어야 한다(현재 동작).'
+        );
+        $this->assertLessThanOrEqual(
+            $finishedAt,
+            $updatedAt,
+            '갱신 시각이 실행 종료보다 뒤면 실행 시각을 쓴 것이 아니다.'
         );
     }
 
