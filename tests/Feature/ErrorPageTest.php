@@ -97,4 +97,55 @@ final class ErrorPageTest extends CIUnitTestCase
         $this->assertStringContainsString('찾는 글이 없습니다', $html);
         $this->assertStringNotContainsString('dd4814', $html);
     }
+
+    private function render500(): string
+    {
+        return $this->renderErrorView('production.php', ['message' => 'Internal Server Error', 'code' => 500]);
+    }
+
+    public function testProductionErrorPageIsInKorean(): void
+    {
+        $html = $this->render500();
+
+        $this->assertStringContainsString('lang="ko"', $html);
+        $this->assertStringContainsString('일시적인 문제가 생겼습니다', $html);
+        // 색인되면 안 된다.
+        $this->assertStringContainsString('noindex', $html);
+    }
+
+    /**
+     * 500 화면은 장애 상황에 렌더된다. 공용 레이아웃은 partials/header.php:14,25,28
+     * 에서 auth() 를 호출하고 Shield 는 DB 를 치므로, DB 장애가 원인일 때
+     * 레이아웃을 상속하면 에러 페이지를 그리다가 2차 예외가 난다.
+     *
+     * 그래서 이 뷰는 프레임워크 서비스를 전혀 부르지 않는 것이 계약이다.
+     * 이 테스트가 없으면 그 계약은 주석일 뿐이고, 나중에 "디자인을 통일하자"는
+     * 이유로 조용히 되돌아간다.
+     */
+    public function testProductionErrorPageIsSelfContained(): void
+    {
+        $source = (string) file_get_contents(APPPATH . 'Views/errors/html/production.php');
+
+        // 음성 단언만 두면 파일이 비어도 통과한다. 먼저 내용이 있음을 고정한다.
+        $this->assertStringContainsString('일시적인 문제가 생겼습니다', $source);
+
+        foreach (['view(', 'auth(', 'model(', 'db_connect(', 'config(', 'base_url(', 'site_url(', 'lang('] as $call) {
+            $this->assertStringNotContainsString(
+                $call,
+                $source,
+                "production.php 는 자립이어야 한다 — {$call} 은 장애 상황에서 2차 예외를 부른다",
+            );
+        }
+    }
+
+    public function testProductionErrorPageHasNoExternalAssets(): void
+    {
+        $source = (string) file_get_contents(APPPATH . 'Views/errors/html/production.php');
+
+        $this->assertStringContainsString('일시적인 문제가 생겼습니다', $source);
+
+        // 외부 CSS·웹폰트는 네트워크가 죽으면 무스타일 화면이 된다.
+        $this->assertStringNotContainsString('http://', $source);
+        $this->assertStringNotContainsString('https://', $source);
+    }
 }
