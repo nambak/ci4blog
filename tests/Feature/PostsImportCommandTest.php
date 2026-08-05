@@ -413,4 +413,80 @@ final class PostsImportCommandTest extends CIUnitTestCase
         $this->assertStringContainsString('생성 1', $output);
         $this->assertStringContainsString('건너뜀 1', $output);
     }
+
+    /**
+     * 파일은 있는데 하나도 반영되지 않으면 요약을 강조한다. (#135)
+     *
+     * 배포 로그에서 "아무것도 발행되지 않았다" 를 정상 상태와 구분하기 위해서다.
+     * 종료 코드는 바꾸지 않는다 — deploy.sh 가 set -euo pipefail 이고 이 줄에
+     * `|| true` 가 없어서, 실패를 내면 그 뒤 단계가 통째로 날아간다.
+     */
+    public function testHighlightsSummaryWhenNothingWasImported(): void
+    {
+        $this->writeMarkdown('ep30.md', "# front matter 없음\n\n본문");
+        $this->writeMarkdown('ep31.md', "# 이것도 없음\n\n본문");
+
+        $status = $this->importer()->run([]);
+
+        $this->assertSame(EXIT_SUCCESS, $status, '건너뜀은 실패가 아니다 — 배포를 막으면 안 된다.');
+        $this->assertSame([], $this->rows());
+
+        $output = $this->getStreamFilterBuffer();
+        $this->assertStringContainsString('건너뜀 2', $output, '요약에 건수가 나와야 한다.');
+        $this->assertStringContainsString(
+            '반영할 글이 하나도 없습니다',
+            $output,
+            '전부 건너뛰었으면 요약이 그 사실을 말해야 한다.'
+        );
+    }
+
+    /**
+     * 하나라도 반영됐으면 강조하지 않는다.
+     *
+     * 건너뛴 파일이 있어도 발행이 일어났으면 정상이다. 이 테스트가 없으면
+     * "항상 강조" 로 바꿔도 위 테스트가 통과해 버린다.
+     */
+    public function testDoesNotHighlightWhenSomethingWasImported(): void
+    {
+        $this->writeMarkdown('ep32.md', $this->post([
+            'title' => '정상 글',
+            'slug'  => 'normal-one',
+        ], '본문'));
+        $this->writeMarkdown('ep33.md', "# front matter 없음\n\n본문");
+
+        $status = $this->importer()->run([]);
+
+        $this->assertSame(EXIT_SUCCESS, $status);
+        $this->assertCount(1, $this->rows(), '정상 파일은 들어가야 한다.');
+
+        $output = $this->getStreamFilterBuffer();
+        $this->assertStringContainsString('생성 1', $output);
+        $this->assertStringNotContainsString(
+            '반영할 글이 하나도 없습니다',
+            $output,
+            '하나라도 반영됐으면 강조하지 않는다.'
+        );
+    }
+
+    /**
+     * 대상 파일이 아예 없으면 요약 자체가 나오지 않는다.
+     *
+     * 지금 운영이 매 배포마다 밟는 경로다(원고가 .gitignore 라 서버에 .md 가 없다).
+     * 이건 정상 상태이므로 강조 대상이 아니다 — run() 앞부분에서 이미 반환한다.
+     */
+    public function testDoesNotHighlightWhenThereAreNoFilesAtAll(): void
+    {
+        $status = $this->importer()->run([]);
+
+        $this->assertSame(EXIT_SUCCESS, $status);
+
+        $output = $this->getStreamFilterBuffer();
+        $this->assertStringContainsString('대상 파일이 없습니다', $output);
+        $this->assertStringNotContainsString(
+            '반영할 글이 하나도 없습니다',
+            $output,
+            '파일이 없는 것은 정상 상태다 — 강조하지 않는다.'
+        );
+        $this->assertStringNotContainsString('완료 — 생성', $output, '요약 자체가 나오지 않는다.');
+    }
 }
