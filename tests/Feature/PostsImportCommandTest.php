@@ -240,11 +240,13 @@ final class PostsImportCommandTest extends CIUnitTestCase
     }
 
     /**
-     * 갱신은 내용을 바꾸고 created_at 은 건드리지 않는다.
+     * 같은 발행일로 다시 import 하면 내용만 바뀌고 발행일은 그대로다.
      *
-     * 같은 slug 로 제목·본문을 바꿔 다시 import 한다.
+     * 같은 slug 로 제목·본문을 바꿔 다시 import 한다. front matter 의
+     * published_at 을 **바꾼** 경우는 testUpdateResyncsCreatedAtWhenPublishedAtChanges,
+     * 아예 **없는** 경우는 testUpdateKeepsCreatedAtWhenPublishedAtIsAbsent 가 본다.
      */
-    public function testUpdateChangesContentButKeepsCreatedAt(): void
+    public function testUpdateKeepsCreatedAtWhenPublishedAtIsUnchanged(): void
     {
         $this->writeMarkdown('ep11.md', $this->post([
             'title'        => '처음 제목',
@@ -276,7 +278,7 @@ final class PostsImportCommandTest extends CIUnitTestCase
         $this->assertSame(
             '2026-03-01 08:00:00',
             $after[0]['created_at'],
-            '현재 동작: update 는 created_at 을 재동기화하지 않는다(별도 이슈에서 재검토).'
+            'front matter 의 발행일이 그대로면 created_at 도 그대로여야 한다.'
         );
 
         $updatedAt = strtotime($after[0]['updated_at']);
@@ -284,12 +286,88 @@ final class PostsImportCommandTest extends CIUnitTestCase
         $this->assertGreaterThanOrEqual(
             $startedAt,
             $updatedAt,
-            '갱신 시각은 front matter 가 아니라 이 실행의 시각이어야 한다(현재 동작).'
+            '갱신 시각은 front matter 가 아니라 이 실행의 시각이어야 한다.'
         );
         $this->assertLessThanOrEqual(
             $finishedAt,
             $updatedAt,
             '갱신 시각이 실행 종료보다 뒤면 실행 시각을 쓴 것이 아니다.'
+        );
+    }
+
+    /**
+     * front matter 의 발행일을 고쳐 다시 import 하면 반영된다. (#136)
+     *
+     * git-as-CMS 에서는 파일이 진실이다. 행을 지우고 다시 import 하면 파일 값이
+     * 들어가는데 날짜만 고쳤을 때는 안 들어가던 비대칭을 없앤다.
+     */
+    public function testUpdateResyncsCreatedAtWhenPublishedAtChanges(): void
+    {
+        $this->writeMarkdown('ep40.md', $this->post([
+            'title'        => '발행일 변경 대상',
+            'slug'         => 'resync-target',
+            'published_at' => '2026-01-01 00:00:00',
+        ], '본문'));
+
+        $this->importer()->run([]);
+        $before = $this->rows()[0];
+        $this->assertSame('2026-01-01 00:00:00', $before['created_at']);
+
+        $this->writeMarkdown('ep40.md', $this->post([
+            'title'        => '발행일 변경 대상',
+            'slug'         => 'resync-target',
+            'published_at' => '2026-05-20 13:45:00',
+        ], '본문'));
+
+        $this->importer()->run([]);
+        $after = $this->rows();
+
+        $this->assertCount(1, $after, '갱신이지 생성이 아니다.');
+        $this->assertSame($before['id'], $after[0]['id'], '같은 행이어야 한다.');
+        $this->assertSame(
+            '2026-05-20 13:45:00',
+            $after[0]['created_at'],
+            '파일이 발행일을 고쳤으면 DB 도 따라와야 한다.'
+        );
+    }
+
+    /**
+     * front matter 에 발행일이 **없으면** update 가 created_at 을 건드리지 않는다.
+     *
+     * 명시가 없을 때 $publishedAt 은 "지금" 이다. 무조건 넣으면 import 할 때마다
+     * 발행일이 오늘로 밀린다 — 현재 원고 30개가 전부 이 경우다.
+     */
+    public function testUpdateKeepsCreatedAtWhenPublishedAtIsAbsent(): void
+    {
+        // 발행일 없이 생성 → created_at 은 그때의 "지금" 이 된다.
+        $this->writeMarkdown('ep41.md', $this->post([
+            'title' => '날짜 없는 글',
+            'slug'  => 'no-date',
+        ], '처음 본문'));
+
+        $this->importer()->run([]);
+
+        // 첫 import 의 created_at 은 "그때의 지금" 이다. 두 번째 import 가 같은 초에
+        // 끝나면, 재동기화 가드를 없애 now 로 덮어도 값이 우연히 일치해 검사가
+        // 통과해 버린다(실측으로 확인). 과거 시각으로 못박아 시간과 무관하게 판정한다.
+        $anchor = '2020-01-01 00:00:00';
+        db_connect()->table('posts')->where('slug', 'no-date')->update(['created_at' => $anchor]);
+
+        // 본문만 고쳐 다시 import — 발행일은 여전히 없다.
+        $this->writeMarkdown('ep41.md', $this->post([
+            'title' => '날짜 없는 글',
+            'slug'  => 'no-date',
+        ], '바뀐 본문'));
+
+        $this->importer()->run([]);
+        $after = $this->rows();
+
+        $this->assertCount(1, $after);
+        $this->assertSame('바뀐 본문', $after[0]['body'], '본문은 갱신돼야 한다.');
+        $this->assertSame(
+            $anchor,
+            $after[0]['created_at'],
+            '파일이 발행일을 말하지 않으면 기존 값을 유지한다 — 아니면 재import 마다 날짜가 밀린다.'
         );
     }
 
