@@ -346,7 +346,12 @@ final class PostsImportCommandTest extends CIUnitTestCase
         ], '처음 본문'));
 
         $this->importer()->run([]);
-        $before = $this->rows()[0];
+
+        // 첫 import 의 created_at 은 "그때의 지금" 이다. 두 번째 import 가 같은 초에
+        // 끝나면, 재동기화 가드를 없애 now 로 덮어도 값이 우연히 일치해 검사가
+        // 통과해 버린다(실측으로 확인). 과거 시각으로 못박아 시간과 무관하게 판정한다.
+        $anchor = '2020-01-01 00:00:00';
+        db_connect()->table('posts')->where('slug', 'no-date')->update(['created_at' => $anchor]);
 
         // 본문만 고쳐 다시 import — 발행일은 여전히 없다.
         $this->writeMarkdown('ep41.md', $this->post([
@@ -360,7 +365,7 @@ final class PostsImportCommandTest extends CIUnitTestCase
         $this->assertCount(1, $after);
         $this->assertSame('바뀐 본문', $after[0]['body'], '본문은 갱신돼야 한다.');
         $this->assertSame(
-            $before['created_at'],
+            $anchor,
             $after[0]['created_at'],
             '파일이 발행일을 말하지 않으면 기존 값을 유지한다 — 아니면 재import 마다 날짜가 밀린다.'
         );
