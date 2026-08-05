@@ -82,7 +82,9 @@ class PostsImport extends BaseCommand
                 continue;
             }
 
-            $publishedAt = trim((string) ($fm['published_at'] ?? '')) ?: date('Y-m-d H:i:s');
+            // 원문을 따로 들고 있는다 — "명시했는가" 와 "무슨 값인가" 는 다른 질문이다.
+            $rawPublishedAt = trim((string) ($fm['published_at'] ?? ''));
+            $publishedAt    = $rawPublishedAt ?: date('Y-m-d H:i:s');
 
             // 작성자: --author 옵션 > front matter author > null
             $userId = $author ?? (isset($fm['author']) ? (int) $fm['author'] : null);
@@ -96,12 +98,22 @@ class PostsImport extends BaseCommand
             $existing = $builder->where('slug', $slug)->get()->getRowArray();
 
             if ($existing !== null) {
-                $db->table('posts')->where('slug', $slug)->update([
+                $data = [
                     'title'      => $title,
                     'body'       => $body,
                     'user_id'    => $userId,
                     'updated_at' => date('Y-m-d H:i:s'),
-                ]);
+                ];
+
+                // 파일이 발행일을 명시했을 때만 되맞춘다. git-as-CMS 에서는 파일이
+                // 진실이므로 날짜를 고쳐 다시 import 하면 반영돼야 한다.
+                // 명시가 없으면 $publishedAt 은 "지금" 이라, 넣으면 import 할 때마다
+                // 발행일이 밀려 멱등성이 깨진다 — 그래서 원문이 비어 있는지로 가른다.
+                if ($rawPublishedAt !== '') {
+                    $data['created_at'] = $publishedAt;
+                }
+
+                $db->table('posts')->where('slug', $slug)->update($data);
                 CLI::write("  갱신: {$name} (slug={$slug})", 'cyan');
                 $updated++;
             } else {
