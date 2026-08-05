@@ -122,11 +122,15 @@ class PostsImport extends BaseCommand
 
         $summary = sprintf('완료 — 생성 %d · 갱신 %d · 건너뜀 %d', $created, $updated, $skipped);
 
-        // 파일은 있는데 하나도 반영되지 않았다 — 배포 로그에서 정상 상태와 구분되게 한다.
+        // 대상 파일을 하나도 못 읽었다 — 배포 로그에서 정상 상태와 구분되게 한다.
+        //
+        // "반영 건수가 0" 이 아니라 "전부 건너뜀" 으로 판정한다. dry-run 은 유효한 원고도
+        // 실제로 쓰지 않아 $created·$updated 가 0 이므로, 건수로 보면 반영 예정 글이 있는데도
+        // 경고가 뜬다. (파일이 아예 없는 경우는 위에서 이미 반환하므로 여기 오지 않는다.)
+        //
         // 종료 코드는 바꾸지 않는다: deploy.sh 가 set -euo pipefail 이고 이 줄에 `|| true` 가
         // 없어서, 여기서 실패를 내면 원고 하나만 형식이 틀려도 그 뒤 단계가 통째로 날아간다.
-        // (파일이 아예 없는 경우는 위에서 이미 반환하므로 여기 오지 않는다.)
-        if ($skipped > 0 && $created + $updated === 0) {
+        if ($skipped === count($files)) {
             CLI::error($summary . ' — 반영할 글이 하나도 없습니다. front matter 를 확인하세요.');
         } else {
             CLI::write($summary, 'green');

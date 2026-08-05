@@ -469,6 +469,35 @@ final class PostsImportCommandTest extends CIUnitTestCase
     }
 
     /**
+     * dry-run 에서 반영 예정 글이 있으면 강조하지 않는다.
+     *
+     * dry-run 은 유효한 원고도 실제로 쓰지 않아 생성·갱신 건수가 0 이다. 그래서
+     * "반영 건수가 0" 으로 판정하면 반영 예정 글이 있는데도 경고가 뜬다.
+     * 판정은 "전부 건너뜀" 이어야 한다.
+     */
+    public function testDoesNotHighlightDryRunWhenSomeFilesAreValid(): void
+    {
+        $this->writeMarkdown('ep34.md', $this->post([
+            'title' => '반영 예정 글',
+            'slug'  => 'pending-one',
+        ], '본문'));
+        $this->writeMarkdown('ep35.md', "# front matter 없음\n\n본문");
+
+        $status = $this->importer()->run(['dry-run' => null]);
+
+        $this->assertSame(EXIT_SUCCESS, $status);
+        $this->assertSame([], $this->rows(), 'dry-run 은 DB 를 바꾸지 않는다.');
+
+        $output = $this->getStreamFilterBuffer();
+        $this->assertStringContainsString('pending-one', $output, '반영 예정 글을 보여 줘야 한다.');
+        $this->assertStringNotContainsString(
+            '반영할 글이 하나도 없습니다',
+            $output,
+            'dry-run 이라도 반영 예정 글이 있으면 강조하지 않는다.'
+        );
+    }
+
+    /**
      * 대상 파일이 아예 없으면 요약 자체가 나오지 않는다.
      *
      * 지금 운영이 매 배포마다 밟는 경로다(원고가 .gitignore 라 서버에 .md 가 없다).
