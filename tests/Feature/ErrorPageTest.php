@@ -73,9 +73,13 @@ final class ErrorPageTest extends CIUnitTestCase
     {
         $html = $this->render404();
 
-        // 검색폼이 실제로 있어야 한다(GET 이라 CSRF 토큰은 필요 없다).
-        $this->assertStringContainsString('name="q"', $html);
-        $this->assertStringContainsString('검색', $html);
+        // 공용 헤더에도 name="q" 검색 상자가 있다(partials/header.php:19-24).
+        // 그래서 name="q" 나 '검색' 만 단언하면 본문 검색폼을 통째로 지워도
+        // 헤더 것이 단언을 통과시킨다(뮤테이션으로 실제 확인했다).
+        // 본문 폼에만 있는 마커로 특정한다 — 헤더 폼은 class="home-search" 에
+        // placeholder="검색" 이다.
+        $this->assertStringContainsString('class="search-form"', $html);
+        $this->assertStringContainsString('placeholder="제목·본문 검색"', $html);
     }
 
     public function testNotFoundPageInheritsSharedLayout(): void
