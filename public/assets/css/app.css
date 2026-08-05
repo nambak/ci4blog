@@ -514,3 +514,15 @@ textarea { resize: vertical; line-height: 1.7; }
 
 .bulkbar-spacer { flex: 1; }
 .bulkbar-all { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; }
+
+/* ── 에러 페이지(404) ── */
+.error-page { text-align: center; padding: 56px 0 72px; }
+.error-code { font-family: var(--font-mono); font-size: 64px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; color: var(--color-ink-4); margin: 0; }
+.error-title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 16px 0 8px; }
+.error-desc { color: var(--color-ink-3); margin: 0 0 28px; }
+/* .search-form 은 flex 라 input 이 폭을 다 먹는다. 에러 화면에서는 가운데로 모은다. */
+.error-page .search-form { max-width: 420px; margin: 0 auto 20px; }
+.error-links { display: flex; gap: 16px; justify-content: center; margin: 0; }
+/* overflow-wrap: anywhere 는 표준 속성이다(word-break: break-word 는 비표준).
+   예외 메시지에는 줄바꿈 기회가 없는 긴 파일 경로가 담기므로 anywhere 를 쓴다. */
+.error-debug { margin: 32px auto 0; max-width: 720px; padding: 12px 16px; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; color: var(--color-ink-3); background: var(--color-paper); border: 1px solid var(--color-line); border-radius: var(--radius); }

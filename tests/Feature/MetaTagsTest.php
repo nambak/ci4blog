@@ -318,12 +318,21 @@ final class MetaTagsTest extends CIUnitTestCase
 
         $callsByView = [];
 
-        $ctrlFiles = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(APPPATH . 'Controllers'));
+        // 화면을 렌더하는 주체가 컨트롤러만은 아니다 — 에러 화면은 컨트롤러를
+        // 거치지 않고 예외 핸들러가 app/Views/errors/html/*.php 를 include 하며,
+        // 그 어댑터가 view() 로 레이아웃 뷰를 렌더한다(#114). 그래서 어댑터도
+        // 렌더 주체로 함께 훑는다. 여기를 빠뜨리면 에러 화면이 meta 를
+        // 빠뜨려도 이 가드가 잡지 못한다.
+        $renderers = [APPPATH . 'Controllers', APPPATH . 'Views' . DIRECTORY_SEPARATOR . 'errors'];
 
-        foreach ($ctrlFiles as $file) {
-            if ($file->getExtension() === 'php') {
-                foreach ($this->viewCalls((string) file_get_contents($file->getPathname())) as $view => $chunks) {
-                    $callsByView[$view] = array_merge($callsByView[$view] ?? [], $chunks);
+        foreach ($renderers as $dir) {
+            $sourceFiles = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir));
+
+            foreach ($sourceFiles as $file) {
+                if ($file->getExtension() === 'php') {
+                    foreach ($this->viewCalls((string) file_get_contents($file->getPathname())) as $view => $chunks) {
+                        $callsByView[$view] = array_merge($callsByView[$view] ?? [], $chunks);
+                    }
                 }
             }
         }
