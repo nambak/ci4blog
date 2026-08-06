@@ -54,11 +54,20 @@ final class ReadNextTest extends CIUnitTestCase
         return model(PostModel::class)->find($id);
     }
 
+    /**
+     * "인접한" 글이어야 한다 — 조건에 맞는 아무 글이 아니라 가장 가까운 것이다.
+     *
+     * 양쪽에 두 건씩 둔다. 한 건씩만 두면 `created_at < :t` 를 만족하는 글이
+     * 하나뿐이라 **정렬 방향을 뒤집어도 같은 결과**가 나와, 이 테스트가 정렬
+     * 계약을 전혀 검증하지 못한다(뮤테이션으로 실제 확인했다).
+     */
     public function testNeighborsAreAdjacentByCreatedAt(): void
     {
-        $old = $this->makePost('Older Post', '2026-01-01 00:00:00');
-        $mid = $this->makePost('Middle Post', '2026-01-02 00:00:00');
-        $new = $this->makePost('Newer Post', '2026-01-03 00:00:00');
+        $this->makePost('Far Older Post', '2026-01-01 00:00:00');
+        $old = $this->makePost('Older Post', '2026-01-02 00:00:00');
+        $mid = $this->makePost('Middle Post', '2026-01-03 00:00:00');
+        $new = $this->makePost('Newer Post', '2026-01-04 00:00:00');
+        $this->makePost('Far Newer Post', '2026-01-05 00:00:00');
 
         $posts    = model(PostModel::class);
         $previous = $posts->previousOf($this->findPost($mid));
@@ -66,8 +75,8 @@ final class ReadNextTest extends CIUnitTestCase
 
         $this->assertNotNull($previous, '이전 글을 찾아야 한다');
         $this->assertNotNull($next, '다음 글을 찾아야 한다');
-        $this->assertSame($old, (int) $previous->id);
-        $this->assertSame($new, (int) $next->id);
+        $this->assertSame($old, (int) $previous->id, '더 먼 글이 아니라 바로 앞 글이어야 한다');
+        $this->assertSame($new, (int) $next->id, '더 먼 글이 아니라 바로 뒤 글이어야 한다');
     }
 
     public function testOldestHasNoPreviousAndNewestHasNoNext(): void
