@@ -191,6 +191,13 @@ final class PostViewsTest extends CIUnitTestCase
      *
      * 정적으로 $allowedFields 를 뒤지는 대신 실제로 폼을 제출한다 —
      * "목록에 없다"보다 "조작이 통하지 않는다"가 계약이다.
+     *
+     * ⚠️ 방어가 **두 겹**이라 한 겹만 뚫는 뮤테이션으로는 이 테스트가 죽지 않는다.
+     *   1) Posts::update() 의 `getPost(['title', 'body', 'category_id', 'status'])` 화이트리스트
+     *   2) PostModel::$allowedFields
+     * 둘을 **동시에** 열어야 죽는 것을 조합 뮤테이션으로 확인했다. 어느 한쪽만 남아도
+     * 조작은 막히지만, 그렇다고 한쪽을 지워도 된다는 뜻은 아니다 — 이 테스트는
+     * "두 겹이 모두 사라지는 것"을 잡는 방지망이다.
      */
     public function testViewCountCannotBeMassAssignedThroughTheEditForm(): void
     {
