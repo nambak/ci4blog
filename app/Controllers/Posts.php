@@ -103,6 +103,25 @@ class Posts extends BaseController
             ? model(CategoryModel::class)->find($post->category_id)
             : null;
 
+        // 이어 읽기(#114): 발행일 순서로 인접한 글. published() 스코프를 그대로
+        // 태우므로 초안과 숨김 카테고리 글은 이 목록에서 자동으로 빠진다.
+        $postModel = model(PostModel::class);
+        $previous  = $postModel->previousOf($post);
+        $next      = $postModel->nextOf($post);
+
+        // 카드에 붙일 카테고리명. 최대 2건이라 whereIn 한 번으로 끝낸다.
+        $neighborCategoryIds = array_values(array_filter(
+            [$previous?->category_id, $next?->category_id],
+            static fn ($id): bool => $id !== null
+        ));
+
+        $neighborCategories = [];
+        if ($neighborCategoryIds !== []) {
+            foreach (model(CategoryModel::class)->whereIn('id', $neighborCategoryIds)->findAll() as $neighborCategory) {
+                $neighborCategories[(int) $neighborCategory->id] = $neighborCategory;
+            }
+        }
+
         // 좋아요(#64): 카운트는 상세에만 둔다. 목록까지 세면 글마다 쿼리가 돌아 N+1 이 된다.
         $likes     = model(PostLikeModel::class);
         $likeCount = $likes->countForPost((int) $post->id);
@@ -136,6 +155,10 @@ class Posts extends BaseController
             'authorName'   => $authorName,
             'authorAvatar' => $authorAvatar,
             'category'     => $category,
+            // 이어 읽기(#114). 이웃이 없으면 null 이고, 부분 뷰가 알아서 섹션을 생략한다.
+            'previous'           => $previous,
+            'next'               => $next,
+            'neighborCategories' => $neighborCategories,
             // SNS 미리보기·검색 스니펫용(#113). partial 이 이스케이프하므로 원문을 넘긴다.
             'meta'         => [
                 'type'        => 'article',

@@ -526,3 +526,14 @@ textarea { resize: vertical; line-height: 1.7; }
 /* overflow-wrap: anywhere 는 표준 속성이다(word-break: break-word 는 비표준).
    예외 메시지에는 줄바꿈 기회가 없는 긴 파일 경로가 담기므로 anywhere 를 쓴다. */
 .error-debug { margin: 32px auto 0; max-width: 720px; padding: 12px 16px; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; color: var(--color-ink-3); background: var(--color-paper); border: 1px solid var(--color-line); border-radius: var(--radius); }
+
+/* ── 이어 읽기(이전 글 / 다음 글) ── */
+.read-next { max-width: 720px; margin: 56px auto 0; padding-top: 40px; border-top: 1px solid var(--color-line); }
+.read-next-label { font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-ink-3); margin: 0 0 24px; }
+.read-next-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.read-next-card { display: block; text-decoration: none; color: inherit; }
+.read-next-cover { width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius); margin: 0 0 12px; font-size: 32px; object-fit: cover; }
+.read-next-cat { font-size: 12px; color: var(--color-accent); margin-bottom: 6px; }
+.read-next-heading { font-size: 16px; font-weight: 600; line-height: 1.4; letter-spacing: -0.01em; margin: 0; }
+.read-next-card:hover .read-next-heading { color: var(--color-accent); }
+@media (max-width: 768px) { .read-next-grid { grid-template-columns: 1fr; } }
