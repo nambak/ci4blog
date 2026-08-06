@@ -18,6 +18,10 @@ class Posts extends BaseController
     // 한 페이지에 보여 줄 글 수
     private const PER_PAGE = 10;
 
+    // 댓글 더보기 한 번에 펼칠 최상위 댓글 수(#114).
+    // PER_PAGE 와 값이 같더라도 의미가 다르므로 상수를 따로 둔다.
+    private const COMMENTS_PER_PAGE = 20;
+
     /**
      * 글 목록. 카테고리 슬러그가 주어지면 그 카테고리 글만 거르고,
      * 검색어(q)가 주어지면 제목·본문을 like 로 찾는다.
@@ -84,9 +88,25 @@ class Posts extends BaseController
 
         $this->assertViewable($post);
 
-        // 이 글의 댓글을 작성자명과 함께 한 번에 로드한다(N+1 회피).
-        $comments     = model(CommentModel::class)->forPost((int) $post->id);
-        $commentCount = model(CommentModel::class)->countForPost((int) $post->id);
+        // 댓글은 최상위 기준으로 나눠 가져온다(#114). 답글은 부모를 따라오므로
+        // 경계에서 트리가 끊기지 않는다.
+        $commentModel  = model(CommentModel::class);
+        $topLevelCount = $commentModel->countTopLevelForPost((int) $post->id);
+
+        // 페이지 번호로 받는다 — 개수를 직접 받으면 ?c=9999999 로 거대한 LIMIT 을 걸 수 있다.
+        //
+        // max(1, ...) 이 실질적인 방어다. (int) 'abc' 는 0, (int) '-1' 은 -1 이라
+        // 이것이 없으면 limit 이 0 이나 음수가 되어 **전체가 로드된다**(페이지네이션이 무력해진다).
+        //
+        // min(..., $maxCommentPage) 은 화면 결과를 바꾸지 않는다 — 어차피 있는 행만 나온다.
+        // 의미 없는 거대 LIMIT 을 DB 에 보내지 않으려고 둔다(뮤테이션으로 확인한 사실이다).
+        $maxCommentPage = max(1, (int) ceil($topLevelCount / self::COMMENTS_PER_PAGE));
+        $commentPage    = min(max(1, (int) $this->request->getGet('cp')), $maxCommentPage);
+        $commentLimit   = $commentPage * self::COMMENTS_PER_PAGE;
+
+        $comments         = $commentModel->forPost((int) $post->id, $commentLimit);
+        $commentCount     = $commentModel->countForPost((int) $post->id);
+        $hasOlderComments = $topLevelCount > $commentLimit;
 
         // 바이라인(작성자 아바타 행)용 작성자명. 홈 히어로와 같은 방식으로
         // users 테이블에서 username 만 직접 읽는다(엔티티 의존 없이).
@@ -149,6 +169,9 @@ class Posts extends BaseController
             'likeCount'    => $likeCount,
             'liked'        => $liked,
             'comments'     => $comments,
+            // 댓글 더보기(#114). 뷰가 총 개수를 몰라도 되게 컨트롤러가 판단해 넘긴다.
+            'commentPage'      => $commentPage,
+            'hasOlderComments' => $hasOlderComments,
             'commentCount' => $commentCount,
             'likeCounts'   => $likeCounts,
             'likedIds'     => $likedIds,

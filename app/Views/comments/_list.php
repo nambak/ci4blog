@@ -103,6 +103,14 @@ $renderComment = static function ($comment, bool $isReply) use ($post, $likeCoun
 <section class="comments" id="comments">
     <h2 class="comments-title">댓글 <span class="comments-count"><?= esc((string) $commentCount) ?></span></h2>
 
+    <?php // 더 오래된 댓글이 남아 있으면 목록 위에 링크를 둔다(#114).
+          // 목업 Post 의 "이전 댓글 더 보기" 다. button 이 아니라 a 인 것이 요점이다 — JS 없이 동작한다. ?>
+    <?php if (! empty($hasOlderComments)): ?>
+        <div class="comments-more">
+            <a class="btn btn-ghost" href="?cp=<?= (int) $commentPage + 1 ?>#comments">이전 댓글 더 보기</a>
+        </div>
+    <?php endif ?>
+
     <?php if ($comments === []): ?>
         <p class="comments-empty">아직 댓글이 없습니다.</p>
     <?php else: ?>
