@@ -48,17 +48,18 @@ if (! function_exists('highlight_matches')) {
      * 평문을 이스케이프하고 검색어와 일치하는 부분을 <mark> 로 감싼다.
      *
      * preg_quote 가 없으면 검색어의 `.` `*` `(` 가 정규식으로 해석돼 패턴이 깨지거나
-     * 엉뚱한 곳이 매칭된다. /u 가 없으면 한글이 바이트 단위로 쪼개진다. /i 는 DB
-     * like 가 대소문자를 무시하는 것과 화면을 맞추기 위함이다.
+     * 엉뚱한 곳이 매칭된다. /i 는 DB like 가 대소문자를 무시하는 것과 화면을 맞춘다.
+     *
+     * /u 는 이 구현에서는 결과를 바꾸지 않는다 — 패턴이 preg_quote 를 거친 리터럴뿐이라
+     * 바이트 시퀀스가 그대로 일치하기 때문이다(빼도 테스트가 죽지 않는 것을 확인했다).
+     * 그래도 남기는 이유는 패턴이 리터럴 밖으로 나가는 순간(`.` `\w` 같은 메타문자를
+     * 쓰게 되면) 한글이 바이트 단위로 쪼개지기 때문이다.
      */
     function highlight_matches(string $text, string $query): string
     {
         $escaped = (string) esc($text);
 
-        if ($query === '') {
-            return $escaped;
-        }
-
+        // 검색어가 비었으면 esc 결과도 비므로 이 검사 하나로 충분하다.
         $needle = (string) esc($query);
 
         if ($needle === '') {

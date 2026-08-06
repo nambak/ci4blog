@@ -86,8 +86,12 @@ final class SearchHighlightTest extends CIUnitTestCase
     }
 
     /**
-     * 🔴 한글이 바이트 단위로 쪼개지면 안 된다.
-     * /u 플래그가 빠지면 매칭 위치가 어긋나 깨진 문자가 나온다.
+     * 한글이 온전히 보존되는지 본다.
+     *
+     * ⚠️ 이 테스트는 특정 방어 장치를 지키지 않는다 — `/u` 를 빼도 죽지 않는 것을
+     * 뮤테이션으로 확인했다(패턴이 preg_quote 를 거친 리터럴뿐이라 바이트 시퀀스가
+     * 그대로 일치한다). 회귀 방지용으로 남긴다: 구현이 패턴 조립 방식을 바꾸거나
+     * 메타문자를 쓰게 되면 여기서 걸린다.
      */
     public function testHighlightKeepsKoreanIntact(): void
     {
