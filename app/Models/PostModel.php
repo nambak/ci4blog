@@ -129,6 +129,11 @@ class PostModel extends Model
 
         $this->db->table('post_likes')->whereIn('post_id', $ids)->delete();
 
+        // 태그 연결도 함께 지운다(#114). 운영 SQLite 는 FK 를 강제하지 않아
+        // 이 정리가 없으면 고아 행이 쌓인다 — #110 의 db:prune 이 그 부채로 생겼다.
+        // 태그 자체는 남긴다: 다른 글이 쓰고 있을 수 있다.
+        $this->db->table('post_tags')->whereIn('post_id', $ids)->delete();
+
         $result = parent::delete($id, $purge);
 
         $this->db->transComplete();

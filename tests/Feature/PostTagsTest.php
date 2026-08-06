@@ -135,4 +135,57 @@ final class PostTagsTest extends CIUnitTestCase
 
         $this->assertSame(['CI4', '테스트'], $this->tagNamesOf((int) $post->id));
     }
+
+    public function testTagsAreSavedFromTheCreateForm(): void
+    {
+        $author = $this->makeUser();
+
+        $this->actingAs($author)->post('posts', [
+            'title' => '태그 있는 글',
+            'body'  => '본문',
+            'tags'  => 'CI4, 마이그레이션',
+        ]);
+
+        $post = model(PostModel::class)->where('title', '태그 있는 글')->first();
+
+        $this->assertNotNull($post, '글이 저장돼야 한다');
+        $this->assertSame(['CI4', '마이그레이션'], $this->tagNamesOf((int) $post->id));
+    }
+
+    public function testEditFormShowsCurrentTags(): void
+    {
+        $author = $this->makeUser();
+        $post   = $this->makePost((int) $author->id);
+        model(TagModel::class)->syncForPost((int) $post->id, ['CI4', '마이그레이션']);
+
+        $html = html_entity_decode(
+            $this->actingAs($author)->call('get', 'posts/' . $post->id . '/edit')->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+
+        // 빈 칸으로 두면 저장할 때 태그가 통째로 사라진다.
+        $this->assertStringContainsString('CI4, 마이그레이션', $html);
+    }
+
+    /**
+     * 🔴 글을 지우면 연결도 사라진다.
+     *
+     * ⚠️ 테스트 SQLite 는 FK 가 켜져 있어 CASCADE 가 대신 지울 수 있다. 그러면
+     * 애플리케이션 정리를 지워도 이 테스트가 죽지 않는다 — 뮤테이션에서 확인하고,
+     * 죽지 않으면 그 사실을 주석에 남긴다.
+     */
+    public function testDeletingPostRemovesTagLinks(): void
+    {
+        $post = $this->makePost((int) $this->makeUser()->id);
+        model(TagModel::class)->syncForPost((int) $post->id, ['CI4']);
+
+        $this->assertSame(1, db_connect()->table('post_tags')->where('post_id', $post->id)->countAllResults());
+
+        model(PostModel::class)->delete($post->id);
+
+        $this->assertSame(0, db_connect()->table('post_tags')->where('post_id', $post->id)->countAllResults());
+        // 태그 자체는 남는다 — 다른 글이 쓰고 있을 수 있다.
+        $this->assertSame(1, db_connect()->table('tags')->countAllResults());
+    }
 }

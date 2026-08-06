@@ -8,6 +8,7 @@ use App\Models\CommentLikeModel;
 use App\Models\CommentModel;
 use App\Models\PostLikeModel;
 use App\Models\PostModel;
+use App\Models\TagModel;
 use CodeIgniter\Database\Exceptions\DatabaseException;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
@@ -275,6 +276,13 @@ class Posts extends BaseController
                 ->with('errors', $model->errors());
         }
 
+        // 태그(#114). 저장이 성공한 뒤에 붙인다 — 실패했다면 붙일 글이 없다.
+        $tagModel = model(TagModel::class);
+        $tagModel->syncForPost(
+            (int) $model->getInsertID(),
+            $tagModel->parseNames((string) $this->request->getPost('tags'))
+        );
+
         // 저장 성공 시: 목록으로 이동하며 플래시 메시지를 남긴다.
         return redirect()->to('posts')->with('message', '글이 등록되었습니다.');
     }
@@ -299,6 +307,9 @@ class Posts extends BaseController
             'post' => $post,
             // 이 글이 숨김 카테고리에 속해 있어도 목록에 있어야 선택이 유지된다(#67).
             'categories' => model(CategoryModel::class)->forForm(),
+            // 태그 입력을 현재 값으로 채우기 위해 넘긴다(#114). 빈 칸으로 두면
+            // 사용자가 그대로 저장했을 때 태그가 통째로 사라진다.
+            'tags' => model(TagModel::class)->forPost($id),
             // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
             // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
             'meta' => ['title' => '글 수정'],
@@ -356,6 +367,11 @@ class Posts extends BaseController
         if ($image !== null) {
             $this->deleteImageFiles($oldImage);
         }
+
+        // 태그는 전체 교체다(#114). 폼이 현재 태그를 그대로 싣고 오므로,
+        // 빠진 것은 연결이 끊기고 새로 적은 것은 붙는다.
+        $tagModel = model(TagModel::class);
+        $tagModel->syncForPost($id, $tagModel->parseNames((string) $this->request->getPost('tags')));
 
         // 수정 성공 시: 해당 글 상세로 이동하며 플래시 메시지를 남긴다.
         return redirect()->to('posts/' . $post->slug)->with('message', '글이 수정되었습니다.');

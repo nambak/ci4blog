@@ -37,6 +37,15 @@
         </div>
 
         <div>
+            <label for="tags">태그 <small>(선택)</small></label>
+            <p class="field-hint">쉼표로 구분해 최대 10개까지 적을 수 있습니다.</p>
+            <?php // 빈 칸으로 두면 저장할 때 태그가 통째로 사라진다 — 현재 값을 채워 준다(#114). ?>
+            <?php $currentTags = implode(', ', array_map(static fn ($tag): string => $tag->name, $tags ?? [])); ?>
+            <input type="text" name="tags" id="tags" value="<?= esc(old('tags', $currentTags)) ?>"
+                   placeholder="예: CI4, 마이그레이션">
+        </div>
+
+        <div>
             <label for="status">상태</label>
             <p class="field-hint">임시저장·비공개 글은 목록에 나오지 않고, 나와 관리자만 볼 수 있습니다.</p>
             <?php $selectedStatus = (string) old('status', $post->status); ?>
