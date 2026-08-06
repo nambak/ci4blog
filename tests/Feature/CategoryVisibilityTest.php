@@ -26,6 +26,7 @@ final class CategoryVisibilityTest extends CIUnitTestCase
     use DatabaseTestTrait;
     use WithCsrf;
     use AuthenticationTesting;
+    use \Tests\Support\Traits\WithoutHighlight;
 
     protected $namespace = null;
     protected $refresh   = true;
@@ -136,10 +137,14 @@ final class CategoryVisibilityTest extends CIUnitTestCase
         $this->seedCategories();
 
         $result = $this->call('GET', 'posts?q=글');
-
         $result->assertStatus(200);
-        $result->assertSee('공개분류 글');
-        $result->assertDontSee('숨김분류 글');
+
+        // 검색어 '글' 이 제목 안에서 <mark> 로 감싸져 문자열이 쪼개진다(#114).
+        // 강조를 걷어내고 봐야 음성 단언이 쪼개짐 덕에 거짓 통과하지 않는다.
+        $body = $this->withoutHighlight($result->getBody());
+
+        $this->assertStringContainsString('공개분류 글', $body);
+        $this->assertStringNotContainsString('숨김분류 글', $body);
     }
 
     /**

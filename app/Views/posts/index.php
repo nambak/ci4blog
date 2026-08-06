@@ -33,8 +33,9 @@
                         </a>
                     <?php endif ?>
                     <div class="post-summary">
-                    <h2><a href="<?= $post->url ?>"><?= esc($post->title) ?></a></h2>
-                    <p><?= esc($post->excerpt) ?></p>
+                    <?php // 검색어가 있으면 강조한다(#114). 없으면 esc 만 하므로 기존과 같다. ?>
+                    <h2><a href="<?= $post->url ?>"><?= highlight_matches($post->title, $search) ?></a></h2>
+                    <p><?= highlight_matches(search_snippet($post->body_text, $search), $search) ?></p>
                     <?php if ($post->created_at !== null): ?>
                         <time datetime="<?= esc($post->created_at->format('Y-m-d')) ?>">
                             <?= esc($post->created_at->format('Y-m-d')) ?>

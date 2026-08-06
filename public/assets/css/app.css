@@ -537,3 +537,7 @@ textarea { resize: vertical; line-height: 1.7; }
 .read-next-heading { font-size: 16px; font-weight: 600; line-height: 1.4; letter-spacing: -0.01em; margin: 0; }
 .read-next-card:hover .read-next-heading { color: var(--color-accent); }
 @media (max-width: 768px) { .read-next-grid { grid-template-columns: 1fr; } }
+
+/* ── 검색어 하이라이트 ── */
+/* 브라우저 기본 mark 는 형광 노랑이라 팔레트와 충돌한다. */
+mark { background: var(--color-accent-soft); color: var(--color-ink); border-radius: 3px; padding: 0 2px; }

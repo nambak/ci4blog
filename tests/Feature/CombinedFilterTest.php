@@ -17,6 +17,7 @@ final class CombinedFilterTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
     use DatabaseTestTrait;
+    use \Tests\Support\Traits\WithoutHighlight;
 
     protected $namespace = null;
     protected $refresh   = true;
@@ -42,8 +43,13 @@ final class CombinedFilterTest extends CIUnitTestCase
     public function testCombinedShowsIntersectionOnly(): void
     {
         $res = $this->call('GET', 'categories/web', ['q' => '레이아웃']);
-        $res->assertSee(self::WEB_MATCH);       // web ∩ 레이아웃
-        $res->assertDontSee(self::WEB_NONMATCH); // web 이지만 검색어 불일치 → 빠짐
+
+        // 검색어가 제목 안에서 <mark> 로 감싸져 문자열이 쪼개진다(#114).
+        // 강조를 걷어내고 봐야 음성 단언이 쪼개짐 덕에 거짓 통과하지 않는다.
+        $body = $this->withoutHighlight($res->getBody());
+
+        $this->assertStringContainsString(self::WEB_MATCH, $body);       // web ∩ 레이아웃
+        $this->assertStringNotContainsString(self::WEB_NONMATCH, $body); // web 이지만 검색어 불일치 → 빠짐
     }
 
     public function testCategoryMenuKeepsSearch(): void
