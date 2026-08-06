@@ -105,5 +105,12 @@
         <p class="comment-login"><a class="nav-link" href="<?= site_url('login') ?>">로그인</a> 후 댓글을 남길 수 있습니다.</p>
     <?php endif ?>
 
+    <?php // 이어 읽기(#114). 목업 순서대로 댓글 다음에 둔다. ?>
+    <?= $this->include('posts/_read_next', [
+        'previous'   => $previous,
+        'next'       => $next,
+        'categories' => $neighborCategories,
+    ]) ?>
+
     <p class="post-back"><a class="nav-link" href="<?= site_url('posts') ?>">← 목록으로</a></p>
 <?= $this->endSection() ?>

@@ -138,4 +138,50 @@ final class ReadNextTest extends CIUnitTestCase
         $this->assertNotNull($previous);
         $this->assertSame($old, (int) $previous->id, '숨김 카테고리의 글을 건너뛰어야 한다');
     }
+
+    private function fetchPost(int $id): string
+    {
+        $slug = $this->findPost($id)->slug;
+
+        return html_entity_decode(
+            $this->call('get', 'posts/' . $slug)->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+    }
+
+    /**
+     * 글이 하나뿐이면 "이어 읽기" 상자를 띄우지 않는다.
+     *
+     * 음성 단언만 두면 화면이 통째로 깨져도 통과하므로, 먼저 글이 그려졌음을 고정한다.
+     * '이어 읽기' 라는 문구는 이 섹션에만 있다(공용 헤더·푸터에 없는 것을 확인했다).
+     */
+    public function testReadNextIsHiddenWhenThereAreNoNeighbors(): void
+    {
+        $only = $this->makePost('Only Post', '2026-01-01 00:00:00');
+
+        $html = $this->fetchPost($only);
+
+        $this->assertStringContainsString('Only Post', $html);
+        $this->assertStringNotContainsString('이어 읽기', $html);
+    }
+
+    /**
+     * 미분류(category_id = null) 이웃이 있어도 화면이 터지지 않아야 한다.
+     *
+     * 2026-07-31 에 같은 유형으로 상세 화면이 500 이 났다 — null 을 문자열
+     * 타입힌트에 넘겨 터졌고 리뷰가 Major 로 잡았다.
+     */
+    public function testUncategorizedNeighborRendersWithoutBreaking(): void
+    {
+        $this->makePost('Older Post', '2026-01-01 00:00:00');   // 미분류
+        $mid = $this->makePost('Current Post', '2026-01-02 00:00:00');
+
+        $result = $this->call('get', 'posts/' . $this->findPost($mid)->slug);
+        $result->assertStatus(200);
+
+        $html = html_entity_decode($result->getBody(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $this->assertStringContainsString('이어 읽기', $html);
+        $this->assertStringContainsString('Older Post', $html);
+    }
 }
