@@ -158,4 +158,53 @@ final class PostViewsTest extends CIUnitTestCase
         $this->assertSame(1, (int) $row->views, '조회수는 올라야 한다');
         $this->assertSame($anchor, $row->updated_at, 'updated_at 이 덮였다 — sitemap lastmod 가 오염된다');
     }
+
+    private function makeAdmin(): User
+    {
+        $admin = $this->makeUser('admin', 'admin@example.com');
+        $admin->addGroup('admin');
+
+        return $admin;
+    }
+
+    public function testAdminPostsTableShowsTheViewCount(): void
+    {
+        $author = $this->makeUser();
+        $post   = $this->makePost((int) $author->id);
+
+        // 조회수를 눈에 띄는 값으로 만들어 둔다(0 은 다른 숫자와 헷갈린다).
+        db_connect()->table('posts')->where('id', $post->id)->update(['views' => 4242]);
+
+        $html = html_entity_decode(
+            $this->actingAs($this->makeAdmin())->call('get', 'admin/posts')->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+
+        $this->assertStringContainsString('Views Test Post', $html, '글이 목록에 나와야 한다');
+        // number_format 으로 천 단위를 구분해 보여 준다 — 표시 형식까지 계약이다.
+        $this->assertStringContainsString('4,242', $html);
+    }
+
+    /**
+     * 🔴 글 수정 폼으로 조회수를 조작할 수 없어야 한다.
+     *
+     * 정적으로 $allowedFields 를 뒤지는 대신 실제로 폼을 제출한다 —
+     * "목록에 없다"보다 "조작이 통하지 않는다"가 계약이다.
+     */
+    public function testViewCountCannotBeMassAssignedThroughTheEditForm(): void
+    {
+        $author = $this->makeUser();
+        $post   = $this->makePost((int) $author->id);
+
+        db_connect()->table('posts')->where('id', $post->id)->update(['views' => 10]);
+
+        $this->actingAs($author)->post('posts/' . $post->id, [
+            'title' => '고친 제목',
+            'body'  => '고친 본문',
+            'views' => 9999,
+        ]);
+
+        $this->assertSame(10, $this->viewsOf((int) $post->id), 'views 가 대량 할당으로 덮였다');
+    }
 }

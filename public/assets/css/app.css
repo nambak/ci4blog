@@ -544,3 +544,7 @@ mark { background: var(--color-accent-soft); color: var(--color-ink); border-rad
 
 /* ── 댓글 더보기(#114) ── */
 .comments-more { text-align: center; margin: 0 0 16px; }
+
+/* ── 관리자 글 관리: 조회수 컬럼(#114) ── */
+/* tabular-nums 는 숫자 폭을 고정해 자릿수가 달라도 세로로 정렬되게 한다. */
+.posts-table .col-views { width: 80px; text-align: right; font-variant-numeric: tabular-nums; }

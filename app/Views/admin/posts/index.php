@@ -117,6 +117,7 @@
                                 <th class="col-title">제목</th>
                                 <th class="col-category">카테고리</th>
                                 <th class="col-status">상태</th>
+                                <th class="col-views">조회수</th>
                                 <th class="col-date">날짜</th>
                                 <th class="col-actions">작업</th>
                             </tr>
@@ -147,6 +148,7 @@
                                     <td class="col-status">
                                         <span class="badge badge-<?= esc($post->status, 'attr') ?>"><?= esc($post->statusLabel()) ?></span>
                                     </td>
+                                    <td class="col-views"><?= esc(number_format((int) $post->views)) ?></td>
                                     <td class="col-date">
                                         <?= $post->created_at !== null ? esc($post->created_at->format('Y.m.d')) : '—' ?>
                                     </td>
