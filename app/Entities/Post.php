@@ -56,10 +56,22 @@ class Post extends Entity
      * 그 뒤 줄바꿈을 공백으로 합치고 앞부분만 잘라 준다.
      * 뷰에서 $post->excerpt 로 접근한다.
      */
+    /**
+     * 본문의 평문 전체. 마크다운 → HTML → 태그 제거 → 공백 정리까지 한 결과다. (#114)
+     *
+     * getExcerpt() 가 자르기 전에 쓰던 변환을 따로 뺐다 — 검색 스니펫이 전체 평문에서
+     * 검색어를 찾아야 하는데, 예전 구조는 변환과 자르기가 한 덩어리라 끼어들 자리가 없었다.
+     */
+    public function getBodyText(): string
+    {
+        $text = html_entity_decode(strip_tags($this->getBodyHtml()), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return preg_replace('/\s+/u', ' ', trim($text)) ?? '';
+    }
+
     public function getExcerpt(int $limit = 80): string
     {
-        $text    = html_entity_decode(strip_tags($this->getBodyHtml()), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $excerpt = preg_replace('/\s+/u', ' ', trim($text));
+        $excerpt = $this->getBodyText();
 
         if (mb_strlen($excerpt) > $limit) {
             $excerpt = mb_substr($excerpt, 0, $limit) . '…';

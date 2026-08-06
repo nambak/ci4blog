@@ -18,6 +18,7 @@ final class SearchTest extends CIUnitTestCase
 {
     use FeatureTestTrait;
     use DatabaseTestTrait;
+    use \Tests\Support\Traits\WithoutHighlight;
 
     protected $namespace = null;
     protected $refresh   = true;
@@ -42,7 +43,11 @@ final class SearchTest extends CIUnitTestCase
 
     public function testSearchMatchesTitle(): void
     {
-        $this->call('GET', 'posts', ['q' => '레이아웃'])->assertSee(self::LAYOUT_POST);
+        $body = $this->withoutHighlight(
+            $this->call('GET', 'posts', ['q' => '레이아웃'])->getBody()
+        );
+
+        $this->assertStringContainsString(self::LAYOUT_POST, $body);
     }
 
     public function testSearchExcludesNonMatching(): void

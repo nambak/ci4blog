@@ -2,7 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Entities\Post;
+use App\Models\PostModel;
 use CodeIgniter\Test\CIUnitTestCase;
+use CodeIgniter\Test\DatabaseTestTrait;
+use CodeIgniter\Test\FeatureTestTrait;
 
 /**
  * 검색어 하이라이트에 대한 테스트. (#114)
@@ -13,6 +17,12 @@ use CodeIgniter\Test\CIUnitTestCase;
  */
 final class SearchHighlightTest extends CIUnitTestCase
 {
+    use DatabaseTestTrait;
+    use FeatureTestTrait;
+
+    protected $namespace = null;
+    protected $refresh   = true;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -136,5 +146,87 @@ final class SearchHighlightTest extends CIUnitTestCase
         // 두 번째를 잡았다면 앞이 '중', 뒤가 '뒤' 가 된다 — '뒤' 의 유무로 갈린다.
         $this->assertStringContainsString('앞', $snippet);
         $this->assertStringNotContainsString('뒤', $snippet);
+    }
+
+    private function makePost(string $title, string $body): int
+    {
+        $posts = model(PostModel::class);
+        $posts->insert([
+            'user_id'     => null,
+            'category_id' => null,
+            'title'       => $title,
+            'body'        => $body,
+            'status'      => Post::STATUS_PUBLISHED,
+        ]);
+
+        return (int) $posts->getInsertID();
+    }
+
+    /** 검색 결과 화면의 HTML. 한글 검사를 위해 엔티티를 디코드한다. */
+    private function searchPage(string $query): string
+    {
+        return html_entity_decode(
+            $this->call('get', 'posts', ['q' => $query])->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+    }
+
+    public function testSearchResultHighlightsTitleAndBody(): void
+    {
+        $this->makePost(
+            '마이그레이션 첫걸음',
+            str_repeat('앞부분 문장입니다. ', 30) . '여기서 마이그레이션 을 다룬다.'
+        );
+
+        $html = $this->searchPage('마이그레이션');
+
+        // 제목이 강조된다.
+        $this->assertStringContainsString('<mark>마이그레이션</mark>', $html);
+        // 본문 뒷부분이 스니펫으로 올라온다 — 앞 80자에는 없던 문장이다.
+        $this->assertStringContainsString('여기서', $html);
+    }
+
+    public function testListWithoutQueryHasNoMarks(): void
+    {
+        $this->makePost('마이그레이션 첫걸음', '본문입니다.');
+
+        $html = html_entity_decode(
+            $this->call('get', 'posts')->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+
+        // 화면이 실제로 그려졌음을 먼저 고정한다.
+        $this->assertStringContainsString('마이그레이션 첫걸음', $html);
+        $this->assertStringNotContainsString('<mark>', $html);
+    }
+
+    /**
+     * 🔴 제목에 든 스크립트가 강조를 거쳐도 태그로 살아나면 안 된다.
+     *
+     * 벡터는 본문이 아니라 **제목**이다 — 본문은 getBodyText() 가 strip_tags 를
+     * 거치므로 <script> 가 이미 사라지지만, 제목은 그 과정을 타지 않는다.
+     * 그래서 제목에 스크립트를 심고, 그 제목이 실제로 매칭되는 검색어를 쓴다.
+     *
+     * TestResponse::getBody() 는 DOMDocument 를 거쳐 본문을 바꾸므로 이스케이프
+     * 판정에 쓸 수 없다. response()->getBody() 로 원본을 봐야 한다.
+     */
+    public function testTitleScriptIsEscapedEvenWhenHighlighted(): void
+    {
+        $this->makePost('<script>alert(1)</script> 위험한 제목', '본문입니다.');
+
+        $result = $this->call('get', 'posts', ['q' => 'script']);
+        $raw    = $result->response()->getBody();
+
+        // 먼저 강조가 실제로 일어났음을 고정한다(음성 단언만 두면 화면이 비어도 통과한다).
+        $this->assertStringContainsString('<mark>', $raw);
+
+        // 핵심: 제목의 스크립트가 태그로 살아나지 않았다.
+        $this->assertStringNotContainsString('<script>alert(1)</script>', $raw);
+
+        // 이스케이프된 형태로 남아 있다. 검색어 'script' 가 강조되므로 &lt; 와 &gt; 사이에
+        // <mark> 가 끼어든다 — 그래서 '&lt;script&gt;' 는 연속 문자열로 존재하지 않는다.
+        $this->assertStringContainsString('&lt;<mark>script</mark>&gt;', $raw);
     }
 }

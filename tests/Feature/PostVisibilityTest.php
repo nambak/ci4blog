@@ -20,6 +20,7 @@ final class PostVisibilityTest extends CIUnitTestCase
     use DatabaseTestTrait;
     use FeatureTestTrait;
     use AuthenticationTesting;
+    use \Tests\Support\Traits\WithoutHighlight;
 
     protected $namespace = null;
     protected $refresh   = true;
@@ -109,11 +110,16 @@ final class PostVisibilityTest extends CIUnitTestCase
         $this->seedThreeStatuses();
 
         $result = $this->call('GET', 'posts?q=글');
-
         $result->assertStatus(200);
-        $result->assertSee('공개된 글');
-        $result->assertDontSee('초안 상태 글');
-        $result->assertDontSee('숨긴 글');
+
+        // 검색어 '글' 이 제목 안에서 <mark> 로 감싸져 문자열이 쪼개진다(#114).
+        // 강조를 걷어내지 않으면 초안이 실제로 노출돼도 '초안 상태 <mark>글</mark>' 이라
+        // 음성 단언이 조용히 통과한다 — 이 테스트의 존재 이유가 사라진다.
+        $body = $this->withoutHighlight($result->getBody());
+
+        $this->assertStringContainsString('공개된 글', $body);
+        $this->assertStringNotContainsString('초안 상태 글', $body);
+        $this->assertStringNotContainsString('숨긴 글', $body);
     }
 
     public function testPublishedPostIsVisibleToGuest(): void
