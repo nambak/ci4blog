@@ -54,6 +54,15 @@
         </div>
     </article>
 
+    <?php // 태그(#114). 기존 .chip 스타일을 재사용한다 — 공개 화면 목업에 태그 자리가 없어 새로 짓지 않는다. ?>
+    <?php if ($tags !== []): ?>
+        <div class="post-tags">
+            <?php foreach ($tags as $tag): ?>
+                <a class="chip" href="<?= $tag->url ?>"><?= esc($tag->name) ?></a>
+            <?php endforeach ?>
+        </div>
+    <?php endif ?>
+
     <?php if (is_owner_or_admin($post->user_id)): ?>
         <div class="post-actions">
             <a class="btn btn-ghost" href="<?= site_url('posts/' . $post->id . '/edit') ?>">수정</a>

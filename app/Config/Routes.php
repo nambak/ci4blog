@@ -14,6 +14,8 @@ $routes->get('feed', 'Feed::index');
 $routes->get('posts', 'Posts::index');
 // 카테고리별 글 목록. 목록 화면(index)을 슬러그로 거른다.
 $routes->get('categories/(:segment)', 'Posts::index/$1');
+// 태그 목록(#114). 카테고리와 같은 자리에 둔다 — 둘 다 공개 글 목록의 필터다.
+$routes->get('tags/(:segment)', 'Posts::byTag/$1');
 // 업로드 이미지 서빙(writable/uploads 는 웹 루트 밖이라 컨트롤러로 내보낸다).
 $routes->get('uploads/(:segment)', 'Uploads::show/$1');
 

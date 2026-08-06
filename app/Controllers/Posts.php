@@ -69,10 +69,58 @@ class Posts extends BaseController
             'categories'     => model(CategoryModel::class)->menu(),
             'activeCategory' => $activeCategory,
             'search'         => $search,
+            // 태그 목록(byTag)과 같은 뷰를 쓰므로 이 값을 명시적으로 넘긴다(#114).
+            'activeTag'      => null,
             // 같은 메서드가 /posts 와 /categories/{slug} 를 모두 처리한다(#113).
             'meta'           => [
                 'title' => $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
             ],
+        ]);
+    }
+
+    /**
+     * 태그별 글 목록. (#114)
+     *
+     * index() 와 같은 뷰를 쓰되 필터가 카테고리 대신 태그다.
+     * published() 스코프를 그대로 태워 초안·숨김 카테고리 글이 새어 나가지 않게 한다.
+     */
+    public function byTag(string $tagSlug): string
+    {
+        $tag = model(TagModel::class)->findBySlug($tagSlug);
+
+        // 없는 태그는 404. 빈 목록으로 조용히 떨어지면 오타를 알아채지 못한다.
+        if ($tag === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $model = model(PostModel::class)->published();
+
+        // 연결 테이블로 좁힌다. join 이 아니라 id 목록을 뽑아 whereIn 을 쓰는 이유는
+        // published() 가 이미 서브쿼리를 쓰고 있어 join 을 섞으면 groupBy 가 필요해지기 때문이다.
+        $postIds = array_column(
+            db_connect()->table('post_tags')->select('post_id')->where('tag_id', $tag->id)->get()->getResultArray(),
+            'post_id'
+        );
+
+        // 태그는 있는데 걸린 글이 하나도 없는 경우다. whereIn([]) 은 드라이버에 따라
+        // 동작이 갈리므로 존재할 수 없는 id 로 빈 목록을 만든다.
+        if ($postIds === []) {
+            $postIds = [0];
+        }
+
+        $posts = $model
+            ->whereIn('posts.id', $postIds)
+            ->orderBy('created_at', 'DESC')
+            ->paginate(self::PER_PAGE);
+
+        return view('posts/index', [
+            'posts'          => $posts,
+            'pager'          => $model->pager,
+            'categories'     => model(CategoryModel::class)->menu(),
+            'activeCategory' => null,
+            'activeTag'      => $tag,
+            'search'         => '',
+            'meta'           => ['title' => $tag->name . ' 태그 글'],
         ]);
     }
 
@@ -202,6 +250,8 @@ class Posts extends BaseController
             'authorName'   => $authorName,
             'authorAvatar' => $authorAvatar,
             'category'     => $category,
+            // 태그 칩(#114). 없으면 빈 배열이라 뷰가 영역을 통째로 생략한다.
+            'tags'         => model(TagModel::class)->forPost((int) $post->id),
             // 이어 읽기(#114). 이웃이 없으면 null 이고, 부분 뷰가 알아서 섹션을 생략한다.
             'previous'           => $previous,
             'next'               => $next,

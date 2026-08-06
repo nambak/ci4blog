@@ -188,4 +188,47 @@ final class PostTagsTest extends CIUnitTestCase
         // 태그 자체는 남는다 — 다른 글이 쓰고 있을 수 있다.
         $this->assertSame(1, db_connect()->table('tags')->countAllResults());
     }
+
+    public function testPostShowsTagChipsLinkingToTagPage(): void
+    {
+        $post = $this->makePost((int) $this->makeUser()->id);
+        model(TagModel::class)->syncForPost((int) $post->id, ['CI4']);
+
+        $html = html_entity_decode(
+            $this->call('get', 'posts/' . $post->slug)->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+
+        $this->assertStringContainsString('CI4', $html);
+        $this->assertStringContainsString('tags/ci4', $html, '태그 목록으로 링크돼야 한다');
+    }
+
+    /** 🔴 태그 목록도 published() 스코프를 태운다 — 초안이 새어 나가면 안 된다. */
+    public function testTagPageShowsOnlyPublishedPosts(): void
+    {
+        $user      = $this->makeUser();
+        $published = $this->makePost((int) $user->id, ['title' => '발행된 글']);
+        $draft     = $this->makePost((int) $user->id, ['title' => '초안 글', 'status' => Post::STATUS_DRAFT]);
+
+        $tagModel = model(TagModel::class);
+        $tagModel->syncForPost((int) $published->id, ['CI4']);
+        $tagModel->syncForPost((int) $draft->id, ['CI4']);
+
+        $html = html_entity_decode(
+            $this->call('get', 'tags/ci4')->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+
+        $this->assertStringContainsString('발행된 글', $html);
+        $this->assertStringNotContainsString('초안 글', $html);
+    }
+
+    public function testUnknownTagSlugIs404(): void
+    {
+        $this->expectException(\CodeIgniter\Exceptions\PageNotFoundException::class);
+
+        $this->call('get', 'tags/no-such-tag-xyz');
+    }
 }

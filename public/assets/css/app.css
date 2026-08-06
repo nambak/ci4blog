@@ -548,3 +548,8 @@ mark { background: var(--color-accent-soft); color: var(--color-ink); border-rad
 /* ── 관리자 글 관리: 조회수 컬럼(#114) ── */
 /* tabular-nums 는 숫자 폭을 고정해 자릿수가 달라도 세로로 정렬되게 한다. */
 .posts-table .col-views { width: 80px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── 글 태그(#114) ── */
+.post-tags { max-width: 720px; margin: 24px auto 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.post-tags .chip { text-decoration: none; }
+.post-tags .chip:hover { background: var(--color-accent); color: #fff; }
