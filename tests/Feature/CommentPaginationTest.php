@@ -250,11 +250,14 @@ final class CommentPaginationTest extends CIUnitTestCase
     }
 
     /**
-     * 🔴 지나치게 큰 cp 는 마지막 페이지로 클램프된다.
+     * 지나치게 큰 cp 에도 마지막 페이지가 정상으로 나온다.
      *
-     * 클램프가 없으면 `?cp=99999` 가 limit 1999980 짜리 질의가 된다.
+     * ⚠️ 이 테스트는 상한 클램프(`min(..., $maxCommentPage)`)를 검증하지 못한다 —
+     * 클램프를 빼도 죽지 않는 것을 뮤테이션으로 확인했다. 어차피 있는 행만 나오므로
+     * 화면 결과가 같기 때문이다. 클램프는 거대한 LIMIT 을 DB 에 보내지 않으려는
+     * 위생 조치이고, 이 테스트가 지키는 것은 "큰 값에도 화면이 깨지지 않는다" 이다.
      */
-    public function testHugePageValueIsClampedToTheLastPage(): void
+    public function testHugePageValueStillRendersTheLastPage(): void
     {
         ['post' => $post, 'user' => $user] = $this->seedPost();
         $this->seedTopLevel((int) $post->id, (int) $user->id, 25);

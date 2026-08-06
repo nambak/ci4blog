@@ -93,8 +93,13 @@ class Posts extends BaseController
         $commentModel  = model(CommentModel::class);
         $topLevelCount = $commentModel->countTopLevelForPost((int) $post->id);
 
-        // 페이지 번호로 받는다 — 개수를 직접 받으면 ?cp=9999999 로 거대한 LIMIT 을 걸 수 있다.
-        // (int) 'abc' 는 0 이므로 max(1, ...) 하나로 음수·문자열·빈 값이 모두 1 이 된다.
+        // 페이지 번호로 받는다 — 개수를 직접 받으면 ?c=9999999 로 거대한 LIMIT 을 걸 수 있다.
+        //
+        // max(1, ...) 이 실질적인 방어다. (int) 'abc' 는 0, (int) '-1' 은 -1 이라
+        // 이것이 없으면 limit 이 0 이나 음수가 되어 **전체가 로드된다**(페이지네이션이 무력해진다).
+        //
+        // min(..., $maxCommentPage) 은 화면 결과를 바꾸지 않는다 — 어차피 있는 행만 나온다.
+        // 의미 없는 거대 LIMIT 을 DB 에 보내지 않으려고 둔다(뮤테이션으로 확인한 사실이다).
         $maxCommentPage = max(1, (int) ceil($topLevelCount / self::COMMENTS_PER_PAGE));
         $commentPage    = min(max(1, (int) $this->request->getGet('cp')), $maxCommentPage);
         $commentLimit   = $commentPage * self::COMMENTS_PER_PAGE;
