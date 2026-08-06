@@ -88,6 +88,29 @@ class Posts extends BaseController
 
         $this->assertViewable($post);
 
+        // 조회수(#114). 세션당 한 번만 센다 — 새로고침 연타로 부풀지 않게.
+        //
+        // 발행된 글만 센다: post_viewable() 은 작성자·관리자에게 초안도 열어 주지만
+        // 그것은 미리보기지 조회가 아니다.
+        //
+        // 🔴 모델 update() 를 쓰면 안 된다. views 가 $allowedFields 에 없어 무시될 뿐
+        // 아니라, $useTimestamps 가 updated_at 을 지금 시각으로 덮어 sitemap 의
+        // <lastmod> 와 RSS 가 통째로 오염된다(#124). 쿼리 빌더로 DB 가 직접 더하게 한다
+        // — 읽고-더하고-쓰면 동시 요청 둘이 같은 값을 읽어 하나가 사라진다(#88 과 같은 레이스).
+        if ($post->isPublished()) {
+            $seen = session()->get('viewed_posts') ?? [];
+
+            if (! in_array((int) $post->id, $seen, true)) {
+                db_connect()->table('posts')
+                    ->where('id', $post->id)
+                    ->set('views', 'views + 1', false)
+                    ->update();
+
+                $seen[] = (int) $post->id;
+                session()->set('viewed_posts', $seen);
+            }
+        }
+
         // 댓글은 최상위 기준으로 나눠 가져온다(#114). 답글은 부모를 따라오므로
         // 경계에서 트리가 끊기지 않는다.
         $commentModel  = model(CommentModel::class);
