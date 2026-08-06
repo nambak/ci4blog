@@ -4,7 +4,14 @@
 
 <?= $this->section('content') ?>
     <h1 class="page-title">
-        <?= isset($activeCategory) && $activeCategory !== null ? esc($activeCategory->name) : '글 목록' ?>
+        <?php // 같은 뷰가 /posts · /categories/{slug} · /tags/{slug} 를 모두 그린다(#114). ?>
+        <?php if (isset($activeTag) && $activeTag !== null): ?>
+            <?= esc($activeTag->name) ?> 태그
+        <?php elseif (isset($activeCategory) && $activeCategory !== null): ?>
+            <?= esc($activeCategory->name) ?>
+        <?php else: ?>
+            글 목록
+        <?php endif ?>
     </h1>
 
     <?= $this->include('partials/category_menu') ?>

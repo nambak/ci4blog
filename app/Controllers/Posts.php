@@ -8,6 +8,7 @@ use App\Models\CommentLikeModel;
 use App\Models\CommentModel;
 use App\Models\PostLikeModel;
 use App\Models\PostModel;
+use App\Models\TagModel;
 use CodeIgniter\Database\Exceptions\DatabaseException;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
@@ -68,10 +69,58 @@ class Posts extends BaseController
             'categories'     => model(CategoryModel::class)->menu(),
             'activeCategory' => $activeCategory,
             'search'         => $search,
+            // 태그 목록(byTag)과 같은 뷰를 쓰므로 이 값을 명시적으로 넘긴다(#114).
+            'activeTag'      => null,
             // 같은 메서드가 /posts 와 /categories/{slug} 를 모두 처리한다(#113).
             'meta'           => [
                 'title' => $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
             ],
+        ]);
+    }
+
+    /**
+     * 태그별 글 목록. (#114)
+     *
+     * index() 와 같은 뷰를 쓰되 필터가 카테고리 대신 태그다.
+     * published() 스코프를 그대로 태워 초안·숨김 카테고리 글이 새어 나가지 않게 한다.
+     */
+    public function byTag(string $tagSlug): string
+    {
+        $tag = model(TagModel::class)->findBySlug($tagSlug);
+
+        // 없는 태그는 404. 빈 목록으로 조용히 떨어지면 오타를 알아채지 못한다.
+        if ($tag === null) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $model = model(PostModel::class)->published();
+
+        // 연결 테이블로 좁힌다. join 이 아니라 id 목록을 뽑아 whereIn 을 쓰는 이유는
+        // published() 가 이미 서브쿼리를 쓰고 있어 join 을 섞으면 groupBy 가 필요해지기 때문이다.
+        $postIds = array_column(
+            db_connect()->table('post_tags')->select('post_id')->where('tag_id', $tag->id)->get()->getResultArray(),
+            'post_id'
+        );
+
+        // 태그는 있는데 걸린 글이 하나도 없는 경우다. whereIn([]) 은 드라이버에 따라
+        // 동작이 갈리므로 존재할 수 없는 id 로 빈 목록을 만든다.
+        if ($postIds === []) {
+            $postIds = [0];
+        }
+
+        $posts = $model
+            ->whereIn('posts.id', $postIds)
+            ->orderBy('created_at', 'DESC')
+            ->paginate(self::PER_PAGE);
+
+        return view('posts/index', [
+            'posts'          => $posts,
+            'pager'          => $model->pager,
+            'categories'     => model(CategoryModel::class)->menu(),
+            'activeCategory' => null,
+            'activeTag'      => $tag,
+            'search'         => '',
+            'meta'           => ['title' => $tag->name . ' 태그 글'],
         ]);
     }
 
@@ -201,6 +250,8 @@ class Posts extends BaseController
             'authorName'   => $authorName,
             'authorAvatar' => $authorAvatar,
             'category'     => $category,
+            // 태그 칩(#114). 없으면 빈 배열이라 뷰가 영역을 통째로 생략한다.
+            'tags'         => model(TagModel::class)->forPost((int) $post->id),
             // 이어 읽기(#114). 이웃이 없으면 null 이고, 부분 뷰가 알아서 섹션을 생략한다.
             'previous'           => $previous,
             'next'               => $next,
@@ -275,6 +326,13 @@ class Posts extends BaseController
                 ->with('errors', $model->errors());
         }
 
+        // 태그(#114). 저장이 성공한 뒤에 붙인다 — 실패했다면 붙일 글이 없다.
+        $tagModel = model(TagModel::class);
+        $tagModel->syncForPost(
+            (int) $model->getInsertID(),
+            $tagModel->parseNames((string) $this->request->getPost('tags'))
+        );
+
         // 저장 성공 시: 목록으로 이동하며 플래시 메시지를 남긴다.
         return redirect()->to('posts')->with('message', '글이 등록되었습니다.');
     }
@@ -299,6 +357,9 @@ class Posts extends BaseController
             'post' => $post,
             // 이 글이 숨김 카테고리에 속해 있어도 목록에 있어야 선택이 유지된다(#67).
             'categories' => model(CategoryModel::class)->forForm(),
+            // 태그 입력을 현재 값으로 채우기 위해 넘긴다(#114). 빈 칸으로 두면
+            // 사용자가 그대로 저장했을 때 태그가 통째로 사라진다.
+            'tags' => model(TagModel::class)->forPost($id),
             // 레이아웃을 쓰는 화면은 meta 를 명시적으로 넘긴다 — 넘기지 않으면
             // 뷰 스코프에 남은 앞 렌더의 $meta 가 `?? []` 를 통과한다(#113).
             'meta' => ['title' => '글 수정'],
@@ -356,6 +417,11 @@ class Posts extends BaseController
         if ($image !== null) {
             $this->deleteImageFiles($oldImage);
         }
+
+        // 태그는 전체 교체다(#114). 폼이 현재 태그를 그대로 싣고 오므로,
+        // 빠진 것은 연결이 끊기고 새로 적은 것은 붙는다.
+        $tagModel = model(TagModel::class);
+        $tagModel->syncForPost($id, $tagModel->parseNames((string) $this->request->getPost('tags')));
 
         // 수정 성공 시: 해당 글 상세로 이동하며 플래시 메시지를 남긴다.
         return redirect()->to('posts/' . $post->slug)->with('message', '글이 수정되었습니다.');

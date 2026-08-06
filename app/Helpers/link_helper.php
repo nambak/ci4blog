@@ -22,6 +22,14 @@ if (! function_exists('post_url')) {
     }
 }
 
+if (! function_exists('tag_url')) {
+    /** 태그 목록 URL. post_url 과 같은 이유로 rawurlencode 를 거친다(#127). */
+    function tag_url(string $slug): string
+    {
+        return site_url('tags/' . rawurlencode($slug));
+    }
+}
+
 if (! function_exists('category_url')) {
     /** 카테고리로 글 목록을 거르는 URL. */
     function category_url(string $slug): string
