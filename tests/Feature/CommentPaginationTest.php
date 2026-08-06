@@ -187,4 +187,62 @@ final class CommentPaginationTest extends CIUnitTestCase
         // 카운트도 같은 규칙을 따라야 한다: 보이는 댓글 1 + 그 답글 1 = 2
         $this->assertSame(2, model(CommentModel::class)->countForPost((int) $post->id));
     }
+
+    private function showPost(Post $post, array $query = []): string
+    {
+        return html_entity_decode(
+            $this->call('get', 'posts/' . $post->slug, $query)->getBody(),
+            ENT_QUOTES | ENT_HTML5,
+            'UTF-8'
+        );
+    }
+
+    public function testSecondPageAccumulatesOlderComments(): void
+    {
+        ['post' => $post, 'user' => $user] = $this->seedPost();
+        $this->seedTopLevel((int) $post->id, (int) $user->id, 25);
+
+        $first = $this->showPost($post);
+        $this->assertStringContainsString('댓글 25', $first);
+        $this->assertStringNotContainsString('댓글 01', $first);
+
+        $second = $this->showPost($post, ['cp' => 2]);
+        // 2페이지는 누적이다 — 1페이지 것도 함께 보인다.
+        $this->assertStringContainsString('댓글 01', $second);
+        $this->assertStringContainsString('댓글 25', $second);
+    }
+
+    public function testMoreLinkDisappearsWhenNothingIsLeft(): void
+    {
+        ['post' => $post, 'user' => $user] = $this->seedPost();
+        $this->seedTopLevel((int) $post->id, (int) $user->id, 25);
+
+        // 1페이지에는 더 볼 것이 남아 있다.
+        $this->assertStringContainsString('이전 댓글 더 보기', $this->showPost($post));
+
+        // 2페이지면 25개가 모두 나왔으므로 링크가 사라진다.
+        $this->assertStringNotContainsString('이전 댓글 더 보기', $this->showPost($post, ['cp' => 2]));
+    }
+
+    /**
+     * 🔴 이상한 cp 값에도 500 이 나지 않고 안전하게 떨어져야 한다.
+     *
+     * (int) 'abc' 는 0 이라 max(1, 0) 이 1 로 만들고, 지나치게 큰 값은
+     * 총 최상위 수 기준 상한으로 클램프된다.
+     */
+    public function testWeirdPageValuesFallBackSafely(): void
+    {
+        ['post' => $post, 'user' => $user] = $this->seedPost();
+        $this->seedTopLevel((int) $post->id, (int) $user->id, 25);
+
+        foreach (['-1', 'abc', '99999', '0', ''] as $value) {
+            $result = $this->call('get', 'posts/' . $post->slug, ['cp' => $value]);
+
+            $result->assertStatus(200);
+
+            $html = html_entity_decode($result->getBody(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // 어떤 값이든 가장 최근 댓글은 늘 보인다.
+            $this->assertStringContainsString('댓글 25', $html, "cp={$value} 에서 화면이 깨졌다");
+        }
+    }
 }
