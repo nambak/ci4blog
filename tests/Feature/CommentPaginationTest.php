@@ -225,24 +225,48 @@ final class CommentPaginationTest extends CIUnitTestCase
     }
 
     /**
-     * 🔴 이상한 cp 값에도 500 이 나지 않고 안전하게 떨어져야 한다.
+     * 🔴 잘못된 cp 값은 **1페이지로 떨어져야** 한다.
      *
-     * (int) 'abc' 는 0 이라 max(1, 0) 이 1 로 만들고, 지나치게 큰 값은
-     * 총 최상위 수 기준 상한으로 클램프된다.
+     * `(int) 'abc'` 는 0, `(int) '-1'` 은 -1 이라 `max(1, ...)` 이 없으면
+     * limit 이 0 이나 음수가 되어 **전체가 로드된다** — 500 은 안 나지만
+     * 페이지네이션이 통째로 무력해진다. 그래서 "가장 오래된 댓글이 안 보인다"까지
+     * 봐야 클램프를 실제로 검증한다(상태코드만 보면 뮤테이션이 죽지 않는다).
      */
-    public function testWeirdPageValuesFallBackSafely(): void
+    public function testInvalidPageValuesFallBackToTheFirstPage(): void
     {
         ['post' => $post, 'user' => $user] = $this->seedPost();
         $this->seedTopLevel((int) $post->id, (int) $user->id, 25);
 
-        foreach (['-1', 'abc', '99999', '0', ''] as $value) {
+        foreach (['-1', 'abc', '0', ''] as $value) {
             $result = $this->call('get', 'posts/' . $post->slug, ['cp' => $value]);
 
             $result->assertStatus(200);
 
             $html = html_entity_decode($result->getBody(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            // 어떤 값이든 가장 최근 댓글은 늘 보인다.
+
             $this->assertStringContainsString('댓글 25', $html, "cp={$value} 에서 화면이 깨졌다");
+            $this->assertStringNotContainsString('댓글 01', $html, "cp={$value} 가 1페이지로 떨어지지 않았다");
         }
+    }
+
+    /**
+     * 🔴 지나치게 큰 cp 는 마지막 페이지로 클램프된다.
+     *
+     * 클램프가 없으면 `?cp=99999` 가 limit 1999980 짜리 질의가 된다.
+     */
+    public function testHugePageValueIsClampedToTheLastPage(): void
+    {
+        ['post' => $post, 'user' => $user] = $this->seedPost();
+        $this->seedTopLevel((int) $post->id, (int) $user->id, 25);
+
+        $result = $this->call('get', 'posts/' . $post->slug, ['cp' => '99999']);
+        $result->assertStatus(200);
+
+        $html = html_entity_decode($result->getBody(), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // 마지막 페이지이므로 전부 보이고, 더 볼 것이 없으므로 링크가 사라진다.
+        $this->assertStringContainsString('댓글 01', $html);
+        $this->assertStringContainsString('댓글 25', $html);
+        $this->assertStringNotContainsString('이전 댓글 더 보기', $html);
     }
 }
