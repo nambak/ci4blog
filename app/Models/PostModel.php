@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Entities\Post;
 use App\Models\Concerns\GeneratesSlug;
+use CodeIgniter\I18n\Time;
 use CodeIgniter\Model;
 
 class PostModel extends Model
@@ -174,6 +175,63 @@ class PostModel extends Model
                 null,
                 false
             );
+    }
+
+    /**
+     * 발행일 순서로 바로 앞(더 오래된) 글. 없으면 null. (#114)
+     */
+    public function previousOf(Post $post): ?Post
+    {
+        return $this->neighborOf($post, true);
+    }
+
+    /**
+     * 발행일 순서로 바로 뒤(더 최신) 글. 없으면 null. (#114)
+     */
+    public function nextOf(Post $post): ?Post
+    {
+        return $this->neighborOf($post, false);
+    }
+
+    /**
+     * 이웃 글 한 건을 찾는다.
+     *
+     * created_at 만으로 비교하면 같은 시각의 글에서 무너진다 — posts:import 는
+     * front matter 에 published_at 이 없으면 date('Y-m-d H:i:s') 를 넣으므로(#136)
+     * 한 번의 import 로 같은 초의 글이 여럿 생긴다. `<` 로 자르면 그 글들을 통째로
+     * 건너뛰고, `<=` 로 느슨히 두면 자기 자신이 걸린다. 그래서 (created_at, id)
+     * 복합 비교를 쓴다.
+     *
+     * 범위는 published() 에 맡긴다. 이 스코프는 발행 상태뿐 아니라 숨김
+     * 카테고리(is_visible = 0)의 글까지 제외하므로(#67), 조건을 직접 다시 쓰면
+     * 그 규칙이 이 경로에서만 새어 나간다.
+     *
+     * @param bool $older true 면 더 오래된 쪽, false 면 더 최신 쪽
+     */
+    private function neighborOf(Post $post, bool $older): ?Post
+    {
+        $createdAt = $post->created_at instanceof Time
+            ? $post->created_at->toDateTimeString()
+            : (string) $post->created_at;
+        $id = (int) $post->id;
+
+        $op    = $older ? '<' : '>';
+        $order = $older ? 'DESC' : 'ASC';
+
+        // published() 가 쌓는 조건은 first() 가 쿼리를 실행하는 시점에 리셋되므로,
+        // 같은 인스턴스로 previousOf 와 nextOf 를 잇달아 불러도 조건이 겹치지 않는다
+        // (testNeighborsAreAdjacentByCreatedAt 이 그 호출 패턴을 그대로 쓴다).
+        return $this->published()
+            ->groupStart()
+                ->where($this->table . '.created_at ' . $op, $createdAt)
+                ->orGroupStart()
+                    ->where($this->table . '.created_at', $createdAt)
+                    ->where($this->table . '.id ' . $op, $id)
+                ->groupEnd()
+            ->groupEnd()
+            ->orderBy($this->table . '.created_at', $order)
+            ->orderBy($this->table . '.id', $order)
+            ->first();
     }
 
     /**
