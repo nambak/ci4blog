@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Test\FeatureTestTrait;
@@ -60,6 +61,33 @@ final class PostPaginationTest extends CIUnitTestCase
         // 2페이지에 11번째(가장 오래된 PAGE-01)가 보인다.
         // (5건/페이지였다면 2페이지는 PAGE-02~06 이라 PAGE-01 이 없다.)
         $this->call('GET', 'posts', ['page' => '2'])->assertSee('PAGE-01');
+    }
+
+    /**
+     * 범위를 벗어난 page 는 404 다.
+     *
+     * 200 + 빈 목록은 소프트 404 다 — 검색엔진이 "내용 없는 페이지" 를 색인 후보로
+     * 붙들고 있게 된다(GSC 미색인 목록에 ?page=4 가 잡혔다). 없는 페이지는 없다고
+     * 답해야 한다. 글 11건 · 10건씩이므로 2페이지까지가 전부다.
+     */
+    public function testOutOfRangePageIsNotFound(): void
+    {
+        $this->expectException(PageNotFoundException::class);
+
+        $this->call('GET', 'posts', ['page' => '3']);
+    }
+
+    /**
+     * 글이 하나도 없어도 첫 페이지는 200 이다.
+     *
+     * "결과가 비었으면 404" 로 구현하면 글을 다 지운 사이트의 목록이 사라진다.
+     * 없는 것은 페이지가 아니라 글이다.
+     */
+    public function testEmptyFirstPageIsStillOk(): void
+    {
+        db_connect()->table('posts')->emptyTable();
+
+        $this->call('GET', 'posts')->assertStatus(200);
     }
 
     public function testPagerMarksCurrentPage(): void

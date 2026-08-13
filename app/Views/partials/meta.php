@@ -35,7 +35,7 @@ $metaType        = $meta['type'] ?? 'website';
 <meta property="og:title" content="<?= esc($metaTitle) ?>">
 <meta property="og:description" content="<?= esc($metaDescription) ?>">
 <?php // canonical 과 같은 값을 쓴다 — 정본 URL 이 갈라지면 중복 콘텐츠가 된다. ?>
-<meta property="og:url" content="<?= esc(base_url(uri_string())) ?>">
+<meta property="og:url" content="<?= esc(canonical_url()) ?>">
 <meta property="og:locale" content="ko_KR">
 <?php if ($metaImage !== null): ?>
 <meta property="og:image" content="<?= esc($metaImage) ?>">

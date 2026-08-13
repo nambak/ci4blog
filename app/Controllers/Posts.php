@@ -13,6 +13,7 @@ use CodeIgniter\Database\Exceptions\DatabaseException;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\Pager\Pager;
 
 class Posts extends BaseController
 {
@@ -63,6 +64,8 @@ class Posts extends BaseController
             ->orderBy('created_at', 'DESC')
             ->paginate(self::PER_PAGE);
 
+        $this->guardPageRange($model->pager);
+
         return view('posts/index', [
             'posts'          => $posts,
             'pager'          => $model->pager,
@@ -112,6 +115,8 @@ class Posts extends BaseController
             ->whereIn('posts.id', $postIds)
             ->orderBy('created_at', 'DESC')
             ->paginate(self::PER_PAGE);
+
+        $this->guardPageRange($model->pager);
 
         return view('posts/index', [
             'posts'          => $posts,
@@ -452,6 +457,31 @@ class Posts extends BaseController
         $value = is_string($value) ? $value : '';
 
         return in_array($value, Post::STATUSES, true) ? $value : Post::STATUS_PUBLISHED;
+    }
+
+    /**
+     * 범위를 벗어난 ?page=N 을 404 로 돌린다.
+     *
+     * CI4 의 Pager 는 범위를 넘긴 page 를 **마지막 페이지로 클램프**한다
+     * (Pager::store() — `$page > $pageCount ? $pageCount : $page`). 그래서
+     * ?page=999 가 빈 목록이 아니라 마지막 페이지와 **바이트 단위로 같은 응답**을
+     * 200 으로 돌려준다. 무한히 많은 URL 이 같은 내용을 갖는 셈이다.
+     *
+     * 자기참조 canonical(#GSC)과 함께 두면 이게 특히 나빠진다. 각 ?page=N 이
+     * 스스로를 정본이라고 선언하는 순간, 무한한 중복이 색인 후보가 된다.
+     * 그래서 이 가드는 canonical 변경과 반드시 짝으로 가야 한다.
+     *
+     * 판정을 "결과가 비었다" 로 하지 않는 이유가 두 가지다. 하나는 클램프 때문에
+     * 애초에 비지 않는다는 것이고, 다른 하나는 글이 하나도 없는 사이트의 첫 페이지가
+     * 404 가 되어 목록이 통째로 사라진다는 것이다 — 없는 것은 페이지가 아니라 글이다.
+     */
+    private function guardPageRange(Pager $pager): void
+    {
+        $requested = (int) ($this->request->getGet('page') ?? 1);
+
+        if ($requested > 1 && $requested > $pager->getPageCount()) {
+            throw PageNotFoundException::forPageNotFound();
+        }
     }
 
     /**
