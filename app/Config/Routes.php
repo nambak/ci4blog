@@ -19,6 +19,22 @@ $routes->get('tags/(:segment)', 'Posts::byTag/$1');
 // 업로드 이미지 서빙(writable/uploads 는 웹 루트 밖이라 컨트롤러로 내보낸다).
 $routes->get('uploads/(:segment)', 'Uploads::show/$1');
 
+// 발행 API. 원고 파일을 posts 테이블에 반영하는 창구다(#발행API).
+//
+// 인증은 Shield 액세스 토큰(tokens) + 관리자 그룹(api-admin) 두 겹이다.
+// 토큰만으로 통과시키면 일반 회원 토큰으로도 글이 올라간다.
+//
+// Shield 의 group 필터를 쓰지 않는 이유는 App\Filters\ApiAdmin 주석에 있다 —
+// 그 필터는 세션 인증자를 보기 때문에 토큰 요청을 로그인 페이지로 보낸다.
+//
+// session 그룹 밖에 둔다: 스크립트는 쿠키 세션을 갖지 않는다.
+// CSRF 는 Config\Filters 에서 api/* 를 제외했다(토큰 인증이 대신 막는다).
+$routes->group('api', ['filter' => ['tokens', 'api-admin']], static function ($routes) {
+    $routes->post('posts', 'Api\Posts::upsert');          // slug 기준 upsert
+    $routes->get('posts/(:segment)', 'Api\Posts::show/$1'); // 발행 상태 확인
+    $routes->post('uploads', 'Api\Uploads::store');        // 대표 이미지 업로드
+});
+
 // 로그인(세션 인증)이 필요한 쓰기 라우트는 이 그룹 안에 둔다.
 // 글 작성/수정/삭제 라우트가 ep12~ep15에서 여기에 채워진다.
 $routes->group('', ['filter' => 'session'], static function ($routes) {
