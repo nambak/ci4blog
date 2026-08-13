@@ -38,8 +38,10 @@ class Sitemap extends BaseController
         $entries = [
             ['loc' => absolute_url(''), 'lastmod' => $latest],
             ['loc' => absolute_url('posts'), 'lastmod' => $latest],
-            // /about 은 변경 시각의 근거가 없다 — 지어내지 않고 비운다.
-            ['loc' => absolute_url('about'), 'lastmod' => null],
+            // /about 은 글이 아니라 손으로 고치는 문서다. 그래서 갱신 시각도 설정에
+            // 적어 둔 값을 쓴다(Config\Blog::$aboutUpdatedAt). 파일 mtime 은 배포마다
+            // 흔들려서 "매번 바뀐 문서" 로 보이게 만든다.
+            ['loc' => absolute_url('about'), 'lastmod' => $this->formatDate(config('Blog')->aboutUpdatedAt)],
         ];
 
         foreach ($posts as $post) {
