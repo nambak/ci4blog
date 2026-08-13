@@ -11,6 +11,7 @@ use App\Models\PostModel;
 use App\Models\TagModel;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\HTTP\ResponseInterface;
+use DateTimeImmutable;
 use Throwable;
 
 /**
@@ -92,6 +93,16 @@ class Posts extends BaseController
             ]);
         }
 
+        // 형식 검증은 트랜잭션 밖에서 끝낸다. 여기서 걸러 두면 글을 만들었다가
+        // 되돌릴 일이 없다.
+        $publishedAt = trim((string) ($in['published_at'] ?? ''));
+
+        if ($publishedAt !== '' && ! $this->isValidTimestamp($publishedAt)) {
+            return $this->failValidationErrors([
+                'published_at' => "published_at 은 'Y-m-d H:i:s' 형식이어야 합니다: {$publishedAt}",
+            ]);
+        }
+
         $posts = model(PostModel::class);
         $db    = db_connect();
 
@@ -151,7 +162,7 @@ class Posts extends BaseController
             // 발행 시각은 명시했을 때만 되맞춘다. 안 주면 created_at 을 건드리지 않아
             // 재발행해도 원래 발행일이 유지된다 — 이걸 매번 '지금' 으로 밀면 오타 하나
             // 고칠 때마다 글이 목록 맨 위로 튀어 오른다.
-            if (($publishedAt = trim((string) ($in['published_at'] ?? ''))) !== '') {
+            if ($publishedAt !== '') {
                 $db->table('posts')->where('id', $postId)->update(['created_at' => $publishedAt]);
             }
 
@@ -222,6 +233,19 @@ class Posts extends BaseController
         }
 
         return $message;
+    }
+
+    /**
+     * 'Y-m-d H:i:s' 형식의 실제 존재하는 시각인지 본다.
+     *
+     * createFromFormat() 만으로는 부족하다. 13월 45일 같은 값을 다음 해로 굴려서
+     * 받아 주기 때문에, 되돌린 문자열이 원문과 같은지까지 봐야 진짜 그 날짜다.
+     */
+    private function isValidTimestamp(string $value): bool
+    {
+        $parsed = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value);
+
+        return $parsed !== false && $parsed->format('Y-m-d H:i:s') === $value;
     }
 
     /**

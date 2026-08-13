@@ -54,13 +54,28 @@ class ApiToken extends BaseCommand
             return $this->listTokens($user);
         }
 
-        $revoke = $params['revoke'] ?? CLI::getOption('revoke');
+        // --revoke 를 값 없이 주면 CLI::getOption() 은 true 를, command() 헬퍼는
+        // null 을 넘긴다. 값이 없다고 그냥 흘려보내면 폐기 분기를 건너뛰고 발급
+        // 경로로 내려가, 지우려고 친 명령이 토큰을 하나 더 만들어 놓는다.
+        // 플래그가 있었는지와 값이 쓸 만한지를 나눠서 본다.
+        if (array_key_exists('revoke', $params) || CLI::getOption('revoke') !== null) {
+            $revoke = $params['revoke'] ?? CLI::getOption('revoke');
+            $id     = is_string($revoke) || is_int($revoke) ? (string) $revoke : '';
 
-        if ($revoke !== null && $revoke !== '' && $revoke !== true) {
-            return $this->revoke($user, (int) $revoke);
+            if (! ctype_digit($id)) {
+                CLI::error('--revoke 에는 폐기할 토큰 id 를 함께 주세요. 예: --revoke 3');
+
+                return EXIT_ERROR;
+            }
+
+            return $this->revoke($user, (int) $id);
         }
 
-        $label = (string) ($params['name'] ?? CLI::getOption('name') ?: 'publish-cli');
+        // --revoke 와 같은 이유로 문자열인지 먼저 본다. 값 없는 --name 은 true 가
+        // 되는데 (string) true 는 '1' 이라, 라벨이 '1' 인 토큰이 목록에 남는다.
+        $rawLabel = $params['name'] ?? CLI::getOption('name');
+        $label    = is_string($rawLabel) && trim($rawLabel) !== '' ? trim($rawLabel) : 'publish-cli';
+
         $token = $user->generateAccessToken($label);
 
         CLI::write('토큰을 발급했습니다.', 'green');
@@ -102,7 +117,10 @@ class ApiToken extends BaseCommand
     {
         foreach ($user->accessTokens() as $token) {
             if ((int) $token->id === $id) {
-                $user->revokeAccessToken($token->secret);
+                // BySecret 이어야 한다. revokeAccessToken() 은 받은 값을 sha256 으로
+                // 해시해서 찾는데 secret 은 이미 해시라, 이중 해시가 되어 아무것도
+                // 지우지 못한다. 삭제 0건도 쿼리는 성공이라 조용히 실패한다.
+                $user->revokeAccessTokenBySecret($token->secret);
                 CLI::write("토큰 {$id} ({$token->name}) 을 폐기했습니다.", 'green');
 
                 return EXIT_SUCCESS;

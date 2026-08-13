@@ -7,6 +7,7 @@ namespace App\Controllers\Api;
 use App\Controllers\BaseController;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\HTTP\ResponseInterface;
+use Throwable;
 
 /**
  * 대표 이미지 업로드 API.
@@ -61,10 +62,23 @@ class Uploads extends BaseController
         $name = service('uploadStorage')->store($file);
 
         // 목록용 썸네일. 없으면 목록 카드가 원본을 그대로 받아 느려진다.
-        service('image')
-            ->withFile($dir . '/' . $name)
-            ->fit(self::THUMB_WIDTH, self::THUMB_HEIGHT, 'center')
-            ->save($dir . '/thumb_' . $name);
+        //
+        // 검증을 통과한 파일이라도 GD 는 메모리 한계나 손상된 헤더에서 예외를 던진다.
+        // 그대로 두면 프레임워크 예외 덤프가 나가는데, 이 API 를 부르는 쪽은 브라우저가
+        // 아니라 발행 스크립트라 HTML 을 받으면 원인을 알 수 없다.
+        //
+        // 원본은 지우지 않는다. 썸네일은 나중에 다시 만들 수 있지만 업로드는 그렇지
+        // 않아서, 여기서 되돌리면 사용자는 아무것도 손에 쥐지 못한 채 다시 올려야 한다.
+        try {
+            service('image')
+                ->withFile($dir . '/' . $name)
+                ->fit(self::THUMB_WIDTH, self::THUMB_HEIGHT, 'center')
+                ->save($dir . '/thumb_' . $name);
+        } catch (Throwable $e) {
+            log_message('error', '썸네일 생성 실패: {message}', ['message' => $e->getMessage()]);
+
+            return $this->failServerError("썸네일을 만들지 못했습니다: {$e->getMessage()} (원본 {$name} 은 저장돼 있습니다)");
+        }
 
         return $this->respondCreated([
             'name' => $name,

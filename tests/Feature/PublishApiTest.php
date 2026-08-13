@@ -244,6 +244,46 @@ final class PublishApiTest extends CIUnitTestCase
         );
     }
 
+    /**
+     * 형식이 어긋난 published_at 은 거부한다. 글도 만들지 않는다.
+     *
+     * 운영 DB 인 SQLite 는 타입을 강제하지 않아 '어제' 같은 값도 created_at 에
+     * 그대로 들어간다. 그러면 목록 정렬·RSS·사이트맵의 날짜가 한꺼번에 깨지는데,
+     * 발행 시점에는 아무 신호도 없어서 한참 뒤에 발견하게 된다.
+     *
+     * '2020-13-45 00:00:00' 을 함께 보는 이유: 형식만 맞춰 보면 통과하는 값이다.
+     * createFromFormat() 은 13월 45일을 다음 해로 굴려서 받아 주기 때문에,
+     * 되돌린 문자열이 원문과 같은지까지 봐야 걸린다.
+     */
+    public function testInvalidPublishedAtIsRejected(): void
+    {
+        $token = $this->adminToken();
+
+        foreach (['어제', '2020-13-45 00:00:00', '2020-01-02'] as $value) {
+            $this->publish($token, $this->payload(['published_at' => $value]))
+                ->assertStatus(400);
+
+            $this->assertNull($this->findBySlug('ci4-multiboard-03'), "'{$value}' 를 받아 글이 만들어졌다.");
+        }
+    }
+
+    /**
+     * 이미 있는 글에 잘못된 published_at 이 오면 그 글은 손대지 않는다.
+     *
+     * 거부하면서 본문만 갱신해 버리면 "실패했는데 절반은 반영된" 상태가 된다.
+     */
+    public function testInvalidPublishedAtLeavesExistingPostUntouched(): void
+    {
+        $token = $this->adminToken();
+
+        $this->publish($token, $this->payload())->assertStatus(201);
+
+        $this->publish($token, $this->payload(['body' => '고친 본문', 'published_at' => '어제']))
+            ->assertStatus(400);
+
+        $this->assertSame('본문입니다.', $this->findBySlug('ci4-multiboard-03')->body);
+    }
+
     // ---------------------------------------------------------------- 카테고리
 
     public function testCategoryResolvesByName(): void

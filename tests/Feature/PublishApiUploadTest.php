@@ -7,6 +7,7 @@ use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Test\FeatureTestTrait;
 use Config\Services;
+use RuntimeException;
 use Tests\Support\Libraries\FakeUploadStorage;
 
 /**
@@ -58,6 +59,7 @@ final class PublishApiUploadTest extends CIUnitTestCase
         $_FILES = [];
         Services::resetSingle('superglobals');
         Services::resetSingle('uploadstorage');
+        Services::resetSingle('image');
 
         parent::tearDown();
     }
@@ -252,5 +254,39 @@ final class PublishApiUploadTest extends CIUnitTestCase
     public function testRejectsMissingFile(): void
     {
         $this->upload($this->adminToken())->assertStatus(400);
+    }
+
+    /**
+     * 썸네일 생성이 터져도 읽을 수 있는 JSON 이 나간다.
+     *
+     * 검증을 통과한 파일이라도 GD 는 메모리 한계나 손상된 헤더에서 예외를 던진다.
+     * 그대로 두면 프레임워크 예외 덤프가 나가는데, 이 API 를 부르는 쪽은 브라우저가
+     * 아니라 발행 스크립트라 HTML 덤프를 받으면 원인을 알 수 없다.
+     *
+     * 원본은 지우지 않는다. 썸네일만 실패한 상황에서 올린 파일까지 되돌리면
+     * 사용자는 아무것도 손에 쥐지 못한 채 다시 올려야 한다 — 목록 썸네일은
+     * 나중에 다시 만들 수 있지만 업로드는 그렇지 않다.
+     */
+    public function testThumbnailFailureStillReturnsJson(): void
+    {
+        $this->attach($this->makeTempJpeg(), 'cover.jpg', 'image/jpeg');
+
+        Services::injectMock('image', new class () {
+            public function withFile(string $path): static
+            {
+                throw new RuntimeException('GD 가 이미지를 열지 못했다');
+            }
+        });
+
+        $result = $this->upload($this->adminToken());
+
+        $result->assertStatus(500);
+
+        $body = json_decode($result->response()->getBody(), true);
+        $this->assertIsArray($body, '예외 덤프가 아니라 JSON 이어야 한다.');
+        $this->assertArrayHasKey('messages', $body);
+
+        $this->assertCount(1, $this->storage->stored, '원본은 저장된 상태로 남아야 한다.');
+        $this->assertFileExists($this->storage->stored[0]);
     }
 }
