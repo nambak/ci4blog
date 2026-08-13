@@ -638,7 +638,21 @@ class Posts extends BaseController
      */
     private function guardPageRange(Pager $pager): void
     {
-        $requested = (int) ($this->request->getGet('page') ?? 1);
+        $raw = $this->request->getGet('page');
+
+        // 아래쪽도 막아야 한다. Pager 에는 하한 클램프가 따로 있어서
+        // (Pager.php: `$page < 1 ? 1 : $page`) ?page=0 · ?page=-1 · ?page=abc 가
+        // 전부 1페이지를 200 으로 돌려준다. canonical 이 /posts 를 가리키므로 색인
+        // 위험은 위쪽 경우보다 낮지만, 200 을 주는 쓰레기 URL 이 무한히 생기고
+        // 무엇보다 상한과 동작이 어긋난다.
+        //
+        // 파라미터가 아예 없는 것과 값이 이상한 것은 다르게 다룬다. 없으면 첫
+        // 페이지지만, 있는데 1 미만이면 잘못 만들어진 요청이다.
+        if ($raw !== null && (int) $raw < 1) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $requested = (int) ($raw ?? 1);
 
         if ($requested > 1 && $requested > $pager->getPageCount()) {
             throw PageNotFoundException::forPageNotFound();

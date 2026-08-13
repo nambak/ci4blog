@@ -98,6 +98,33 @@ final class PostPaginationTest extends CIUnitTestCase
     }
 
     /**
+     * 1 미만이거나 숫자가 아닌 page 도 404 다.
+     *
+     * 상한만 막으면 절반만 막은 것이다. Pager 에는 하한 클램프가 따로 있어서
+     * (`$page < 1 ? 1 : $page`) ?page=0 · ?page=-1 · ?page=abc 가 모두 1페이지를
+     * 200 으로 돌려준다. canonical 이 /posts 를 가리키므로 색인 위험은 낮지만,
+     * 200 을 주는 쓰레기 URL 이 무한히 생기고 상한과 동작이 어긋난다.
+     */
+    public function testNonPositivePageIsNotFound(): void
+    {
+        foreach (['0', '-1', '-999', 'abc', ''] as $bad) {
+            try {
+                $this->call('GET', 'posts', ['page' => $bad]);
+                $this->fail("page='{$bad}' 가 404 가 아니다.");
+            } catch (PageNotFoundException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    /** page 를 아예 안 주면 첫 페이지다 — 위 가드가 정상 요청까지 잡지 않는지 본다. */
+    public function testMissingPageParameterIsFirstPage(): void
+    {
+        $this->call('GET', 'posts')->assertStatus(200);
+        $this->call('GET', 'posts', ['page' => '1'])->assertStatus(200);
+    }
+
+    /**
      * 글이 하나도 없어도 첫 페이지는 200 이다.
      *
      * "결과가 비었으면 404" 로 구현하면 글을 다 지운 사이트의 목록이 사라진다.

@@ -106,6 +106,9 @@ final class IndexingSignalsTest extends CIUnitTestCase
     {
         $canonical = $this->canonicalOf($this->call('GET', 'posts', ['page' => '1']));
 
+        // canonicalOf() 는 ?string 이다. null 을 그대로 넘기면 단언 실패가 아니라
+        // TypeError 가 나서 진짜 원인(canonical 이 사라졌다)이 가려진다.
+        $this->assertNotNull($canonical, 'canonical 링크가 없다.');
         $this->assertStringEndsWith('/posts', $canonical);
     }
 
@@ -118,6 +121,7 @@ final class IndexingSignalsTest extends CIUnitTestCase
     {
         $canonical = $this->canonicalOf($this->call('GET', 'posts', ['q' => '검색어']));
 
+        $this->assertNotNull($canonical, 'canonical 링크가 없다.');
         $this->assertStringEndsWith('/posts', $canonical);
         $this->assertStringNotContainsString('q=', $canonical);
     }
@@ -129,6 +133,7 @@ final class IndexingSignalsTest extends CIUnitTestCase
             $this->call('GET', 'posts', ['page' => '2', 'q' => 'SEO', 'utm_source' => 'x'])
         );
 
+        $this->assertNotNull($canonical, 'canonical 링크가 없다.');
         $this->assertStringEndsWith('/posts?page=2', $canonical);
         $this->assertStringNotContainsString('utm_source', $canonical);
     }
