@@ -36,6 +36,9 @@ class Filters extends BaseFilters
         'performance'   => PerformanceMetrics::class,
         'securityheaders' => \App\Filters\SecurityHeaders::class,
         'throttle'        => \App\Filters\Throttle::class,
+        // tokens 필터 뒤에 걸어 관리자 그룹인지 본다. Shield 의 group 필터는
+        // 세션 인증자를 보기 때문에 토큰 요청에서 로그인 페이지로 리다이렉트된다.
+        'api-admin'       => \App\Filters\ApiAdmin::class,
     ];
 
     /**
@@ -75,7 +78,10 @@ class Filters extends BaseFilters
     public array $globals = [
         'before' => [
             // 'honeypot',
-            'csrf',
+            // api/* 는 쿠키 세션이 아니라 액세스 토큰으로 인증한다. CSRF 는
+            // 브라우저가 쿠키를 자동으로 붙이는 것을 막는 장치라, 토큰을 손으로
+            // 넣어야 하는 경로에는 해당 사항이 없다(대신 tokens 필터가 지킨다).
+            'csrf' => ['except' => ['api/*']],
             // 'invalidchars',
         ],
         'after' => [
