@@ -13,6 +13,7 @@ use CodeIgniter\Database\Exceptions\DatabaseException;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\Pager\Pager;
 
 class Posts extends BaseController
 {
@@ -63,17 +64,24 @@ class Posts extends BaseController
             ->orderBy('created_at', 'DESC')
             ->paginate(self::PER_PAGE);
 
+        $this->guardPageRange($model->pager);
+
         return view('posts/index', [
             'posts'          => $posts,
             'pager'          => $model->pager,
             'categories'     => model(CategoryModel::class)->menu(),
             'activeCategory' => $activeCategory,
+            // 전체 글 색인(#GSC). 거르지 않은 목록 1페이지에서만 싣는다 —
+            // 자세한 이유는 archiveIndex() 주석에.
+            'archive'        => $this->archiveIndex($activeCategory, $search),
             'search'         => $search,
             // 태그 목록(byTag)과 같은 뷰를 쓰므로 이 값을 명시적으로 넘긴다(#114).
             'activeTag'      => null,
             // 같은 메서드가 /posts 와 /categories/{slug} 를 모두 처리한다(#113).
             'meta'           => [
-                'title' => $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
+                'title'       => $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
+                'description' => $this->listDescription($activeCategory, $search, $model->pager->getTotal()),
+                'jsonld'      => $this->listBreadcrumb($activeCategory),
             ],
         ]);
     }
@@ -113,6 +121,8 @@ class Posts extends BaseController
             ->orderBy('created_at', 'DESC')
             ->paginate(self::PER_PAGE);
 
+        $this->guardPageRange($model->pager);
+
         return view('posts/index', [
             'posts'          => $posts,
             'pager'          => $model->pager,
@@ -120,7 +130,17 @@ class Posts extends BaseController
             'activeCategory' => null,
             'activeTag'      => $tag,
             'search'         => '',
-            'meta'           => ['title' => $tag->name . ' 태그 글'],
+            // 태그로 좁힌 화면에는 전체 색인을 싣지 않는다. 같은 뷰를 쓰므로 키는 넘긴다.
+            'archive'        => [],
+            'meta'           => [
+                'title'       => $tag->name . ' 태그 글',
+                'description' => sprintf(
+                    "'%s' 태그가 붙은 글 %d편입니다. %s",
+                    $tag->name,
+                    $model->pager->getTotal(),
+                    config('Blog')->description
+                ),
+            ],
         ]);
     }
 
@@ -261,6 +281,8 @@ class Posts extends BaseController
                 'type'        => 'article',
                 'title'       => $post->title,
                 'description' => $post->getExcerpt(155),
+                // 구조화 데이터(#GSC). 글의 정체와 발행·수정 시각을 선언한다.
+                'jsonld'      => $this->articleJsonLd($post, $authorName),
                 // 이미지가 없으면 키 자체를 넣지 않는다 — partial 이 태그를 생략한다.
                 ...($post->image !== null && $post->image !== ''
                     ? ['image' => site_url('uploads/' . $post->image)]
@@ -452,6 +474,189 @@ class Posts extends BaseController
         $value = is_string($value) ? $value : '';
 
         return in_array($value, Post::STATUSES, true) ? $value : Post::STATUS_PUBLISHED;
+    }
+
+    /**
+     * 글 상세의 BlogPosting. (#GSC 색인)
+     *
+     * dateModified 를 datePublished 와 **다른 값**에서 가져오는 것이 핵심이다.
+     * 둘 다 created_at 을 쓰면 글을 고쳐도 "안 바뀐 글" 이라고 선언하게 되는데,
+     * 크롤 후 색인이 거부된 글을 다시 보게 하려는 목적과 정반대다.
+     *
+     * URL 은 post_url() 로 만든다. 한글 slug 를 site_url() 에 넘기면 macOS 에서
+     * 바이트가 뭉개진다([[ci4blog-siteurl-macos-bug]]). 이미지 파일명은 난수 ASCII 라
+     * 그 경로에는 해당 사항이 없다.
+     *
+     * @return array<string, mixed>
+     */
+    private function articleJsonLd(Post $post, ?string $authorName): array
+    {
+        $data = [
+            '@context'         => 'https://schema.org',
+            '@type'            => 'BlogPosting',
+            'headline'         => $post->title,
+            'description'      => $post->getExcerpt(155),
+            'mainEntityOfPage' => post_url($post->slug),
+            'author'           => [
+                '@type' => 'Person',
+                'name'  => $authorName ?? config('Blog')->title,
+            ],
+        ];
+
+        if ($post->created_at !== null) {
+            $data['datePublished'] = $post->created_at->format('c');
+        }
+
+        if ($post->updated_at !== null) {
+            $data['dateModified'] = $post->updated_at->format('c');
+        }
+
+        if ($post->image !== null && $post->image !== '') {
+            $data['image'] = site_url('uploads/' . $post->image);
+        }
+
+        return $data;
+    }
+
+    /**
+     * 목록·카테고리 화면의 BreadcrumbList. (#GSC 색인)
+     *
+     * 검색엔진에 이 화면이 계층 어디에 있는지 알려 준다. 목록성 페이지가 크롤 후
+     * 색인 거부된 상태라, 화면의 정체를 추측이 아니라 선언으로 주려는 것이다.
+     *
+     * 검색 결과에는 붙이지 않는다 — ?q= 는 계층상의 자리가 아니라 일시적인 질의다.
+     *
+     * URL 은 category_url()·absolute_url() 로 만든다. site_url() 에 한글 경로를
+     * 넘기면 macOS 에서 바이트가 뭉개진다([[ci4blog-siteurl-macos-bug]]).
+     *
+     * @return array<string, mixed>
+     */
+    private function listBreadcrumb(?object $activeCategory): array
+    {
+        $items = [
+            ['@type' => 'ListItem', 'position' => 1, 'name' => '홈', 'item' => absolute_url('')],
+            ['@type' => 'ListItem', 'position' => 2, 'name' => '글 목록', 'item' => absolute_url('posts')],
+        ];
+
+        if ($activeCategory !== null) {
+            $items[] = [
+                '@type'    => 'ListItem',
+                'position' => 3,
+                'name'     => $activeCategory->name,
+                'item'     => category_url($activeCategory->slug),
+            ];
+        }
+
+        return [
+            '@context'        => 'https://schema.org',
+            '@type'           => 'BreadcrumbList',
+            'itemListElement' => $items,
+        ];
+    }
+
+    /**
+     * 목록 화면의 meta description. (#GSC 색인)
+     *
+     * 예전에는 사이트 기본 설명이 그대로 나가서 /, /posts, /about, 카테고리 페이지의
+     * description 이 전부 같은 문장이었다. 같은 설명을 단 페이지가 여럿이면 검색엔진이
+     * "따로 색인할 가치가 없다" 는 쪽으로 기운다 — 실제로 그 넷 중 셋이 크롤 후 색인
+     * 거부 상태였다.
+     *
+     * 그래서 화면이 실제로 무엇을 담고 있는지를 문장에 넣는다. 개수를 함께 쓰는 것은
+     * 장식이 아니라, 글이 늘면 설명도 따라 바뀌어 내용과 어긋나지 않기 때문이다.
+     * 뒤에 사이트 설명을 붙이는 것은 문맥을 주기 위한 것이고, 앞부분이 달라 페이지끼리
+     * 구별된다.
+     */
+    private function listDescription(?object $activeCategory, string $search, int $total): string
+    {
+        $site = config('Blog')->description;
+
+        if ($search !== '') {
+            return sprintf("'%s' 검색 결과 %d편입니다. %s", $search, $total, $site);
+        }
+
+        if ($activeCategory !== null) {
+            return sprintf("'%s' 카테고리에 담긴 글 %d편입니다. %s", $activeCategory->name, $total, $site);
+        }
+
+        return sprintf('지금까지 쓴 글 %d편의 전체 목록입니다. 최신 글부터 볼 수 있습니다. %s', $total, $site);
+    }
+
+    /**
+     * 목록 하단에 실을 전체 글 색인. 실을 자리가 아니면 빈 배열. (#GSC 색인)
+     *
+     * 거르지 않은 목록의 **1페이지에서만** 싣는다. 세 가지를 다 만족해야 한다.
+     *
+     * - 카테고리로 좁히지 않았을 것 · 검색하지 않았을 것: 좁힌 화면에 전체 목록을
+     *   붙이면 화면이 스스로를 부정한다.
+     * - 첫 페이지일 것: 페이지마다 반복하면 같은 링크 묶음이 페이지 수만큼 늘어나
+     *   중복이 된다. canonical 로 방금 정리한 것을 도로 어지럽히는 셈이다.
+     *
+     * 공유 인스턴스를 쓰지 않는 이유가 있다. model() 이 돌려주는 것은 같은 객체라
+     * 앞서 paginate() 를 태운 빌더 상태가 섞일 수 있다. 여기서는 조건이 전혀 다른
+     * 질의를 하므로 새 인스턴스로 시작한다.
+     *
+     * published() 스코프는 반드시 태운다 — 이 목록은 공개 화면이고, 빠뜨리면
+     * 초안 제목이 통째로 실린다.
+     *
+     * @return list<Post>
+     */
+    private function archiveIndex(?object $activeCategory, string $search): array
+    {
+        if ($activeCategory !== null || $search !== '') {
+            return [];
+        }
+
+        if ((int) ($this->request->getGet('page') ?? 1) > 1) {
+            return [];
+        }
+
+        // 제목·slug·날짜만 있으면 되는 화면이라 컬럼을 좁힌다. 본문까지 끌어오면
+        // 마크다운 원문 전체가 31번 메모리에 올라온다.
+        return model(PostModel::class, false)
+            ->published()
+            ->select('id, title, slug, created_at')
+            ->orderBy('created_at', 'DESC')
+            ->findAll();
+    }
+
+    /**
+     * 범위를 벗어난 ?page=N 을 404 로 돌린다.
+     *
+     * CI4 의 Pager 는 범위를 넘긴 page 를 **마지막 페이지로 클램프**한다
+     * (Pager::store() — `$page > $pageCount ? $pageCount : $page`). 그래서
+     * ?page=999 가 빈 목록이 아니라 마지막 페이지와 **바이트 단위로 같은 응답**을
+     * 200 으로 돌려준다. 무한히 많은 URL 이 같은 내용을 갖는 셈이다.
+     *
+     * 자기참조 canonical(#GSC)과 함께 두면 이게 특히 나빠진다. 각 ?page=N 이
+     * 스스로를 정본이라고 선언하는 순간, 무한한 중복이 색인 후보가 된다.
+     * 그래서 이 가드는 canonical 변경과 반드시 짝으로 가야 한다.
+     *
+     * 판정을 "결과가 비었다" 로 하지 않는 이유가 두 가지다. 하나는 클램프 때문에
+     * 애초에 비지 않는다는 것이고, 다른 하나는 글이 하나도 없는 사이트의 첫 페이지가
+     * 404 가 되어 목록이 통째로 사라진다는 것이다 — 없는 것은 페이지가 아니라 글이다.
+     */
+    private function guardPageRange(Pager $pager): void
+    {
+        $raw = $this->request->getGet('page');
+
+        // 아래쪽도 막아야 한다. Pager 에는 하한 클램프가 따로 있어서
+        // (Pager.php: `$page < 1 ? 1 : $page`) ?page=0 · ?page=-1 · ?page=abc 가
+        // 전부 1페이지를 200 으로 돌려준다. canonical 이 /posts 를 가리키므로 색인
+        // 위험은 위쪽 경우보다 낮지만, 200 을 주는 쓰레기 URL 이 무한히 생기고
+        // 무엇보다 상한과 동작이 어긋난다.
+        //
+        // 파라미터가 아예 없는 것과 값이 이상한 것은 다르게 다룬다. 없으면 첫
+        // 페이지지만, 있는데 1 미만이면 잘못 만들어진 요청이다.
+        if ($raw !== null && (int) $raw < 1) {
+            throw PageNotFoundException::forPageNotFound();
+        }
+
+        $requested = (int) ($raw ?? 1);
+
+        if ($requested > 1 && $requested > $pager->getPageCount()) {
+            throw PageNotFoundException::forPageNotFound();
+        }
     }
 
     /**

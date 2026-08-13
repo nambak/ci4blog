@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use CodeIgniter\Exceptions\PageNotFoundException;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
 use CodeIgniter\Test\FeatureTestTrait;
@@ -47,12 +48,32 @@ final class PostPaginationTest extends CIUnitTestCase
 
     public function testFirstPageHoldsTenPosts(): void
     {
-        $res = $this->call('GET', 'posts');
+        $cards = $this->cardList($this->call('GET', 'posts')->response()->getBody());
 
         // 10건/페이지면 최신 10건(PAGE-02~11)이 1페이지에 있다.
-        $res->assertSee('PAGE-11'); // 최신
-        $res->assertSee('PAGE-02'); // 10번째 (5건/페이지였다면 1페이지에 없다)
-        $res->assertDontSee('PAGE-01'); // 11번째는 넘어간다
+        $this->assertStringContainsString('PAGE-11', $cards); // 최신
+        $this->assertStringContainsString('PAGE-02', $cards); // 10번째 (5건/페이지였다면 1페이지에 없다)
+        $this->assertStringNotContainsString('PAGE-01', $cards); // 11번째는 넘어간다
+    }
+
+    /**
+     * 카드 목록 영역만 잘라 낸다.
+     *
+     * 목록 하단에 전체 글 색인(#GSC)이 붙은 뒤로, 페이지 전체를 대상으로 하면
+     * "11번째 글은 1페이지에 없다" 를 검증할 수 없다 — 색인에는 모든 글이 링크로
+     * 들어 있기 때문이다. 페이지네이션이 검증하려는 것은 **카드 목록의 경계**다.
+     */
+    private function cardList(string $html): string
+    {
+        $start = strpos($html, '<ul class="post-list">');
+
+        if ($start === false) {
+            return '';
+        }
+
+        $end = strpos($html, '<nav class="archive-index"', $start);
+
+        return $end === false ? substr($html, $start) : substr($html, $start, $end - $start);
     }
 
     public function testEleventhPostGoesToSecondPage(): void
@@ -60,6 +81,60 @@ final class PostPaginationTest extends CIUnitTestCase
         // 2페이지에 11번째(가장 오래된 PAGE-01)가 보인다.
         // (5건/페이지였다면 2페이지는 PAGE-02~06 이라 PAGE-01 이 없다.)
         $this->call('GET', 'posts', ['page' => '2'])->assertSee('PAGE-01');
+    }
+
+    /**
+     * 범위를 벗어난 page 는 404 다.
+     *
+     * 200 + 빈 목록은 소프트 404 다 — 검색엔진이 "내용 없는 페이지" 를 색인 후보로
+     * 붙들고 있게 된다(GSC 미색인 목록에 ?page=4 가 잡혔다). 없는 페이지는 없다고
+     * 답해야 한다. 글 11건 · 10건씩이므로 2페이지까지가 전부다.
+     */
+    public function testOutOfRangePageIsNotFound(): void
+    {
+        $this->expectException(PageNotFoundException::class);
+
+        $this->call('GET', 'posts', ['page' => '3']);
+    }
+
+    /**
+     * 1 미만이거나 숫자가 아닌 page 도 404 다.
+     *
+     * 상한만 막으면 절반만 막은 것이다. Pager 에는 하한 클램프가 따로 있어서
+     * (`$page < 1 ? 1 : $page`) ?page=0 · ?page=-1 · ?page=abc 가 모두 1페이지를
+     * 200 으로 돌려준다. canonical 이 /posts 를 가리키므로 색인 위험은 낮지만,
+     * 200 을 주는 쓰레기 URL 이 무한히 생기고 상한과 동작이 어긋난다.
+     */
+    public function testNonPositivePageIsNotFound(): void
+    {
+        foreach (['0', '-1', '-999', 'abc', ''] as $bad) {
+            try {
+                $this->call('GET', 'posts', ['page' => $bad]);
+                $this->fail("page='{$bad}' 가 404 가 아니다.");
+            } catch (PageNotFoundException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    /** page 를 아예 안 주면 첫 페이지다 — 위 가드가 정상 요청까지 잡지 않는지 본다. */
+    public function testMissingPageParameterIsFirstPage(): void
+    {
+        $this->call('GET', 'posts')->assertStatus(200);
+        $this->call('GET', 'posts', ['page' => '1'])->assertStatus(200);
+    }
+
+    /**
+     * 글이 하나도 없어도 첫 페이지는 200 이다.
+     *
+     * "결과가 비었으면 404" 로 구현하면 글을 다 지운 사이트의 목록이 사라진다.
+     * 없는 것은 페이지가 아니라 글이다.
+     */
+    public function testEmptyFirstPageIsStillOk(): void
+    {
+        db_connect()->table('posts')->emptyTable();
+
+        $this->call('GET', 'posts')->assertStatus(200);
     }
 
     public function testPagerMarksCurrentPage(): void

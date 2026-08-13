@@ -188,17 +188,35 @@ final class SitemapTest extends CIUnitTestCase
     }
 
     /**
-     * /about 에는 lastmod 가 붙지 않는다.
+     * /about 의 lastmod 는 config 에 적어 둔 날짜에서 온다.
      *
-     * 변경 시각의 근거가 없다. 지어낸 값을 넣으면 크롤러가 매번 "바뀌었다" 로 읽는다.
+     * 예전에는 근거가 없어 비워 두었다. 본문을 실제로 고친 시점을 Blog 설정에
+     * 명시하게 되면서 근거가 생겼다.
+     *
+     * 파일 mtime 을 쓰지 않는 것이 중요하다. 배포는 git pull 이라 서버를 다시
+     * 세우기만 해도 mtime 이 바뀌는데, 그러면 내용이 그대로인데도 매번
+     * "방금 바뀌었다" 고 알리게 된다. 그런 lastmod 는 크롤러가 곧 무시한다.
+     *
+     * 사람이 손으로 적는 값이라 잊으면 낡은 채로 남는다. 그쪽이 안전한 방향이다 —
+     * 없는 변경을 알리는 것보다 있는 변경을 늦게 알리는 편이 낫다.
      */
-    public function testAboutUrlHasNoLastmod(): void
+    public function testAboutUrlUsesConfiguredLastmod(): void
     {
         $this->seed();
 
         $block = $this->urlBlock($this->sitemapBody(), $this->baseUrl() . '/about');
 
-        $this->assertStringNotContainsString('<lastmod>', $block, '/about 에는 lastmod 가 없어야 한다.');
+        $this->assertStringContainsString('<lastmod>', $block, '/about 에 lastmod 가 없다.');
+        $this->assertStringContainsString(
+            config('Blog')->aboutUpdatedAt,
+            $block,
+            'lastmod 가 설정에 적은 날짜와 다르다.'
+        );
+        $this->assertMatchesRegularExpression(
+            '#<lastmod>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}</lastmod>#',
+            $block,
+            'W3C Datetime 형식이 아니다.'
+        );
     }
 
     /** 발행글 URL 에는 lastmod 가 W3C Datetime 형식으로 붙는다. */

@@ -38,6 +38,33 @@ if (! function_exists('category_url')) {
     }
 }
 
+if (! function_exists('canonical_url')) {
+    /**
+     * 이 페이지의 정본 URL. canonical 과 og:url 이 함께 쓴다. (#GSC 색인)
+     *
+     * 쿼리스트링은 **page 만** 살린다. 예전에는 base_url(uri_string()) 만 써서
+     * 쿼리를 통째로 버렸고, 그래서 ?page=2 도 ?page=3 도 전부 /posts 를 정본이라고
+     * 선언했다 — 목록 2·3페이지에만 실린 글로 가는 신호가 스스로 지워진 셈이다.
+     *
+     * 반대로 쿼리를 전부 살리면 더 나쁘다. ?q=아무거나 는 무한히 만들 수 있어서
+     * 색인 후보가 무한해진다. 그래서 화이트리스트다.
+     *
+     * page=1 에 ?page=1 을 붙이지 않는 것도 의도다 — /posts 와 같은 내용이라
+     * 둘 다 정본이라고 하면 우리 손으로 중복을 하나 만든다.
+     *
+     * uri_string() 이 이미 퍼센트 인코딩된 경로를 돌려주므로 여기서 다시 인코딩하지
+     * 않는다(그러면 %ED 가 %25ED 가 된다). 라이브에서 sitemap 의 <loc> 과
+     * 바이트 단위로 같은 값이 나오는 것을 확인했다.
+     */
+    function canonical_url(): string
+    {
+        $url  = base_url(uri_string());
+        $page = (int) (service('request')->getGet('page') ?? 1);
+
+        return $page > 1 ? $url . '?page=' . $page : $url;
+    }
+}
+
 if (! function_exists('absolute_url')) {
     /**
      * 사이트 절대 URL. 경로 세그먼트를 직접 퍼센트 인코딩한다. (#113 에서 승격)

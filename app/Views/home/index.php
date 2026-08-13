@@ -31,7 +31,7 @@ $siteTitle = config('Blog')->title;
     <link rel="icon" href="<?= base_url('favicon/favicon-16.png') ?>" sizes="16x16" type="image/png">
     <link rel="apple-touch-icon" href="<?= base_url('favicon/apple-touch-icon.png') ?>">
     <?php // apex(unwanted.me)에서도 같은 화면을 서빙하므로, 정본 URL은 항상 baseURL(blog.unwanted.me) 기준으로 고정해 중복 콘텐츠를 막는다. ?>
-    <link rel="canonical" href="<?= base_url(uri_string()) ?>">
+    <link rel="canonical" href="<?= canonical_url() ?>">
     <?php // RSS 자동 발견 — 리더·브라우저 확장이 이 링크로 피드를 찾는다. href 는 피드의 atom:link rel="self" 와 같은 함수로 만들어 정본이 갈라지지 않게 한다. ?>
     <link rel="alternate" type="application/rss+xml" title="<?= esc(config('Blog')->title) ?>" href="<?= absolute_url('feed') ?>">
     <?php // 이 화면은 공유 레이아웃을 쓰지 않으므로 메타태그 partial 을 직접 include 한다. ?>
