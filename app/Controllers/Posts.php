@@ -79,7 +79,9 @@ class Posts extends BaseController
             'activeTag'      => null,
             // 같은 메서드가 /posts 와 /categories/{slug} 를 모두 처리한다(#113).
             'meta'           => [
-                'title' => $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
+                'title'       => $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
+                'description' => $this->listDescription($activeCategory, $search, $model->pager->getTotal()),
+                'jsonld'      => $this->listBreadcrumb($activeCategory),
             ],
         ]);
     }
@@ -130,7 +132,15 @@ class Posts extends BaseController
             'search'         => '',
             // 태그로 좁힌 화면에는 전체 색인을 싣지 않는다. 같은 뷰를 쓰므로 키는 넘긴다.
             'archive'        => [],
-            'meta'           => ['title' => $tag->name . ' 태그 글'],
+            'meta'           => [
+                'title'       => $tag->name . ' 태그 글',
+                'description' => sprintf(
+                    "'%s' 태그가 붙은 글 %d편입니다. %s",
+                    $tag->name,
+                    $model->pager->getTotal(),
+                    config('Blog')->description
+                ),
+            ],
         ]);
     }
 
@@ -271,6 +281,8 @@ class Posts extends BaseController
                 'type'        => 'article',
                 'title'       => $post->title,
                 'description' => $post->getExcerpt(155),
+                // 구조화 데이터(#GSC). 글의 정체와 발행·수정 시각을 선언한다.
+                'jsonld'      => $this->articleJsonLd($post, $authorName),
                 // 이미지가 없으면 키 자체를 넣지 않는다 — partial 이 태그를 생략한다.
                 ...($post->image !== null && $post->image !== ''
                     ? ['image' => site_url('uploads/' . $post->image)]
@@ -462,6 +474,112 @@ class Posts extends BaseController
         $value = is_string($value) ? $value : '';
 
         return in_array($value, Post::STATUSES, true) ? $value : Post::STATUS_PUBLISHED;
+    }
+
+    /**
+     * 글 상세의 BlogPosting. (#GSC 색인)
+     *
+     * dateModified 를 datePublished 와 **다른 값**에서 가져오는 것이 핵심이다.
+     * 둘 다 created_at 을 쓰면 글을 고쳐도 "안 바뀐 글" 이라고 선언하게 되는데,
+     * 크롤 후 색인이 거부된 글을 다시 보게 하려는 목적과 정반대다.
+     *
+     * URL 은 post_url() 로 만든다. 한글 slug 를 site_url() 에 넘기면 macOS 에서
+     * 바이트가 뭉개진다([[ci4blog-siteurl-macos-bug]]). 이미지 파일명은 난수 ASCII 라
+     * 그 경로에는 해당 사항이 없다.
+     *
+     * @return array<string, mixed>
+     */
+    private function articleJsonLd(Post $post, ?string $authorName): array
+    {
+        $data = [
+            '@context'         => 'https://schema.org',
+            '@type'            => 'BlogPosting',
+            'headline'         => $post->title,
+            'description'      => $post->getExcerpt(155),
+            'mainEntityOfPage' => post_url($post->slug),
+            'author'           => [
+                '@type' => 'Person',
+                'name'  => $authorName ?? config('Blog')->title,
+            ],
+        ];
+
+        if ($post->created_at !== null) {
+            $data['datePublished'] = $post->created_at->format('c');
+        }
+
+        if ($post->updated_at !== null) {
+            $data['dateModified'] = $post->updated_at->format('c');
+        }
+
+        if ($post->image !== null && $post->image !== '') {
+            $data['image'] = site_url('uploads/' . $post->image);
+        }
+
+        return $data;
+    }
+
+    /**
+     * 목록·카테고리 화면의 BreadcrumbList. (#GSC 색인)
+     *
+     * 검색엔진에 이 화면이 계층 어디에 있는지 알려 준다. 목록성 페이지가 크롤 후
+     * 색인 거부된 상태라, 화면의 정체를 추측이 아니라 선언으로 주려는 것이다.
+     *
+     * 검색 결과에는 붙이지 않는다 — ?q= 는 계층상의 자리가 아니라 일시적인 질의다.
+     *
+     * URL 은 category_url()·absolute_url() 로 만든다. site_url() 에 한글 경로를
+     * 넘기면 macOS 에서 바이트가 뭉개진다([[ci4blog-siteurl-macos-bug]]).
+     *
+     * @return array<string, mixed>
+     */
+    private function listBreadcrumb(?object $activeCategory): array
+    {
+        $items = [
+            ['@type' => 'ListItem', 'position' => 1, 'name' => '홈', 'item' => absolute_url('')],
+            ['@type' => 'ListItem', 'position' => 2, 'name' => '글 목록', 'item' => absolute_url('posts')],
+        ];
+
+        if ($activeCategory !== null) {
+            $items[] = [
+                '@type'    => 'ListItem',
+                'position' => 3,
+                'name'     => $activeCategory->name,
+                'item'     => category_url($activeCategory->slug),
+            ];
+        }
+
+        return [
+            '@context'        => 'https://schema.org',
+            '@type'           => 'BreadcrumbList',
+            'itemListElement' => $items,
+        ];
+    }
+
+    /**
+     * 목록 화면의 meta description. (#GSC 색인)
+     *
+     * 예전에는 사이트 기본 설명이 그대로 나가서 /, /posts, /about, 카테고리 페이지의
+     * description 이 전부 같은 문장이었다. 같은 설명을 단 페이지가 여럿이면 검색엔진이
+     * "따로 색인할 가치가 없다" 는 쪽으로 기운다 — 실제로 그 넷 중 셋이 크롤 후 색인
+     * 거부 상태였다.
+     *
+     * 그래서 화면이 실제로 무엇을 담고 있는지를 문장에 넣는다. 개수를 함께 쓰는 것은
+     * 장식이 아니라, 글이 늘면 설명도 따라 바뀌어 내용과 어긋나지 않기 때문이다.
+     * 뒤에 사이트 설명을 붙이는 것은 문맥을 주기 위한 것이고, 앞부분이 달라 페이지끼리
+     * 구별된다.
+     */
+    private function listDescription(?object $activeCategory, string $search, int $total): string
+    {
+        $site = config('Blog')->description;
+
+        if ($search !== '') {
+            return sprintf("'%s' 검색 결과 %d편입니다. %s", $search, $total, $site);
+        }
+
+        if ($activeCategory !== null) {
+            return sprintf("'%s' 카테고리에 담긴 글 %d편입니다. %s", $activeCategory->name, $total, $site);
+        }
+
+        return sprintf('지금까지 쓴 글 %d편의 전체 목록입니다. 최신 글부터 볼 수 있습니다. %s', $total, $site);
     }
 
     /**

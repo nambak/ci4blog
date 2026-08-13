@@ -18,6 +18,9 @@
     <link rel="alternate" type="application/rss+xml" title="<?= esc(config('Blog')->title) ?>" href="<?= absolute_url('feed') ?>">
     <?php // 검색·SNS 미리보기용 메타태그. $meta 를 안 넘긴 페이지는 사이트 기본값으로 채워진다. ?>
     <?= $this->include('partials/meta', ['meta' => $meta ?? []]) ?>
+    <?php // 구조화 데이터(#GSC). 부분 뷰가 $meta['jsonld'] 를 직접 읽는다 —
+          // include() 의 두 번째 인자는 데이터가 아니라 캐시 옵션이라 전달되지 않는다. ?>
+    <?= $this->include('partials/jsonld') ?>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
     <?php // 파일 수정 시각을 버전 파라미터로 붙여, CSS 수정이 브라우저 캐시에 막히지 않게 한다. ?>

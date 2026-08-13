@@ -384,8 +384,52 @@ final class MetaTagsTest extends CIUnitTestCase
         $html = $this->decodedBody($this->call('GET', 'posts'));
 
         $this->assertSame('글 목록', $this->metaContent($html, 'property', 'og:title'));
-        // 설명은 사이트 기본값을 그대로 쓴다.
-        $this->assertSame(config('Blog')->description, $this->metaContent($html, 'property', 'og:description'));
+    }
+
+    /**
+     * 목록성 페이지는 저마다 다른 설명을 갖는다. (#GSC 색인)
+     *
+     * 예전에는 /, /posts, /about, /categories/{slug} 의 description 이 **전부 같은
+     * 문장**이었다(사이트 기본값이 그대로 나갔다). 같은 설명을 단 페이지가 여러 개면
+     * 검색엔진이 "따로 색인할 가치가 없다" 고 판단하는 쪽으로 기운다 — 실제로 이
+     * 네 페이지 중 셋이 GSC 에서 크롤 후 색인 거부 상태였다.
+     *
+     * 색인을 보장하는 조치는 아니다. 다만 "구별할 수 없어서" 라는 이유는 지운다.
+     */
+    public function testListPagesHaveDistinctDescriptions(): void
+    {
+        model(\App\Models\CategoryModel::class)->insert(['name' => '회고', 'slug' => 'retro']);
+
+        $seen = [];
+
+        foreach (['/', 'posts', 'about', 'categories/retro'] as $path) {
+            $description = $this->metaContent(
+                $this->decodedBody($this->call('GET', $path)),
+                'name',
+                'description'
+            );
+
+            $this->assertNotNull($description, "{$path} 에 description 이 없다.");
+            $this->assertNotContains($description, $seen, "{$path} 의 description 이 다른 페이지와 같다.");
+
+            // 우리가 조립하는 문장은 스니펫으로 쓰일 만큼은 돼야 한다. 홈은 예외다 —
+            // 사이트 기본 설명을 쓰는 것이 맞고, 그 값은 운영에서 .env 로 덮인다.
+            if ($path !== '/') {
+                $this->assertGreaterThan(40, mb_strlen($description), "{$path} 의 description 이 너무 짧다.");
+            }
+
+            $seen[] = $description;
+        }
+    }
+
+    /** 카테고리 설명에는 그 카테고리 이름이 들어간다 — 개수만 다른 문장은 구별이 아니다. */
+    public function testCategoryDescriptionNamesTheCategory(): void
+    {
+        model(\App\Models\CategoryModel::class)->insert(['name' => '회고', 'slug' => 'retro']);
+
+        $html = $this->decodedBody($this->call('GET', 'categories/retro'));
+
+        $this->assertStringContainsString('회고', (string) $this->metaContent($html, 'name', 'description'));
     }
 
     public function testCategoryPageHasCategoryTitle(): void
