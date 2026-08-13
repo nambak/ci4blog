@@ -37,12 +37,16 @@ class Uploads extends BaseController
     {
         $file = $this->request->getFile('image');
 
-        if ($file === null || ! $file->isValid()) {
-            return $this->failValidationErrors([
-                'image' => $file === null
-                    ? 'image 필드로 파일을 보내 주세요.'
-                    : $file->getErrorString(),
-            ]);
+        // isValid() 로 보지 않는다. 그 안의 is_uploaded_file() 은 실제 HTTP 업로드에서만
+        // 참이라, 이 한 줄이 CLI 로 도는 테스트에서 성공 경로를 통째로 막는다. 대신
+        // 에러 코드로 가른다 — 웹 쪽 Posts::saveUploadedImage() 와 같은 방식이다.
+        // 진짜 업로드가 아닌 파일은 UploadStorage 가 쓰는 move() 가 어차피 거부한다.
+        if ($file === null || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            return $this->failValidationErrors(['image' => 'image 필드로 파일을 보내 주세요.']);
+        }
+
+        if ($file->getError() !== UPLOAD_ERR_OK) {
+            return $this->failValidationErrors(['image' => $file->getErrorString()]);
         }
 
         // 관리자 화면의 글 이미지와 같은 규칙으로 검증한다. 두 경로가 갈라지면
