@@ -48,12 +48,32 @@ final class PostPaginationTest extends CIUnitTestCase
 
     public function testFirstPageHoldsTenPosts(): void
     {
-        $res = $this->call('GET', 'posts');
+        $cards = $this->cardList($this->call('GET', 'posts')->response()->getBody());
 
         // 10건/페이지면 최신 10건(PAGE-02~11)이 1페이지에 있다.
-        $res->assertSee('PAGE-11'); // 최신
-        $res->assertSee('PAGE-02'); // 10번째 (5건/페이지였다면 1페이지에 없다)
-        $res->assertDontSee('PAGE-01'); // 11번째는 넘어간다
+        $this->assertStringContainsString('PAGE-11', $cards); // 최신
+        $this->assertStringContainsString('PAGE-02', $cards); // 10번째 (5건/페이지였다면 1페이지에 없다)
+        $this->assertStringNotContainsString('PAGE-01', $cards); // 11번째는 넘어간다
+    }
+
+    /**
+     * 카드 목록 영역만 잘라 낸다.
+     *
+     * 목록 하단에 전체 글 색인(#GSC)이 붙은 뒤로, 페이지 전체를 대상으로 하면
+     * "11번째 글은 1페이지에 없다" 를 검증할 수 없다 — 색인에는 모든 글이 링크로
+     * 들어 있기 때문이다. 페이지네이션이 검증하려는 것은 **카드 목록의 경계**다.
+     */
+    private function cardList(string $html): string
+    {
+        $start = strpos($html, '<ul class="post-list">');
+
+        if ($start === false) {
+            return '';
+        }
+
+        $end = strpos($html, '<nav class="archive-index"', $start);
+
+        return $end === false ? substr($html, $start) : substr($html, $start, $end - $start);
     }
 
     public function testEleventhPostGoesToSecondPage(): void

@@ -71,6 +71,9 @@ class Posts extends BaseController
             'pager'          => $model->pager,
             'categories'     => model(CategoryModel::class)->menu(),
             'activeCategory' => $activeCategory,
+            // 전체 글 색인(#GSC). 거르지 않은 목록 1페이지에서만 싣는다 —
+            // 자세한 이유는 archiveIndex() 주석에.
+            'archive'        => $this->archiveIndex($activeCategory, $search),
             'search'         => $search,
             // 태그 목록(byTag)과 같은 뷰를 쓰므로 이 값을 명시적으로 넘긴다(#114).
             'activeTag'      => null,
@@ -125,6 +128,8 @@ class Posts extends BaseController
             'activeCategory' => null,
             'activeTag'      => $tag,
             'search'         => '',
+            // 태그로 좁힌 화면에는 전체 색인을 싣지 않는다. 같은 뷰를 쓰므로 키는 넘긴다.
+            'archive'        => [],
             'meta'           => ['title' => $tag->name . ' 태그 글'],
         ]);
     }
@@ -457,6 +462,44 @@ class Posts extends BaseController
         $value = is_string($value) ? $value : '';
 
         return in_array($value, Post::STATUSES, true) ? $value : Post::STATUS_PUBLISHED;
+    }
+
+    /**
+     * 목록 하단에 실을 전체 글 색인. 실을 자리가 아니면 빈 배열. (#GSC 색인)
+     *
+     * 거르지 않은 목록의 **1페이지에서만** 싣는다. 세 가지를 다 만족해야 한다.
+     *
+     * - 카테고리로 좁히지 않았을 것 · 검색하지 않았을 것: 좁힌 화면에 전체 목록을
+     *   붙이면 화면이 스스로를 부정한다.
+     * - 첫 페이지일 것: 페이지마다 반복하면 같은 링크 묶음이 페이지 수만큼 늘어나
+     *   중복이 된다. canonical 로 방금 정리한 것을 도로 어지럽히는 셈이다.
+     *
+     * 공유 인스턴스를 쓰지 않는 이유가 있다. model() 이 돌려주는 것은 같은 객체라
+     * 앞서 paginate() 를 태운 빌더 상태가 섞일 수 있다. 여기서는 조건이 전혀 다른
+     * 질의를 하므로 새 인스턴스로 시작한다.
+     *
+     * published() 스코프는 반드시 태운다 — 이 목록은 공개 화면이고, 빠뜨리면
+     * 초안 제목이 통째로 실린다.
+     *
+     * @return list<Post>
+     */
+    private function archiveIndex(?object $activeCategory, string $search): array
+    {
+        if ($activeCategory !== null || $search !== '') {
+            return [];
+        }
+
+        if ((int) ($this->request->getGet('page') ?? 1) > 1) {
+            return [];
+        }
+
+        // 제목·slug·날짜만 있으면 되는 화면이라 컬럼을 좁힌다. 본문까지 끌어오면
+        // 마크다운 원문 전체가 31번 메모리에 올라온다.
+        return model(PostModel::class, false)
+            ->published()
+            ->select('id, title, slug, created_at')
+            ->orderBy('created_at', 'DESC')
+            ->findAll();
     }
 
     /**
