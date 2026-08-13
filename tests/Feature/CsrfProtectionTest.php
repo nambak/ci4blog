@@ -83,15 +83,40 @@ final class CsrfProtectionTest extends CIUnitTestCase
      *
      * 이 이슈(#73)는 "csrf 가 주석 처리된 줄 아무도 몰랐다"에서 출발했다. 위 세 테스트는
      * 필터가 꺼지면 함께 깨지지만, 그때 원인이 설정임을 바로 가리키도록 단언을 하나 둔다.
+     *
+     * 필터는 두 형태로 적힐 수 있다. 예외가 없으면 목록의 "값"(`'csrf'`), 예외가 있으면
+     * "키"(`'csrf' => ['except' => [...]]`)다. 값만 보면 예외를 붙이는 순간 이 테스트가
+     * 깨지는데, 그건 보호가 사라졌다는 뜻이 아니라 적는 형태가 바뀐 것뿐이다.
      */
     public function testCsrfFilterIsEnabledGlobally(): void
     {
-        $globals = (new FiltersConfig())->globals;
+        $before = (new FiltersConfig())->globals['before'];
 
-        $this->assertContains(
-            'csrf',
-            $globals['before'],
+        $this->assertTrue(
+            in_array('csrf', $before, true) || array_key_exists('csrf', $before),
             'app/Config/Filters.php 의 $globals[\'before\'] 에 csrf 가 있어야 한다.'
+        );
+    }
+
+    /**
+     * CSRF 예외 경로 회귀 방지.
+     *
+     * 위 테스트는 "csrf 가 있는가" 만 본다. 그런데 예외 목록에 `*` 나 `admin/*` 가
+     * 슬쩍 들어가면 필터는 그대로 있으면서 보호만 사라진다 — 위 테스트로는 안 잡힌다.
+     * 그래서 허용된 예외를 여기에 못 박는다.
+     *
+     * `api/*` 만 예외인 이유: 그 경로는 쿠키 세션이 아니라 액세스 토큰으로 인증한다.
+     * CSRF 는 브라우저가 쿠키를 자동으로 붙이는 것을 막는 장치라, 토큰을 손으로
+     * 넣어야 하는 경로에는 해당 사항이 없다(docs/publish-api.md).
+     */
+    public function testCsrfExceptionsAreLimitedToTokenAuthenticatedApi(): void
+    {
+        $before = (new FiltersConfig())->globals['before'];
+
+        $this->assertSame(
+            ['api/*'],
+            $before['csrf']['except'] ?? [],
+            'CSRF 예외는 토큰 인증 경로(api/*)로만 제한해야 한다.'
         );
     }
 
