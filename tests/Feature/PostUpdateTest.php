@@ -154,4 +154,34 @@ final class PostUpdateTest extends CIUnitTestCase
             'title' => '원래 제목',
         ]);
     }
+
+    /**
+     * 관리 화면에서 제목만 고쳐 저장해도 slug 는 그대로다.
+     *
+     * 발행 API(POST /api/posts)는 slug 를 upsert 키로 쓴다. 여기서 slug 가
+     * 제목 기준으로 재생성되면 다음 발행이 기존 글을 못 찾아 새 글을 하나 더 만들고,
+     * 이미 걸린 외부 링크와 검색 유입도 함께 끊긴다.
+     */
+    public function testUpdatingTitleKeepsExistingSlug(): void
+    {
+        $user = $this->makeUser();
+        $id   = $this->makePost($user->id);
+
+        // 원고(front matter)가 정한 slug 를 가진 글로 만든다.
+        $this->db->table('posts')->where('id', $id)->update(['slug' => 'ci4-multiboard-03-schema-blueprint']);
+
+        $result = $this->actingAs($user)->call('POST', "posts/{$id}", [
+            'title' => '멀티보드 만들기 3 - 스키마 설계',
+            'body'  => '원래 본문',
+        ]);
+
+        $result->assertRedirect();
+        // 제목은 바뀌었는데
+        $this->seeInDatabase('posts', ['id' => $id, 'title' => '멀티보드 만들기 3 - 스키마 설계']);
+        // slug 는 손대지 않았다.
+        $this->assertSame(
+            'ci4-multiboard-03-schema-blueprint',
+            model(PostModel::class)->find($id)->slug
+        );
+    }
 }

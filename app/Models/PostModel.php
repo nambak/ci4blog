@@ -59,29 +59,63 @@ class PostModel extends Model
         ],
     ];
 
-    // 저장/수정 직전에 제목으로 slug 를 자동 생성한다.
+    // 저장 직전에 slug 를 정한다.
     // (ep12~16 까지 컨트롤러가 임시 slug 를 채우던 것을 모델로 옮긴다.)
-    protected $beforeInsert = ['generateSlug'];
-    protected $beforeUpdate = ['generateSlug'];
+    // 규칙이 신규 저장과 수정에서 다르므로 콜백을 둘로 나눈다.
+    protected $beforeInsert = ['generateSlugOnInsert'];
+    protected $beforeUpdate = ['applySlugOnUpdate'];
 
     /**
-     * 콜백: title 이 들어오면 slug 를 만들어 $data 에 채운다.
-     * title 이 없는 부분 수정에서는 기존 slug 를 건드리지 않는다.
+     * 콜백(insert): slug 를 명시했으면 그 값을, 없으면 제목에서 만들어 채운다.
      */
-    protected function generateSlug(array $data): array
+    protected function generateSlugOnInsert(array $data): array
     {
-        if (! isset($data['data']['title'])) {
-            return $data;
+        $slug = $this->explicitSlug($data);
+
+        if ($slug === null) {
+            if (! isset($data['data']['title'])) {
+                return $data;
+            }
+
+            $slug = $this->slugify((string) $data['data']['title']);
         }
 
-        $base = $this->slugify((string) $data['data']['title']);
+        $data['data']['slug'] = $this->uniqueSlug($slug);
+
+        return $data;
+    }
+
+    /**
+     * 콜백(update): slug 를 명시한 경우에만 손댄다. 없으면 기존 slug 를 그대로 둔다.
+     *
+     * 제목을 고쳤다고 slug 를 다시 만들면 이미 발행된 글의 URL 이 바뀐다. 걸려 있는
+     * 외부 링크와 검색 유입이 끊기고, slug 를 upsert 키로 쓰는 발행 API(POST /api/posts)가
+     * 기존 글을 못 찾아 같은 원고로 새 글을 하나 더 만든다.
+     */
+    protected function applySlugOnUpdate(array $data): array
+    {
+        $slug = $this->explicitSlug($data);
+
+        if ($slug === null) {
+            return $data;
+        }
 
         // 수정 시 자기 자신은 중복 검사에서 제외한다.
         $excludeId = isset($data['id'][0]) ? (int) $data['id'][0] : null;
 
-        $data['data']['slug'] = $this->uniqueSlug($base, $excludeId);
+        $data['data']['slug'] = $this->uniqueSlug($slug, $excludeId);
 
         return $data;
+    }
+
+    /**
+     * 호출자가 직접 지정한 slug. 지정하지 않았거나 비어 있으면 null.
+     */
+    private function explicitSlug(array $data): ?string
+    {
+        $slug = trim((string) ($data['data']['slug'] ?? ''));
+
+        return $slug !== '' ? $slug : null;
     }
 
     /**
