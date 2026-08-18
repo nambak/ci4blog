@@ -3,7 +3,10 @@
 namespace App\Entities;
 
 use CodeIgniter\Entity\Entity;
-use League\CommonMark\CommonMarkConverter;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\Table\TableExtension;
+use League\CommonMark\MarkdownConverter;
 
 /**
  * 글 한 건을 나타내는 도메인 객체.
@@ -40,12 +43,18 @@ class Post extends Entity
      */
     public function getBodyHtml(): string
     {
-        $converter = new CommonMarkConverter([
+        $environment = new Environment([
             'html_input'         => 'escape',
             'allow_unsafe_links' => false,
         ]);
+        $environment->addExtension(new CommonMarkCoreExtension());
+        // 표는 CommonMark 표준이 아니라 GFM 확장이다. 켜지 않으면 파이프가
+        // 그대로 문단으로 흘러나온다(#150).
+        $environment->addExtension(new TableExtension());
 
-        return $converter->convert((string) ($this->attributes['body'] ?? ''))->getContent();
+        return (new MarkdownConverter($environment))
+            ->convert((string) ($this->attributes['body'] ?? ''))
+            ->getContent();
     }
 
     /**
