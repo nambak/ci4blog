@@ -59,6 +59,36 @@ final class PostSlugModelTest extends CIUnitTestCase
         $this->assertSame('brand-new-slug', $posts->find($id)->slug);
     }
 
+    public function testExplicitSlugGetsUniqueSuffixOnUpdate(): void
+    {
+        $posts = $this->posts();
+        $posts->insert(['title' => '먼저 쓴 글', 'body' => '본문', 'slug' => 'taken-slug']);
+        $posts->insert(['title' => '나중 쓴 글', 'body' => '본문', 'slug' => 'my-slug']);
+        $id = $posts->getInsertID();
+
+        // 남이 쓰고 있는 slug 로 바꾸려 하면 중복 처리가 걸린다.
+        $posts->update($id, ['slug' => 'taken-slug']);
+
+        $this->assertSame('taken-slug-2', $posts->find($id)->slug);
+    }
+
+    /**
+     * 같은 slug 를 다시 보내도 접미사가 붙지 않는다.
+     *
+     * 중복 검사에서 자기 자신을 빼지 않으면 저장할 때마다 -2, -3 이 붙어
+     * URL 이 계속 밀린다. 발행 API 는 매번 같은 slug 를 보내므로 바로 드러난다.
+     */
+    public function testResavingSameSlugDoesNotAddSuffix(): void
+    {
+        $posts = $this->posts();
+        $posts->insert(['title' => '옛 제목', 'body' => '본문', 'slug' => 'stable-slug']);
+        $id = $posts->getInsertID();
+
+        $posts->update($id, ['title' => '고친 제목', 'body' => '본문', 'slug' => 'stable-slug']);
+
+        $this->assertSame('stable-slug', $posts->find($id)->slug);
+    }
+
     public function testExplicitSlugStillGetsUniqueSuffix(): void
     {
         $posts = $this->posts();
