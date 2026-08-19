@@ -3,7 +3,13 @@
 namespace App\Entities;
 
 use CodeIgniter\Entity\Entity;
-use League\CommonMark\CommonMarkConverter;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\Table\Table;
+use League\CommonMark\Extension\Table\TableExtension;
+use League\CommonMark\Extension\Table\TableRenderer;
+use League\CommonMark\MarkdownConverter;
+use League\CommonMark\Renderer\HtmlDecorator;
 
 /**
  * 글 한 건을 나타내는 도메인 객체.
@@ -40,12 +46,32 @@ class Post extends Entity
      */
     public function getBodyHtml(): string
     {
-        $converter = new CommonMarkConverter([
+        $environment = new Environment([
             'html_input'         => 'escape',
             'allow_unsafe_links' => false,
         ]);
+        $environment->addExtension(new CommonMarkCoreExtension());
+        // 표는 CommonMark 표준이 아니라 GFM 확장이다. 켜지 않으면 파이프가
+        // 그대로 문단으로 흘러나온다(#150).
+        $environment->addExtension(new TableExtension());
+        // 넓은 표는 가로로 스크롤된다. 그 스크롤 영역은 키보드로도 스크롤할 수 있어야
+        // 하는데(WCAG 2.1.1), Safari 는 스크롤 컨테이너에 포커스를 주지 않고 Chrome 도
+        // 표 안에 링크가 있으면 주지 않는다. 그래서 표를 포커스 가능한 컨테이너로 감싼다.
+        // 기본 렌더러(우선순위 0)보다 높게 등록해 이 렌더러가 이긴다.
+        $environment->addRenderer(
+            Table::class,
+            new HtmlDecorator(new TableRenderer(), 'div', [
+                'class'      => 'table-scroll',
+                'tabindex'   => '0',
+                'role'       => 'region',
+                'aria-label' => '표',
+            ]),
+            10
+        );
 
-        return $converter->convert((string) ($this->attributes['body'] ?? ''))->getContent();
+        return (new MarkdownConverter($environment))
+            ->convert((string) ($this->attributes['body'] ?? ''))
+            ->getContent();
     }
 
     /**

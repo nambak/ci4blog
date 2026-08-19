@@ -109,6 +109,26 @@ input[type=file] { font-size: 14px; color: var(--color-ink-2); }
 .prose h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 48px 0 18px; color: var(--color-ink); }
 .prose blockquote { margin: 32px 0; padding-left: 24px; border-left: 3px solid var(--color-accent); font-size: 20px; line-height: 1.6; font-style: italic; }
 .prose pre { margin: 20px 0; border-radius: 8px; padding: 16px 18px; overflow-x: auto; font-size: 13px; line-height: 1.65; font-family: var(--font-mono); background: var(--color-code-bg); color: #ECEFF4; }
+/* 본문 표(#150). 목업에 표가 없어 이웃 요소의 수치 체계를 따랐다 —
+   간격은 pre(20px)와 p(24px) 사이, 선/배경은 관리 화면 .posts-table 과 같은 변수.
+   내용이 넓으면 표 안에서만 가로 스크롤되게 해 본문 레이아웃이 밀리지 않도록 한다.
+   스크롤은 표가 아니라 감싼 컨테이너가 맡는다 — 그래야 그 영역에 포커스를 줘서
+   키보드로도 넘친 열을 볼 수 있다(WCAG 2.1.1). 엔티티가 이 div 를 붙인다. */
+.prose .table-scroll { margin: 24px 0; overflow-x: auto; }
+/* 포커스가 어디 있는지 보이지 않으면 키보드 사용자는 스크롤할 수 있는지조차 모른다. */
+.prose .table-scroll:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+/* max-width 를 주면 표가 눌려 스크롤이 생기지 않는다. 컨테이너가 스크롤을 맡으므로
+   표는 내용만큼 넓어지게 둔다. */
+.prose table { width: max-content; border-collapse: collapse; font-size: 15px; line-height: 1.6; }
+/* 표가 width:max-content 라 셀은 내용 폭까지 줄어든다 — 한 글자짜리 셀이
+   패딩만 한 칸이 되어 표가 들쭉날쭉해진다. 최소 폭을 정해 모양을 고르게 두고,
+   그만큼 넓어진 표는 컨테이너 안에서 가로로 스크롤된다. */
+.prose th, .prose td { min-width: 90px; padding: 10px 14px; border: 1px solid var(--color-line); }
+/* align 속성(| :---: |)은 author CSS 보다 약해서, text-align 을 무조건 주면
+   마크다운이 지정한 정렬이 덮인다. 속성이 없을 때만 기본값을 준다. */
+.prose th:not([align]) { text-align: left; }
+.prose th { background: var(--color-paper-warm); font-weight: 600; color: var(--color-ink-2); }
+.prose tbody tr:nth-child(even) td { background: var(--color-line-soft); }
 
 /* forms (editor tone) */
 .form { max-width: 720px; margin: 0 auto; }
