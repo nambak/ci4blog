@@ -96,4 +96,30 @@ final class PostMarkdownTest extends CIUnitTestCase
         $this->assertStringContainsString('<td>', $html);
         $this->assertStringNotContainsStringIgnoringCase('javascript:', $html);
     }
+
+    public function testWrapsTableInFocusableScrollContainer(): void
+    {
+        // 넓은 표는 가로로 스크롤된다. 그 스크롤 영역이 포커스를 못 받으면
+        // 키보드만 쓰는 사용자는 넘친 열을 영영 볼 수 없다(WCAG 2.1.1).
+        // Safari 는 스크롤 컨테이너에 포커스를 주지 않고, Chrome 도 표 안에
+        // 링크가 있으면 주지 않으므로 tabindex 를 명시해야 한다.
+        $html = $this->html("| 항목 | 값 |\n|---|---|\n| 제목 | 테스트 |");
+
+        // 표가 실제로 그 컨테이너 **안에** 들어가야 한다.
+        $this->assertMatchesRegularExpression('/<div[^>]*class="table-scroll"[^>]*>\s*<table>/', $html);
+        $this->assertStringContainsString('tabindex="0"', $html);
+        // 스크린리더가 이 영역을 이름으로 짚을 수 있어야 한다.
+        $this->assertStringContainsString('role="region"', $html);
+        $this->assertStringContainsString('aria-label="표"', $html);
+    }
+
+    public function testDoesNotWrapNonTableContent(): void
+    {
+        // 데코레이터가 표 노드에만 걸려야 한다. 문단·제목까지 감싸면
+        // 랜드마크가 남발되어 스크린리더 탐색이 오히려 나빠진다.
+        $html = $this->html("# 제목\n\n본문 문단입니다.");
+
+        $this->assertStringNotContainsString('table-scroll', $html);
+        $this->assertStringNotContainsString('role="region"', $html);
+    }
 }
