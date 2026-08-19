@@ -75,6 +75,7 @@ final class PostMarkdownTest extends CIUnitTestCase
         // app.css 는 :not([align]) 으로 피한다.
         $html = $this->html("| 왼쪽 | 가운데 | 오른쪽 |\n|:---|:---:|---:|\n| a | b | c |");
 
+        $this->assertStringContainsString('<th align="left">왼쪽</th>', $html);
         $this->assertStringContainsString('<th align="center">가운데</th>', $html);
         $this->assertStringContainsString('<td align="right">c</td>', $html);
     }
@@ -99,6 +100,9 @@ final class PostMarkdownTest extends CIUnitTestCase
         // 독자가 무슨 링크였는지조차 알 수 없다.
         $this->assertStringContainsString('클릭', $html);
         $this->assertStringNotContainsStringIgnoringCase('javascript:', $html);
+        // 스킴 문자열만 보면 다른 위험 스킴으로 바뀌었을 때 놓친다.
+        // 실제 계약은 "위험 링크는 href 가 통째로 떨어져 나간다" 이므로 그걸 직접 본다.
+        $this->assertDoesNotMatchRegularExpression('/<a\b[^>]*\bhref\s*=/i', $html);
     }
 
     public function testWrapsTableInFocusableScrollContainer(): void
