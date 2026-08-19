@@ -84,7 +84,9 @@ final class PostMarkdownTest extends CIUnitTestCase
         // 표를 켜면서 보안 설정(html_input=escape)이 유실되면 셀이 XSS 통로가 된다.
         $html = $this->html("| 항목 |\n|---|\n| <script>alert(1)</script> |");
 
-        $this->assertStringContainsString('<td>', $html);
+        // 셀이 통째로 비어도 아래 두 단언은 만족한다. 그래서 이스케이프된 원문이
+        // 그대로 남아 있는지까지 본다 — 내용이 사라진 것은 이스케이프가 아니다.
+        $this->assertStringContainsString('<td>&lt;script&gt;alert(1)&lt;/script&gt;</td>', $html);
         $this->assertStringNotContainsString('<script>', $html);
     }
 
@@ -93,7 +95,9 @@ final class PostMarkdownTest extends CIUnitTestCase
         // 링크 필터도 표 안에서 그대로 살아 있어야 한다.
         $html = $this->html("| 링크 |\n|---|\n| [클릭](javascript:alert(1)) |");
 
-        $this->assertStringContainsString('<td>', $html);
+        // href 만 떨어져 나가고 링크 텍스트는 남아야 한다. 텍스트까지 사라지면
+        // 독자가 무슨 링크였는지조차 알 수 없다.
+        $this->assertStringContainsString('클릭', $html);
         $this->assertStringNotContainsStringIgnoringCase('javascript:', $html);
     }
 
