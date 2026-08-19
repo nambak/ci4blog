@@ -105,12 +105,14 @@ final class PostMarkdownTest extends CIUnitTestCase
         // 링크가 있으면 주지 않으므로 tabindex 를 명시해야 한다.
         $html = $this->html("| 항목 | 값 |\n|---|---|\n| 제목 | 테스트 |");
 
-        // 표가 실제로 그 컨테이너 **안에** 들어가야 한다.
-        $this->assertMatchesRegularExpression('/<div[^>]*class="table-scroll"[^>]*>\s*<table>/', $html);
-        $this->assertStringContainsString('tabindex="0"', $html);
-        // 스크린리더가 이 영역을 이름으로 짚을 수 있어야 한다.
-        $this->assertStringContainsString('role="region"', $html);
-        $this->assertStringContainsString('aria-label="표"', $html);
+        // 속성을 문서 전체에서 따로 찾으면, 엉뚱한 요소에 붙어 있어도 통과한다.
+        // 네 속성이 **같은 div** 에 있고 표가 그 안에 들어가는지를 한 번에 본다
+        // (lookahead 라 속성 순서에는 영향받지 않는다).
+        $this->assertMatchesRegularExpression(
+            '/<div(?=[^>]*\bclass="table-scroll")(?=[^>]*\btabindex="0")'
+            . '(?=[^>]*\brole="region")(?=[^>]*\baria-label="표")[^>]*>\s*<table>/u',
+            $html
+        );
     }
 
     public function testDoesNotWrapNonTableContent(): void
