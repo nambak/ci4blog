@@ -5,6 +5,10 @@ namespace App\Entities;
 use CodeIgniter\Entity\Entity;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\CommonMark\Node\Block\FencedCode;
+use League\CommonMark\Extension\CommonMark\Node\Block\IndentedCode;
+use League\CommonMark\Extension\CommonMark\Renderer\Block\FencedCodeRenderer;
+use League\CommonMark\Extension\CommonMark\Renderer\Block\IndentedCodeRenderer;
 use League\CommonMark\Extension\Table\Table;
 use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\Extension\Table\TableRenderer;
@@ -66,6 +70,24 @@ class Post extends Entity
                 'role'       => 'region',
                 'aria-label' => '표',
             ]),
+            10
+        );
+        // 코드 블록도 표와 같은 이유로 스크롤 컨테이너를 감싼다(#155). 펜스 코드
+        // (```)와 4칸 들여쓰기 코드 둘 다 <pre><code> 로 나오므로 두 노드 모두 감싼다.
+        $codeScrollAttrs = [
+            'class'      => 'code-scroll',
+            'tabindex'   => '0',
+            'role'       => 'region',
+            'aria-label' => '코드',
+        ];
+        $environment->addRenderer(
+            FencedCode::class,
+            new HtmlDecorator(new FencedCodeRenderer(), 'div', $codeScrollAttrs),
+            10
+        );
+        $environment->addRenderer(
+            IndentedCode::class,
+            new HtmlDecorator(new IndentedCodeRenderer(), 'div', $codeScrollAttrs),
             10
         );
 
