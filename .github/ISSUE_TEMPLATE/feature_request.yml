@@ -1,0 +1,37 @@
+name: 기능 요청
+description: 새 기능이나 개선
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `claude-go` 라벨을 붙이면 Claude Code 가 이 내용만 읽고 구현합니다.
+        **설계 판단이 필요한 일(라이브러리 선택 등)은 라벨을 붙이기 전에 방향을 먼저 정하세요.**
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 무엇을
+      description: 바뀐 뒤의 모습을 적어 주세요.
+      placeholder: 아카이브를 그리드 방식 목록으로만 보여준다
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: 왜
+      description: 지금 무엇이 불편한지. 판단이 갈릴 때 이 내용이 기준이 됩니다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 건드릴 범위 / 건드리지 말 것
+      description: 아는 만큼만 적어 주세요.
+      placeholder: |
+        건드릴 것: app/Views/archive/*, public/assets/css/app.css
+        건드리지 말 것: 글 목록·상세 화면
+    validations:
+      required: false
