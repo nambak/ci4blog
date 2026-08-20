@@ -446,7 +446,13 @@ class Posts extends BaseController
         $tagModel->syncForPost($id, $tagModel->parseNames((string) $this->request->getPost('tags')));
 
         // 수정 성공 시: 해당 글 상세로 이동하며 플래시 메시지를 남긴다.
-        return redirect()->to('posts/' . $post->slug)->with('message', '글이 수정되었습니다.');
+        //
+        // post_url() 로 만든다: 한글 slug 를 그대로 redirect()->to() 에 넘기면
+        // 내부에서 site_url() 이 parse_url() 을 타는데, macOS libc 의 iscntrl 이
+        // UTF-8 로케일에서 0x80~0x9F 를 제어문자로 봐서 slug 바이트가 뭉개진다
+        // ([[ci4blog-siteurl-macos-bug]], #152) — 관리자가 글을 수정해 저장하면
+        // 뭉개진 주소로 리다이렉트되어 상세 페이지가 404 로 응답했다.
+        return redirect()->to(post_url($post->slug))->with('message', '글이 수정되었습니다.');
     }
 
     /**
