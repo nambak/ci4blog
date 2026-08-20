@@ -30,6 +30,9 @@ jobs:
       contents: write        # 브랜치 생성·푸시
       pull-requests: write   # PR 생성
       issues: write          # 진행 상황 코멘트
+      # 액션이 GitHub 토큰을 OIDC 로 교환한다. 이게 없으면 액션 진입 직후
+      # "Could not fetch an OIDC token" 으로 끊긴다(첫 실행에서 겪음).
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
