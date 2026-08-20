@@ -108,7 +108,12 @@ input[type=file] { font-size: 14px; color: var(--color-ink-2); }
 .prose p { margin: 24px 0; }
 .prose h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 48px 0 18px; color: var(--color-ink); }
 .prose blockquote { margin: 32px 0; padding-left: 24px; border-left: 3px solid var(--color-accent); font-size: 20px; line-height: 1.6; font-style: italic; }
-.prose pre { margin: 20px 0; border-radius: 8px; padding: 16px 18px; overflow-x: auto; font-size: 13px; line-height: 1.65; font-family: var(--font-mono); background: var(--color-code-bg); color: #ECEFF4; }
+.prose pre { margin: 0; border-radius: 8px; padding: 16px 18px; font-size: 13px; line-height: 1.65; font-family: var(--font-mono); background: var(--color-code-bg); color: #ECEFF4; }
+/* 코드 블록도 표(#150)와 같은 이유로 스크롤을 pre 가 아니라 감싼 컨테이너가
+   맡는다 — 그래야 그 영역에 포커스를 줘서 키보드로도 넘친 코드를 볼 수
+   있다(WCAG 2.1.1, #155). 엔티티가 이 div 를 붙인다. */
+.prose .code-scroll { margin: 20px 0; overflow-x: auto; }
+.prose .code-scroll:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 /* 본문 표(#150). 목업에 표가 없어 이웃 요소의 수치 체계를 따랐다 —
    간격은 pre(20px)와 p(24px) 사이, 선/배경은 관리 화면 .posts-table 과 같은 변수.
    내용이 넓으면 표 안에서만 가로 스크롤되게 해 본문 레이아웃이 밀리지 않도록 한다.

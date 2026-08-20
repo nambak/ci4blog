@@ -132,4 +132,53 @@ final class PostMarkdownTest extends CIUnitTestCase
         $this->assertStringNotContainsString('table-scroll', $html);
         $this->assertStringNotContainsString('role="region"', $html);
     }
+
+    public function testWrapsFencedCodeBlockInFocusableScrollContainer(): void
+    {
+        // 표와 마찬가지로 코드 블록도 길면 가로로 스크롤된다. 그 스크롤 영역이
+        // 포커스를 못 받으면 키보드만 쓰는 사용자는 넘친 코드를 영영 볼 수 없다
+        // (WCAG 2.1.1, axe scrollable-region-focusable, #155).
+        $html = $this->html("```php\n\$x = 1;\n```");
+
+        $this->assertMatchesRegularExpression(
+            '/<div(?=[^>]*\bclass="code-scroll")(?=[^>]*\btabindex="0")'
+            . '(?=[^>]*\brole="region")(?=[^>]*\baria-label="코드")[^>]*>\s*<pre>/u',
+            $html
+        );
+        // 감싸는 과정에서 내용이나 language 클래스가 사라지면 안 된다.
+        $this->assertStringContainsString('class="language-php"', $html);
+        $this->assertStringContainsString('$x = 1;', $html);
+    }
+
+    public function testWrapsIndentedCodeBlockInFocusableScrollContainer(): void
+    {
+        // 4칸 들여쓰기 코드 블록(IndentedCode)도 펜스 코드와 같은 <pre><code> 로
+        // 나오므로 같은 처리가 필요하다.
+        $html = $this->html("    \$x = 1;");
+
+        $this->assertMatchesRegularExpression(
+            '/<div(?=[^>]*\bclass="code-scroll")(?=[^>]*\btabindex="0")'
+            . '(?=[^>]*\brole="region")(?=[^>]*\baria-label="코드")[^>]*>\s*<pre>/u',
+            $html
+        );
+        $this->assertStringContainsString('$x = 1;', $html);
+    }
+
+    public function testDoesNotWrapNonCodeContent(): void
+    {
+        // 데코레이터가 코드 블록 노드에만 걸려야 한다.
+        $html = $this->html("# 제목\n\n본문 문단입니다.");
+
+        $this->assertStringNotContainsString('code-scroll', $html);
+    }
+
+    public function testCodeBlockEscapesRawContent(): void
+    {
+        // 데코레이터를 씌우는 과정에서 기존 이스케이프(html_input=escape)가
+        // 유실되면 안 된다.
+        $html = $this->html("```\n<script>alert(1)</script>\n```");
+
+        $this->assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
+        $this->assertStringNotContainsString('<script>', $html);
+    }
 }
