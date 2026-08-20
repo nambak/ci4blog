@@ -46,7 +46,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Pro/Max 구독으로 돈다(`claude setup-token` 으로 발급). API 키를 쓰면
+          # 구독과 별개로 사용량만큼 과금되므로 구독 토큰 쪽을 택했다.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           base_branch: main
           branch_prefix: 'fix/issue-'
           # 이슈 제목·본문을 이 프롬프트에 ${{ }} 로 박아 넣지 않는다. 본문의 개행이나
