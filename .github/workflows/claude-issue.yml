@@ -18,7 +18,12 @@ jobs:
   implement:
     name: Implement
     # 방아쇠 라벨이 아닌 라벨(bug, documentation …)에는 반응하지 않는다.
-    if: github.event.label.name == 'claude-go'
+    #
+    # 라벨은 write 권한자만 붙일 수 있으니 그 자체가 승인이지만, 작성자까지 함께 본다.
+    # 관리자가 외부인이 쓴 악의적 이슈에 무심코 라벨을 붙이는 경우를 한 겹 더 막는다.
+    if: >-
+      github.event.label.name == 'claude-go' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
 
     permissions:
