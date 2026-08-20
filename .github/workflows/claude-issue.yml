@@ -83,5 +83,8 @@ jobs:
               못한 것은 확인한 것처럼 쓰지 말고 그대로 밝힌다.
 
             이 워크플로는 PR 생성까지만 담당한다. 리뷰 요청과 머지는 사람이 한다.
+          # 무엇을 실행했는지 로그에 남긴다. 도구가 막히면 어느 도구인지 바로 보인다.
+          show_full_output: true
           claude_args: |
             --max-turns 40
+            --allowedTools Bash,Edit,Read,Write,Glob,Grep
