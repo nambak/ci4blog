@@ -22,6 +22,15 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: client
+    attributes:
+      label: 브라우저·기기
+      description: 화면에서 겪은 일이면 적어 주세요. 서버 쪽 문제라면 비워도 됩니다.
+      placeholder: Chrome 141 / iPhone Safari / 상관없음
+    validations:
+      required: false
+
   - type: textarea
     id: steps
     attributes:
@@ -48,7 +57,9 @@ body:
     id: evidence
     attributes:
       label: 오류 메시지·로그·URL
-      description: 있으면 붙여 주세요. 없으면 비워도 됩니다.
+      description: |
+        붙이기 전에 토큰·비밀번호·쿠키·개인정보를 지워 주세요. 이 저장소는 공개입니다.
+        없으면 비워도 됩니다.
       placeholder: |
         - 주소: https://blog.unwanted.me/posts/...
         - writable/logs/log-2026-08-20.log 의 마지막 20줄

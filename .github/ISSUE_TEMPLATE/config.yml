@@ -1,3 +1,11 @@
 # 빈 이슈도 계속 열 수 있게 둔다. 혼자 쓰는 저장소라 메모하듯 빠르게 여는 경우가 있고,
-# 폼을 강제하면 그 길이 막힌다. 다만 claude-go 라벨을 붙일 이슈라면 폼을 쓰는 편이 낫다.
+# 폼을 강제하면 그 길이 막힌다.
+#
+# ⚠️ 빈 이슈 경로 자체에는 안내 문구를 넣을 수 없다(GitHub 이 그 화면을 제공하지 않는다).
+# 대신 템플릿 선택 화면에 링크로 띄운다 — 빈 이슈를 고르기 직전에 보이는 자리다.
 blank_issues_enabled: true
+
+contact_links:
+  - name: claude-go 라벨을 붙이기 전에
+    url: https://github.com/nambak/ci4blog/blob/main/.github/workflows/claude-issue.yml
+    about: 라벨을 붙이면 Claude Code 가 이슈 내용만 읽고 코드를 고칩니다. 재현 환경과 절차가 없으면 오진합니다 — 빈 이슈로 열었다면 라벨 전에 본문을 채워 주세요.
