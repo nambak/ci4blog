@@ -83,6 +83,10 @@ jobs:
               백그라운드로 돌리거나 "결과가 나오면 이어서 하겠다" 며 턴을 끝내면 거기서 모든 것이
               사라진다 — 이 실행에는 **다음 턴이 없다.** 한 번의 세션 안에서 브랜치 생성부터
               PR 까지 끝내야 한다.
+            - 그래서 개발 중에는 전체를 반복해서 돌리지 말고
+              `composer exec phpunit -- --filter <테스트클래스> --no-coverage` 로 관련 테스트만
+              확인한다. 전체(`composer test -- --no-coverage`)는 **마지막에 한 번만** 돌린다.
+              한 번에 2분 30초씩 쓰면 턴이 금방 바닥난다.
             - 브랜치 이름은 `fix/issue-<이슈번호>` 로 한다.
             - 커밋 메시지는 한국어로, 접두사는 feat: · fix: · chore: · refactor: · test: 중 하나.
             - PR 본문에는 (1) 원인 (2) 고친 방식과 그 근거 (3) 검증한 내용을 적는다. 확인하지
@@ -92,7 +96,7 @@ jobs:
           # 무엇을 실행했는지 로그에 남긴다. 도구가 막히면 어느 도구인지 바로 보인다.
           show_full_output: true
           claude_args: |
-            --max-turns 40
+            --max-turns 80
             --allowedTools Bash,Edit,Read,Write,Glob,Grep
 
       # 실행이 실패해도(도구가 막혔거나 중간에 끊겼어도) 얼마나 썼는지는 남긴다.
