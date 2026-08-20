@@ -51,6 +51,7 @@ jobs:
         run: composer install --prefer-dist --no-progress --no-interaction
 
       - uses: anthropics/claude-code-action@v1
+        id: claude
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -78,6 +79,11 @@ jobs:
             - 이슈에 적힌 범위만 건드린다. 눈에 띄는 다른 문제는 고치지 말고 PR 본문에 적어 둔다.
             - 마지막에 `composer test -- --no-coverage` 로 전체를 확인한다. 실패가 남으면 PR 을
               열지 말고, 무엇이 왜 실패하는지 이슈에 코멘트로 남기고 끝낸다.
+            - **테스트는 포그라운드에서 끝까지 기다린다.** 전체 스위트는 2분 30초쯤 걸리는데,
+              백그라운드로 돌리거나 "결과가 나오면 이어서 하겠다" 며 턴을 끝내면 거기서 모든 것이
+              사라진다 — 이 실행에는 **다음 턴이 없다.** 한 번의 세션 안에서 브랜치 생성부터
+              PR 까지 끝내야 한다.
+            - 브랜치 이름은 `fix/issue-<이슈번호>` 로 한다.
             - 커밋 메시지는 한국어로, 접두사는 feat: · fix: · chore: · refactor: · test: 중 하나.
             - PR 본문에는 (1) 원인 (2) 고친 방식과 그 근거 (3) 검증한 내용을 적는다. 확인하지
               못한 것은 확인한 것처럼 쓰지 말고 그대로 밝힌다.
@@ -88,3 +94,53 @@ jobs:
           claude_args: |
             --max-turns 40
             --allowedTools Bash,Edit,Read,Write,Glob,Grep
+
+      # 실행이 실패해도(도구가 막혔거나 중간에 끊겼어도) 얼마나 썼는지는 남긴다.
+      - name: 사용량 요약
+        if: always()
+        env:
+          EXEC_FILE: ${{ steps.claude.outputs.execution_file }}
+          BRANCH: ${{ steps.claude.outputs.branch_name }}
+          CONCLUSION: ${{ steps.claude.outputs.conclusion }}
+        run: |
+          {
+            echo "## Claude 실행 요약"
+            echo
+            echo "- 판정: \`${CONCLUSION:-알 수 없음}\`"
+            echo "- 브랜치: \`${BRANCH:-없음}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "$EXEC_FILE" ] || [ ! -f "$EXEC_FILE" ]; then
+            echo "- 실행 로그 파일이 없어 사용량을 집계하지 못했다." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # 배열이든 JSONL 이든 result 이벤트를 찾아낸다.
+          r=$(jq -s '[.. | objects | select(.type? == "result")] | last // empty' "$EXEC_FILE" 2>/dev/null)
+          if [ -z "$r" ]; then
+            echo "- 실행 로그에 result 이벤트가 없다." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo
+            echo "| 항목 | 값 |"
+            echo "|---|---|"
+            printf '| 턴 수 | %s |\n'        "$(printf '%s' "$r" | jq -r '.num_turns // "-"')"
+            printf '| 소요 시간 | %s초 |\n'  "$(printf '%s' "$r" | jq -r 'if .duration_ms then (.duration_ms/1000|floor) else "-" end')"
+            printf '| 입력 토큰 | %s |\n'    "$(printf '%s' "$r" | jq -r '.usage.input_tokens // "-"')"
+            printf '| 출력 토큰 | %s |\n'    "$(printf '%s' "$r" | jq -r '.usage.output_tokens // "-"')"
+            printf '| 캐시 읽기 | %s |\n'    "$(printf '%s' "$r" | jq -r '.usage.cache_read_input_tokens // "-"')"
+            printf '| 캐시 생성 | %s |\n'    "$(printf '%s' "$r" | jq -r '.usage.cache_creation_input_tokens // "-"')"
+            printf '| 도구 거부 | %s건 |\n'  "$(printf '%s' "$r" | jq -r '.permission_denials_count // "-"')"
+            printf '| 사용량(USD 환산) | $%s |\n' "$(printf '%s' "$r" | jq -r '.total_cost_usd // "-"')"
+            echo
+            echo "> USD 값은 **API 기준 환산치**이지 청구액이 아니다."
+            echo "> 구독 토큰으로 도는 동안에는 구독의 5시간 사용 한도를 소모한다."
+            echo
+            echo "**Claude 의 마지막 메시지**"
+            echo
+            echo '```'
+            printf '%s' "$r" | jq -r '.result // "(없음)"' | head -20
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
