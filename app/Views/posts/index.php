@@ -55,7 +55,4 @@
 
         <?= $pager->links('default', 'blog') ?>
     <?php endif ?>
-
-    <?php // 전체 글 색인(#GSC). 컨트롤러가 실을 자리에서만 값을 채운다. ?>
-    <?= $this->include('posts/_archive_index', ['archive' => $archive]) ?>
 <?= $this->endSection() ?>

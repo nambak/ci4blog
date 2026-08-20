@@ -578,14 +578,3 @@ mark { background: var(--color-accent-soft); color: var(--color-ink); border-rad
 .post-tags { max-width: 720px; margin: 24px auto 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .post-tags .chip { text-decoration: none; }
 .post-tags .chip:hover { background: var(--color-accent); color: #fff; }
-
-/* 전체 글 색인 — 목록 1페이지 하단(#GSC 색인).
-   read-next 와 같은 방식으로 구분선을 두어 카드 목록과 영역을 나눈다. */
-.archive-index { margin: 56px 0 0; padding-top: 40px; border-top: 1px solid var(--color-line); }
-.archive-index-label { font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-ink-3); margin: 0 0 20px; }
-.archive-index-list { list-style: none; padding: 0; margin: 0; }
-.archive-index-list li { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--color-line-soft); }
-.archive-index-list li:last-child { border-bottom: 0; }
-.archive-index-list a { flex: 1; color: var(--color-ink); text-decoration: none; font-size: 15px; }
-.archive-index-list a:hover { color: var(--color-accent); }
-.archive-index-list time { flex: none; font-family: var(--font-mono); font-size: 12px; color: var(--color-ink-4); }
