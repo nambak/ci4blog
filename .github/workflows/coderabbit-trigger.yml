@@ -1,0 +1,34 @@
+name: CodeRabbit 리뷰 트리거
+
+# 이 저장소는 별이 10개 미만이라 CodeRabbit 이 자동 리뷰를 하지 않는다.
+#   "This repository does not receive automatic reviews because it has fewer than 10 stars."
+# .coderabbit.yaml 의 auto_review.enabled 로는 풀리지 않는 저장소 수준 정책이라(PR #161 실측),
+# PR 이 열릴 때 트리거 코멘트를 대신 넣어 준다.
+#
+# ⚠️ rate limit 은 이걸로 해결되지 않는다 — 플랜이 rolling hour 당 1회라, 연속으로 PR 을
+# 열면 뒤엣것은 "Review rate limited" 로 거절된다. 그때는 한 시간 뒤 다시 트리거해야 한다.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+jobs:
+  trigger:
+    name: Trigger
+    # 초안은 아직 볼 단계가 아니다.
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: 리뷰 요청 코멘트
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        # 트리거는 부가 기능이다. 실패해도 PR 자체를 막지 않는다(fork PR 은 토큰이
+        # 읽기 전용이라 코멘트를 달 수 없다).
+        run: |
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "@coderabbitai review" \
+            || echo "코멘트를 달지 못했다 — fork PR 이거나 권한 문제일 수 있다. 수동으로 넣을 것."
