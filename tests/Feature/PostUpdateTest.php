@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\PostModel;
+use CodeIgniter\Config\Factories;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
@@ -35,6 +36,14 @@ final class PostUpdateTest extends CIUnitTestCase
         $_SESSION = [];
         \Config\Services::resetSingle('session');
         \Config\Services::resetSingle('auth');
+    }
+
+    protected function tearDown(): void
+    {
+        // 주입한 모델 대역이 다음 테스트로 새 나가지 않게 한다.
+        Factories::reset('models');
+
+        parent::tearDown();
     }
 
     private function makeUser(string $username = 'editor', string $email = 'editor@example.com'): User
@@ -183,5 +192,40 @@ final class PostUpdateTest extends CIUnitTestCase
             'ci4-multiboard-03-schema-blueprint',
             model(PostModel::class)->find($id)->slug
         );
+    }
+
+    /**
+     * 수정 후 리다이렉트는 **저장된** slug 를 향한다.
+     *
+     * 컨트롤러는 수정 전에 읽은 엔티티를 들고 있다. 저장 과정에서 slug 가 바뀌면
+     * 그 옛 주소는 이미 없으므로 곧장 404 가 된다. 실제로 이슈 #152 가 그 증상이었다
+     * (그때는 제목이 바뀌면 콜백이 slug 를 다시 만들었다 — PR #153 에서 고쳤다).
+     * 지금은 폼이 slug 를 보내지 않아 드러나지 않지만, 구조는 그대로 남아 있다.
+     */
+    public function testRedirectsToSavedSlugNotTheStaleOne(): void
+    {
+        $user = $this->makeUser();
+        $id   = $this->makePost($user->id);
+
+        // 저장 직후 slug 가 달라지는 상황을 만든다.
+        Factories::injectMock('models', PostModel::class, new class () extends PostModel {
+            public function update($id = null, $row = null): bool
+            {
+                $ok = parent::update($id, $row);
+
+                if ($ok) {
+                    db_connect()->table('posts')->where('id', $id)->update(['slug' => 'slug-changed-on-save']);
+                }
+
+                return $ok;
+            }
+        });
+
+        $result = $this->actingAs($user)->call('POST', "posts/{$id}", [
+            'title' => '제목 수정',
+            'body'  => '본문 수정',
+        ]);
+
+        $this->assertSame(site_url('posts/slug-changed-on-save'), $result->getRedirectUrl());
     }
 }

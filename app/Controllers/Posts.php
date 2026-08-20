@@ -446,7 +446,14 @@ class Posts extends BaseController
         $tagModel->syncForPost($id, $tagModel->parseNames((string) $this->request->getPost('tags')));
 
         // 수정 성공 시: 해당 글 상세로 이동하며 플래시 메시지를 남긴다.
-        return redirect()->to('posts/' . $post->slug)->with('message', '글이 수정되었습니다.');
+        // $post 는 수정 **전** 에 읽은 엔티티다. 저장 과정에서 slug 이 달라지면 그 옛 주소는
+        // 이미 없으므로 곧장 404 가 된다 — 이슈 #152 가 실제로 그 증상이었다(그때는 제목을
+        // 고치면 콜백이 slug 을 다시 만들었다). 지금은 slug 이 보존되지만, 저장된 값을 다시
+        // 읽어 그 구조 자체를 없앤다.
+        $saved = $model->find($id);
+
+        return redirect()->to('posts/' . ($saved->slug ?? $post->slug))
+            ->with('message', '글이 수정되었습니다.');
     }
 
     /**
