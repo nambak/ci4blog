@@ -107,7 +107,9 @@ final class IndexingSignalsTest extends CIUnitTestCase
         $canonical = $this->canonicalOf($this->call('GET', '/'));
 
         $this->assertNotNull($canonical, 'canonical 링크가 없다.');
-        $this->assertStringEndsWith('/', $canonical);
+        // 접미사만 보면 호스트가 뭐든 슬래시로 끝나기만 하면 통과한다. 값 전체를 본다.
+        // (base_url() 자체의 정확성은 이 테스트의 몫이 아니라 링크·sitemap 쪽에서 다룬다.)
+        $this->assertSame(base_url(), $canonical);
     }
 
     /**
@@ -122,8 +124,8 @@ final class IndexingSignalsTest extends CIUnitTestCase
         $canonical = $this->canonicalOf($this->call('GET', 'posts/'));
 
         $this->assertNotNull($canonical, 'canonical 링크가 없다.');
-        $this->assertStringEndsWith('/posts', $canonical);
-        $this->assertStringEndsNotWith('/posts/', $canonical);
+        // 접미사 비교는 잘못된 호스트·경로를 놓친다. 값 전체가 정본과 같아야 한다.
+        $this->assertSame(base_url('posts'), $canonical);
     }
 
     /**
