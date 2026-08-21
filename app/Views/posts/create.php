@@ -15,7 +15,8 @@
         </ul>
     <?php endif ?>
 
-    <form class="form" action="<?= site_url('posts') ?>" method="post" enctype="multipart/form-data">
+    <form class="form" action="<?= site_url('posts') ?>" method="post" enctype="multipart/form-data"
+          data-preview-url="<?= site_url('posts/preview') ?>">
         <?= csrf_field() ?>
 
         <div>
@@ -60,13 +61,13 @@
             <input type="file" name="image" id="image" accept="image/png,image/jpeg,image/webp">
         </div>
 
-        <div>
-            <label for="body">본문</label>
-            <p class="field-hint">마크다운으로 작성할 수 있습니다 — <code># 제목</code>, <code>**굵게**</code>, <code>[링크](https://…)</code></p>
-            <textarea name="body" id="body" rows="12"><?= esc(old('body')) ?></textarea>
-        </div>
+        <?= $this->include('posts/_body_field') ?>
 
         <button type="submit" class="btn">저장</button>
         <a class="btn btn-ghost" href="<?= site_url('posts') ?>">취소</a>
     </form>
+<?= $this->endSection() ?>
+
+<?= $this->section('scripts') ?>
+<script src="<?= site_url('assets/js/editor.js') ?>" defer></script>
 <?= $this->endSection() ?>
