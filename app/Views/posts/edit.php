@@ -15,7 +15,8 @@
     <?php endif ?>
 
     <form class="form" action="<?= site_url('posts/' . $post->id) ?>" method="post" enctype="multipart/form-data"
-          data-preview-url="<?= site_url('posts/preview') ?>">
+          data-preview-url="<?= site_url('posts/preview') ?>"
+          data-csrf-name="<?= csrf_token() ?>">
         <?= csrf_field() ?>
 
         <div>
@@ -74,5 +75,7 @@
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-<script src="<?= site_url('assets/js/editor.js') ?>" defer></script>
+<?php // CSS 와 같은 방식이다. site_url() 은 indexPage 때문에 /index.php/... 를 만들고,
+      // 정적 파일은 그 경로로 서빙되지 않아 404 가 된다(그러면 탭이 hidden 인 채 남는다). ?>
+<script src="<?= base_url('assets/js/editor.js') ?>?v=<?= filemtime(FCPATH . 'assets/js/editor.js') ?>" defer></script>
 <?= $this->endSection() ?>

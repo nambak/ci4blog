@@ -147,4 +147,25 @@ final class PostPreviewTest extends CIUnitTestCase
         $this->assertStringContainsString('data-editor-tab="preview"', $edit, '수정 화면에 탭이 없다.');
         $this->assertStringContainsString('data-preview-url=', $edit, '수정 화면에 미리보기 주소가 없다.');
     }
+
+    /**
+     * 에디터 JS 를 정적 경로로 싣는다.
+     *
+     * `site_url()` 은 indexPage 설정에 따라 `/index.php/...` 를 만든다. 정적 파일은 그
+     * 경로로 서빙되지 않아 **404 가 되고, JS 가 실행되지 않아 탭이 hidden 인 채로 남는다**
+     * — 화면에서는 "미리보기가 안 눌린다" 로 보인다. 실제로 그렇게 깨졌다.
+     *
+     * 마크업 존재만 확인하는 테스트로는 이걸 못 잡아서, 경로 형태를 직접 못박는다.
+     * CSS 가 base_url() 을 쓰는 것과 같은 이유다.
+     */
+    public function testEditorScriptUsesStaticPath(): void
+    {
+        $html = $this->actingAs($this->makeUser())->call('GET', 'posts/new')->response()->getBody();
+
+        $this->assertMatchesRegularExpression('/<script[^>]+src="[^"]*\/assets\/js\/editor\.js/', $html, '에디터 JS 를 싣지 않는다.');
+        $this->assertStringNotContainsString('index.php/assets/', $html, 'index.php 가 붙은 경로로는 정적 파일이 서빙되지 않는다.');
+        // JS 가 CSRF 토큰을 이름으로 집는다. 이 속성이 없으면 토큰을 못 찾아 미리보기가
+        // 403 이 되고, 화면에서는 "미리보기가 안 뜬다" 로만 보인다.
+        $this->assertStringContainsString('data-csrf-name="' . csrf_token() . '"', $html);
+    }
 }

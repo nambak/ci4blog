@@ -23,8 +23,16 @@
     tabs.hidden = false;
 
     var form = textarea.form;
-    // CSRF 가 전역으로 켜져 있다. 폼이 들고 있는 토큰을 그대로 실어 보낸다.
-    var tokenField = form ? form.querySelector('input[type="hidden"][name]') : null;
+    if (!form) return;
+
+    var previewUrl = form.getAttribute('data-preview-url');
+    // 주소를 모르면 미리보기를 켜지 않는다. 빈 URL 로 POST 하면 지금 페이지로 쏘게 된다.
+    if (!previewUrl) return;
+
+    // CSRF 가 전역으로 켜져 있다. "첫 번째 hidden" 으로 찾으면 나중에 다른 hidden 이
+    // 앞에 붙는 순간 조용히 깨지므로, 폼이 알려 준 이름으로 집는다.
+    var csrfName = form.getAttribute('data-csrf-name');
+    var tokenField = csrfName ? form.querySelector('input[name="' + csrfName + '"]') : null;
 
     var lastRendered = null;
 
@@ -55,7 +63,7 @@
         data.append('body', body);
         if (tokenField) data.append(tokenField.name, tokenField.value);
 
-        fetch(form ? form.getAttribute('data-preview-url') : '', {
+        fetch(previewUrl, {
             method: 'POST',
             body: data,
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
