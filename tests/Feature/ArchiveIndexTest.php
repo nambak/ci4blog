@@ -150,4 +150,40 @@ final class ArchiveIndexTest extends CIUnitTestCase
 
         $this->assertStringNotContainsString('archive-index', $body);
     }
+
+    /** 색인 영역(<nav class="archive-index">)만 잘라낸다. 카드 목록과 섞이면 판정이 무의미해진다. */
+    private function archiveSection(string $body): string
+    {
+        return preg_match('/<nav class="archive-index".*?<\/nav>/s', $body, $m) === 1 ? $m[0] : '';
+    }
+
+    /**
+     * 카드에 이미 보인 글은 색인에 다시 넣지 않는다. (#148)
+     *
+     * 색인의 목적은 **카드에 없는 글까지 닿게 하는 것**이다. 카드에 있는 글을 또 나열하면
+     * 같은 화면에 같은 글이 두 번 보여 읽는 사람에게는 혼란만 준다.
+     */
+    public function testIndexDoesNotRepeatPostsAlreadyOnCards(): void
+    {
+        $body    = $this->call('GET', 'posts')->response()->getBody();
+        $archive = $this->archiveSection($body);
+
+        $this->assertNotSame('', $archive, '색인 영역이 아예 없다.');
+        // ARCH-11 은 가장 최신이라 카드 1페이지에 있다.
+        $this->assertStringNotContainsString('arch-11', $archive, '카드에 있는 글이 색인에도 있다.');
+    }
+
+    /**
+     * 그래도 도달성은 그대로다 — 카드에 없는 글은 색인에 남는다.
+     *
+     * 중복만 걷어내려다 색인을 통째로 비우면 #GSC 에서 만든 2클릭 도달성이 사라진다.
+     */
+    public function testIndexStillCoversPostsMissingFromCards(): void
+    {
+        $body    = $this->call('GET', 'posts')->response()->getBody();
+        $archive = $this->archiveSection($body);
+
+        // ARCH-01 은 가장 오래된 글이라 2페이지로 밀린다.
+        $this->assertStringContainsString('arch-01', $archive, '카드에 없는 글이 색인에도 없다 — 도달 경로가 끊겼다.');
+    }
 }

@@ -73,7 +73,7 @@ class Posts extends BaseController
             'activeCategory' => $activeCategory,
             // 전체 글 색인(#GSC). 거르지 않은 목록 1페이지에서만 싣는다 —
             // 자세한 이유는 archiveIndex() 주석에.
-            'archive'        => $this->archiveIndex($activeCategory, $search),
+            'archive'        => $this->archiveIndex($activeCategory, $search, $posts),
             'search'         => $search,
             // 태그 목록(byTag)과 같은 뷰를 쓰므로 이 값을 명시적으로 넘긴다(#114).
             'activeTag'      => null,
@@ -608,7 +608,7 @@ class Posts extends BaseController
      *
      * @return list<Post>
      */
-    private function archiveIndex(?object $activeCategory, string $search): array
+    private function archiveIndex(?object $activeCategory, string $search, array $shown = []): array
     {
         if ($activeCategory !== null || $search !== '') {
             return [];
@@ -620,11 +620,24 @@ class Posts extends BaseController
 
         // 제목·slug·날짜만 있으면 되는 화면이라 컬럼을 좁힌다. 본문까지 끌어오면
         // 마크다운 원문 전체가 31번 메모리에 올라온다.
-        return model(PostModel::class, false)
+        $query = model(PostModel::class, false)
             ->published()
             ->select('id, title, slug, created_at')
-            ->orderBy('created_at', 'DESC')
-            ->findAll();
+            ->orderBy('created_at', 'DESC');
+
+        // 카드 목록에 이미 보인 글은 뺀다(#148). 색인이 하는 일은 **카드에 없는 글**까지
+        // 링크를 잇는 것이라, 카드에 있는 글을 또 나열하면 같은 화면에 같은 글이 두 번
+        // 보일 뿐이다. 빼도 도달성은 그대로다 — 그 글들은 카드가 이미 링크하고 있다.
+        $shownIds = array_values(array_filter(array_map(
+            static fn ($post) => (int) ($post->id ?? 0),
+            $shown
+        )));
+
+        if ($shownIds !== []) {
+            $query->whereNotIn('id', $shownIds);
+        }
+
+        return $query->findAll();
     }
 
     /**
