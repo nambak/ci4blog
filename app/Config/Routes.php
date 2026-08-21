@@ -42,6 +42,7 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
     $routes->post('posts', 'Posts::create');            // 글 저장
     $routes->get('posts/(:num)/edit', 'Posts::edit/$1');     // 글 수정 폼
     $routes->post('posts/(:num)', 'Posts::update/$1');       // 글 수정 저장
+    $routes->post('posts/preview', 'Posts::preview');    // 작성 화면 마크다운 미리보기(#149)
     $routes->post('posts/(:num)/delete', 'Posts::delete/$1'); // 글 삭제
     $routes->post('posts/(:num)/like', 'Posts::like/$1', ['filter' => 'throttle:like']);     // 좋아요 토글
     $routes->post('posts/(:num)/comments', 'Comments::store/$1', ['filter' => 'throttle:comment']); // 댓글 저장

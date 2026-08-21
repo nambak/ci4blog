@@ -391,6 +391,29 @@ class Posts extends BaseController
     /**
      * 수정된 값을 검증하고 저장한다.
      */
+    /**
+     * 작성 화면의 마크다운 미리보기. (#149)
+     *
+     * 변환을 여기서 새로 하지 않고 **Post 엔티티를 그대로 쓴다.** 표 스크롤 컨테이너(#150),
+     * 코드 블록 접근성(#155), XSS 차단(html_input=escape·allow_unsafe_links=false)이 전부
+     * 거기 모여 있어서, 다른 경로로 변환하면 미리보기와 실제 글이 조용히 어긋난다.
+     * 미리보기가 실제와 다르면 볼 이유가 없다 — 그게 이 엔드포인트의 유일한 계약이다.
+     *
+     * 저장하지 않는다. 입력을 받아 변환 결과만 돌려준다.
+     */
+    public function preview(): ResponseInterface
+    {
+        $body = (string) ($this->request->getPost('body') ?? '');
+
+        return $this->response->setJSON([
+            'html' => (new Post(['body' => $body]))->body_html,
+            // tokenRandomize·regenerate 가 모두 켜져 있어 요청 한 번마다 토큰이 바뀐다.
+            // 새 값을 돌려주지 않으면 미리보기를 본 뒤의 **저장이 CSRF 로 막힌다**.
+            // 화면 쪽 JS 가 이 값으로 폼의 hidden 필드를 갱신한다.
+            'token' => csrf_hash(),
+        ]);
+    }
+
     public function update(int $id): RedirectResponse|ResponseInterface
     {
         $model = model(PostModel::class);

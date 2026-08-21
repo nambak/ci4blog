@@ -135,6 +135,18 @@ input[type=file] { font-size: 14px; color: var(--color-ink-2); }
 .prose th { background: var(--color-paper-warm); font-weight: 600; color: var(--color-ink-2); }
 .prose tbody tr:nth-child(even) td { background: var(--color-line-soft); }
 
+/* 마크다운 미리보기 탭(#149). 폼 안에 들어가므로 form 규칙 앞에 둔다. */
+.editor-tabs { display: flex; gap: 2px; margin-bottom: 8px; border-bottom: 1px solid var(--color-line); }
+.editor-tab { padding: 8px 14px; border: none; background: none; font: inherit; font-size: 13px; color: var(--color-ink-3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.editor-tab:hover { color: var(--color-ink); }
+.editor-tab.is-active { color: var(--color-ink); font-weight: 600; border-bottom-color: var(--color-accent); }
+.editor-tab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+/* 미리보기는 textarea 와 높이를 맞춰 탭을 오갈 때 화면이 튀지 않게 한다. */
+.editor-preview { min-height: 260px; padding: 12px; border: 1px solid var(--color-line); border-radius: var(--radius); background: var(--color-paper); }
+.editor-preview[aria-busy="true"] { opacity: .55; }
+/* 본문 첫 요소의 위쪽 여백은 컨테이너 패딩과 겹친다. */
+.editor-preview > :first-child { margin-top: 0; }
+
 /* forms (editor tone) */
 .form { max-width: 720px; margin: 0 auto; }
 .form > div { margin-bottom: 18px; }
