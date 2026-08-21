@@ -19,6 +19,16 @@ $siteTitle = config('Blog')->title;
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <?php // Google tag (gtag.js, G-W1YQS7P9RH, #167). head 요소 바로 다음, 다른 스크립트보다 앞에 둔다. ?>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-W1YQS7P9RH"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-W1YQS7P9RH');
+    </script>
+    <?php // End Google tag ?>
     <?php // Google Tag Manager(GTM-NVTRSRQD, #151). head 최대한 위, 다른 스크립트보다 앞에 둔다. ?>
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
