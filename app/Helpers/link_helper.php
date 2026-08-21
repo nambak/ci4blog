@@ -58,7 +58,15 @@ if (! function_exists('canonical_url')) {
      */
     function canonical_url(): string
     {
-        $url  = base_url(uri_string());
+        // 끝 슬래시는 정본이 아니다. `/posts/` 가 자기 자신을 정본이라 선언하면
+        // `/posts` 와 둘이 색인 경쟁을 하고 크롤 예산도 두 배로 먹는다. GSC 의
+        // "적절한 표준 태그가 포함된 대체 페이지" 가 이런 중복에서 쌓인다.
+        //
+        // 다만 **루트는 예외다.** 홈의 정본은 `https://example.com/` 이고 sitemap 도
+        // 그 형태로 싣고 있어서, 여기서 슬래시를 떼면 이미 색인된 홈과 어긋난다.
+        $path = trim(uri_string(), '/');
+        $url  = $path === '' ? base_url() : base_url($path);
+
         $page = (int) (service('request')->getGet('page') ?? 1);
 
         return $page > 1 ? $url . '?page=' . $page : $url;
