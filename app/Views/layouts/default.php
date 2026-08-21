@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <?php // Google Tag Manager(GTM-NVTRSRQD, #151). head 최대한 위, 다른 스크립트보다 앞에 둔다. ?>
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NVTRSRQD');</script>
+    <?php // End Google Tag Manager ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php // Google AdSense ?>
@@ -27,6 +34,10 @@
     <link rel="stylesheet" href="<?= base_url('assets/css/app.css') ?>?v=<?= filemtime(FCPATH . 'assets/css/app.css') ?>">
 </head>
 <body>
+    <?php // Google Tag Manager (noscript, #151) ?>
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NVTRSRQD"
+        height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <?php // End Google Tag Manager (noscript) ?>
     <?= $this->include('partials/header') ?>
 
     <main class="page-main">
