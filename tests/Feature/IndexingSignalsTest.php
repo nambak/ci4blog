@@ -97,6 +97,38 @@ final class IndexingSignalsTest extends CIUnitTestCase
     }
 
     /**
+     * 그래도 홈의 정본에는 슬래시가 남는다.
+     *
+     * 끝 슬래시를 일괄로 떼면 홈이 `https://example.com` 이 되어, 이미 색인된 형태
+     * (`https://example.com/`)·sitemap 의 `<loc>` 와 어긋난다. 루트만은 예외다.
+     */
+    public function testHomeCanonicalKeepsTheRootSlash(): void
+    {
+        $canonical = $this->canonicalOf($this->call('GET', '/'));
+
+        $this->assertNotNull($canonical, 'canonical 링크가 없다.');
+        // 접미사만 보면 호스트가 뭐든 슬래시로 끝나기만 하면 통과한다. 값 전체를 본다.
+        // (base_url() 자체의 정확성은 이 테스트의 몫이 아니라 링크·sitemap 쪽에서 다룬다.)
+        $this->assertSame(base_url(), $canonical);
+    }
+
+    /**
+     * 끝 슬래시가 붙어 들어와도 정본은 슬래시 없는 주소다.
+     *
+     * `/posts/` 와 `/posts` 는 같은 내용인데, 라이브에서 전자가 **자기 자신을** 정본이라
+     * 선언하고 있었다. 그러면 같은 글이 두 정본을 갖고 색인 경쟁을 하며, 크롤 예산도
+     * 두 배로 먹는다. GSC 의 "적절한 표준 태그가 포함된 대체 페이지" 가 이런 중복에서 쌓인다.
+     */
+    public function testTrailingSlashCanonicalDropsTheSlash(): void
+    {
+        $canonical = $this->canonicalOf($this->call('GET', 'posts/'));
+
+        $this->assertNotNull($canonical, 'canonical 링크가 없다.');
+        // 접미사 비교는 잘못된 호스트·경로를 놓친다. 값 전체가 정본과 같아야 한다.
+        $this->assertSame(base_url('posts'), $canonical);
+    }
+
+    /**
      * 첫 페이지는 ?page=1 을 붙이지 않는다.
      *
      * /posts 와 /posts?page=1 은 같은 내용이다. 둘 다 정본이라고 선언하면
