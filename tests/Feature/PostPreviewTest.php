@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Entities\Post;
 use CodeIgniter\Shield\Entities\User;
+use CodeIgniter\Security\Exceptions\SecurityException;
 use CodeIgniter\Shield\Test\AuthenticationTesting;
 use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
@@ -167,5 +168,51 @@ final class PostPreviewTest extends CIUnitTestCase
         // JS 가 CSRF 토큰을 이름으로 집는다. 이 속성이 없으면 토큰을 못 찾아 미리보기가
         // 403 이 되고, 화면에서는 "미리보기가 안 뜬다" 로만 보인다.
         $this->assertStringContainsString('data-csrf-name="' . csrf_token() . '"', $html);
+    }
+
+    /**
+     * 미리보기가 돌려준 토큰으로 **실제 저장이 된다.**
+     *
+     * 이게 이 기능의 진짜 계약이다. 앞의 testPreviewReturnsFreshCsrfToken 은 응답에 키가
+     * 있는지만 봤을 뿐, 그 값이 **쓸 수 있는 토큰인지**는 보지 않았다 — 아무 문자열이나
+     * 넣어도 통과한다. 여기서 저장까지 해 봐야 "미리보기를 본 뒤 글이 저장된다" 가 증명된다.
+     *
+     * WithCsrf 는 params 에 토큰이 이미 있으면 덮어쓰지 않으므로(??=), 받은 토큰을 그대로
+     * 실어 보낼 수 있다.
+     */
+    public function testTokenFromPreviewCanBeUsedToSave(): void
+    {
+        $user = $this->makeUser();
+
+        $token = json_decode(
+            $this->actingAs($user)->call('POST', 'posts/preview', ['body' => '# 미리보기'])->response()->getBody(),
+            true
+        )['token'];
+
+        $result = $this->actingAs($user)->call('POST', 'posts', [
+            csrf_token() => $token,
+            'title'      => '미리보기 뒤 저장',
+            'body'       => '본문',
+        ]);
+
+        $result->assertRedirect();
+        $this->seeInDatabase('posts', ['title' => '미리보기 뒤 저장']);
+    }
+
+    /**
+     * 아무 문자열이나 토큰 자리에 넣으면 막힌다 — 위 테스트의 **대조군**이다.
+     *
+     * 이게 없으면 앞의 테스트가 "토큰이 무엇이든 저장된다"는 뜻일 수도 있다.
+     * CSRF 필터는 리다이렉트가 아니라 SecurityException 을 던진다(CsrfProtectionTest 와 동일).
+     */
+    public function testBogusTokenCannotSave(): void
+    {
+        $this->expectException(SecurityException::class);
+
+        $this->actingAs($this->makeUser())->call('POST', 'posts', [
+            csrf_token() => 'not-a-real-token',
+            'title'      => '위조 토큰 저장',
+            'body'       => '본문',
+        ]);
     }
 }

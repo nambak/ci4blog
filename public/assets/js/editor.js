@@ -35,6 +35,10 @@
     var tokenField = csrfName ? form.querySelector('input[name="' + csrfName + '"]') : null;
 
     var lastRendered = null;
+    // 요청을 한 번에 하나만 띄운다. 겹치면 먼저 보낸 응답이 나중에 도착해 뒷 내용을
+    // 덮어쓸 수 있고, 무엇보다 **낡은 CSRF 토큰이 폼에 들어가 저장이 막힌다.**
+    var inFlight = false;
+    var queued = false;
 
     function select(name) {
         var isPreview = name === 'preview';
@@ -57,6 +61,13 @@
         // 내용이 그대로면 다시 물을 이유가 없다.
         if (body === lastRendered) return;
 
+        // 이미 하나가 날아가 있으면 끝난 뒤에 한 번만 더 돈다.
+        if (inFlight) {
+            queued = true;
+            return;
+        }
+
+        inFlight = true;
         preview.setAttribute('aria-busy', 'true');
 
         var data = new FormData();
@@ -88,7 +99,14 @@
                 lastRendered = null;
             })
             .then(function () {
+                inFlight = false;
                 preview.setAttribute('aria-busy', 'false');
+
+                // 기다리는 동안 내용이 바뀌었으면 그때 최신 내용으로 한 번 더.
+                if (queued) {
+                    queued = false;
+                    render();
+                }
             });
     }
 
