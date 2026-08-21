@@ -83,4 +83,22 @@ final class MultiboardSlugCorrectionTest extends CIUnitTestCase
         // 두 번 돌려도 글이 늘거나 줄지 않는다.
         $this->assertSame(1, model(PostModel::class)->countAllResults());
     }
+
+    /**
+     * down() 은 up() 이 바꾸지 않은 글을 건드리지 않는다.
+     *
+     * up() 이 충돌 가드로 건너뛴 상황에서는 옛 slug 이 DB 에 없다. 그 상태로 down() 이
+     * "새 slug → 옛 slug" 를 그대로 수행하면, **멀쩡한 글을 한글 slug 으로 망가뜨린다.**
+     * up() 이 아무것도 하지 않았는데 down() 이 데이터를 바꾸는 셈이다.
+     */
+    public function testDownDoesNotTouchPostsItDidNotChange(): void
+    {
+        $id = $this->makePost(self::NEW_EP01, '이미 정상인 글');
+
+        $migration = new CorrectMultiboardSlugs();
+        $migration->up();     // 충돌 가드로 건너뛴다
+        $migration->down();
+
+        $this->assertSame(self::NEW_EP01, model(PostModel::class)->find($id)->slug);
+    }
 }

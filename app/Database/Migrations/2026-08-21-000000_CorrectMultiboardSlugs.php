@@ -41,20 +41,33 @@ class CorrectMultiboardSlugs extends Migration
             }
 
             $this->db->table('posts')->where('slug', $old)->update(['slug' => $new]);
+
+            // 무엇을 바꿨는지 남긴다. down() 이 자동으로 되돌리지 않으므로(아래 참고)
+            // 손으로 복구해야 할 때 이 기록이 유일한 단서다.
+            if ($this->db->affectedRows() > 0) {
+                log_message('notice', sprintf(
+                    'CorrectMultiboardSlugs: slug 교정 %d건 — "%s" → "%s"',
+                    $this->db->affectedRows(),
+                    $old,
+                    $new
+                ));
+            }
         }
     }
 
     /**
-     * 되돌리기. 교정 전 상태로 slug 을 복구한다.
+     * 되돌리지 않는다.
+     *
+     * "새 slug → 옛 slug" 를 그대로 수행하면, up() 이 충돌 가드로 **건너뛴** 경우에
+     * 멀쩡한 글을 한글 slug 으로 망가뜨린다. up() 이 아무것도 하지 않았는데 down() 이
+     * 데이터를 바꾸는 셈이다. up() 이후 다른 글이 그 slug 을 쓰게 된 경우도 마찬가지다.
+     *
+     * 어느 행을 실제로 바꿨는지 기록 없이는 정확한 복원이 불가능하고, **부정확한 복원은
+     * 교정하지 않는 것보다 나쁘다.** 그래서 여기서는 아무 일도 하지 않고, 복구가 필요하면
+     * up() 이 남긴 로그(notice)를 보고 손으로 되돌린다.
      */
     public function down(): void
     {
-        foreach (self::CORRECTIONS as $old => $new) {
-            if ($this->db->table('posts')->where('slug', $old)->countAllResults() > 0) {
-                continue;
-            }
-
-            $this->db->table('posts')->where('slug', $new)->update(['slug' => $old]);
-        }
+        log_message('notice', 'CorrectMultiboardSlugs: down() 은 자동 복원하지 않는다. up() 로그를 보고 손으로 되돌릴 것.');
     }
 }
