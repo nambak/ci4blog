@@ -2,6 +2,7 @@
 
 namespace Config;
 
+use App\Libraries\SentryReporter;
 use CodeIgniter\Events\Events;
 use CodeIgniter\Exceptions\FrameworkException;
 use CodeIgniter\HotReloader\HotReloader;
@@ -24,6 +25,11 @@ use CodeIgniter\HotReloader\HotReloader;
  */
 
 Events::on('pre_system', static function (): void {
+    // CI4 가 이미 set_exception_handler 를 등록한 뒤(pre_system)라, Sentry 가
+    // 그 위에 자기 핸들러를 얹고 CI4 핸들러를 previous 로 체인한다 — 순서를
+    // 바꾸면(더 일찍 초기화하면) CI4 가 Sentry 핸들러를 덮어써 버린다.
+    (new SentryReporter())->boot();
+
     if (ENVIRONMENT !== 'testing') {
         $value = ini_get('zlib.output_compression');
 
