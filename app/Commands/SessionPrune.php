@@ -50,7 +50,10 @@ class SessionPrune extends BaseCommand
             return EXIT_ERROR;
         }
 
-        $stale = $this->staleFiles($ttl);
+        // 재확인에 쓸 기준선은 스캔 시작 시각으로 고정한다. 삭제 시점에 다시
+        // 계산하면 기준이 밀려 "그 사이에 갱신된 세션" 을 가려내지 못한다.
+        $cutoff = time() - $ttl;
+        $stale  = $this->staleFiles($ttl);
 
         if ($stale === []) {
             CLI::write("정리할 세션이 없습니다 (만료 {$ttl}초).", 'green');
@@ -69,8 +72,23 @@ class SessionPrune extends BaseCommand
 
         $deleted = 0;
         $failed  = 0;
+        $skipped = 0;
 
         foreach ($stale as $file) {
+            // 스캔과 삭제 사이에 다시 쓰인 세션은 건너뛴다. 3만 개를 훑는 동안
+            // 그 간격은 순간이 아니고, 지우면 쓰던 사람이 로그아웃된다.
+            //
+            // LOCK_EX 까지 걸지는 않는다 — CI4 의 FileHandler::gc() 도 패턴과
+            // mtime 만 보고 잠금 없이 unlink 한다(FileHandler.php 의 gc). 이
+            // 커맨드는 그 GC 를 대신하는 것이라 같은 수준을 넘어설 이유가 없다.
+            $mtime = @filemtime($file);
+
+            if ($mtime === false || $mtime >= $cutoff) {
+                $skipped++;
+
+                continue;
+            }
+
             if (@unlink($file)) {
                 $deleted++;
 
@@ -82,6 +100,10 @@ class SessionPrune extends BaseCommand
 
         CLI::write("세션 {$deleted}개 삭제 (만료 {$ttl}초).", 'green');
 
+        if ($skipped > 0) {
+            CLI::write("{$skipped}개는 스캔 뒤 다시 쓰여 건너뛰었습니다.", 'yellow');
+        }
+
         if ($failed > 0) {
             CLI::error("{$failed}개는 지우지 못했습니다 — 권한을 확인하세요.");
 
@@ -92,7 +114,7 @@ class SessionPrune extends BaseCommand
     }
 
     /** 마지막으로 쓴 지 $ttl 초가 지난 세션 파일들. */
-    private function staleFiles(int $ttl): array
+    protected function staleFiles(int $ttl): array
     {
         $cutoff = time() - $ttl;
         $stale  = [];

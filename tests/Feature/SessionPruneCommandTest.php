@@ -98,6 +98,24 @@ final class SessionPruneCommandTest extends CIUnitTestCase
         $this->assertFileExists($alive, 'expiration 을 모르면 아무것도 지우지 않아야 한다.');
     }
 
+    /**
+     * 스캔과 삭제 사이에 그 세션이 다시 쓰이면 지우지 않는다.
+     *
+     * 3만 개를 훑는 동안 그 간격은 순간이 아니다. 2시간 넘게 잠자던 세션이라도
+     * 그 사이에 깨어날 수 있고, 지우면 쓰던 사람이 로그아웃된다.
+     */
+    public function testSkipsSessionsRefreshedAfterTheScan(): void
+    {
+        $refreshed = $this->makeSession('ci_session' . str_repeat('e', 32), 60);
+
+        $command                 = $this->prune();
+        $command->staleOverride  = [$refreshed]; // 스캔 시점엔 만료였다고 가정한다
+
+        $command->run(['force' => null]);
+
+        $this->assertFileExists($refreshed, '스캔 뒤 갱신된 세션은 남겨야 한다.');
+    }
+
     /** sessionDir() 이 임시 디렉터리를 보게 만든 커맨드. */
     private function prune(): SessionPruneStub
     {
@@ -123,6 +141,14 @@ final class SessionPruneStub extends SessionPrune
 {
     public string $dirOverride = '';
     public ?int $ttlOverride   = null;
+
+    /** @var list<string>|null */
+    public ?array $staleOverride = null;
+
+    protected function staleFiles(int $ttl): array
+    {
+        return $this->staleOverride ?? parent::staleFiles($ttl);
+    }
 
     protected function sessionDir(): string
     {
