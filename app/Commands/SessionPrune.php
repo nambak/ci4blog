@@ -82,6 +82,12 @@ class SessionPrune extends BaseCommand
             // LOCK_EX 까지 걸지는 않는다 — CI4 의 FileHandler::gc() 도 패턴과
             // mtime 만 보고 잠금 없이 unlink 한다(FileHandler.php 의 gc). 이
             // 커맨드는 그 GC 를 대신하는 것이라 같은 수준을 넘어설 이유가 없다.
+            // filemtime 은 stat 캐시를 탄다. staleFiles() 가 이미 이 파일을 재
+            // 놓았으므로, 캐시를 비우지 않으면 재확인이 옛 값을 볼 수 있다.
+            // (macOS·PHP 8.3 에서는 캐시가 갱신돼 재현되지 않았지만, 캐시 동작은
+            // 플랫폼·버전에 달렸고 비우는 비용은 사실상 없다.)
+            clearstatcache(true, $file);
+
             $mtime = @filemtime($file);
 
             if ($mtime === false || $mtime >= $cutoff) {

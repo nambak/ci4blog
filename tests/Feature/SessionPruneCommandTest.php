@@ -106,14 +106,21 @@ final class SessionPruneCommandTest extends CIUnitTestCase
      */
     public function testSkipsSessionsRefreshedAfterTheScan(): void
     {
-        $refreshed = $this->makeSession('ci_session' . str_repeat('e', 32), 60);
+        // staleOverride 로 목록을 갈아끼우면 filemtime 이 한 번만 불려 실제 경로를
+        // 타지 않는다. 실제 스캔을 돌린 뒤 그 사이에 갱신되는 상황을 만든다.
+        $refreshed = $this->makeSession('ci_session' . str_repeat('e', 32), 10000);
+        $doomed    = $this->makeSession('ci_session' . str_repeat('f', 32), 10000);
 
-        $command                 = $this->prune();
-        $command->staleOverride  = [$refreshed]; // 스캔 시점엔 만료였다고 가정한다
+        $command             = $this->prune();
+        $command->afterScan  = static function () use ($refreshed): void {
+            // 다른 프로세스가 이 세션을 다시 썼다.
+            touch($refreshed);
+        };
 
         $command->run(['force' => null]);
 
         $this->assertFileExists($refreshed, '스캔 뒤 갱신된 세션은 남겨야 한다.');
+        $this->assertFileDoesNotExist($doomed, '대조군 — 갱신되지 않은 세션은 지워져야 한다.');
     }
 
     /** sessionDir() 이 임시 디렉터리를 보게 만든 커맨드. */
@@ -142,12 +149,18 @@ final class SessionPruneStub extends SessionPrune
     public string $dirOverride = '';
     public ?int $ttlOverride   = null;
 
-    /** @var list<string>|null */
-    public ?array $staleOverride = null;
+    /** 스캔 직후에 끼어드는 훅. 다른 프로세스의 갱신을 흉내낸다. */
+    public $afterScan = null;
 
     protected function staleFiles(int $ttl): array
     {
-        return $this->staleOverride ?? parent::staleFiles($ttl);
+        $files = parent::staleFiles($ttl);
+
+        if ($this->afterScan !== null) {
+            ($this->afterScan)();
+        }
+
+        return $files;
     }
 
     protected function sessionDir(): string
