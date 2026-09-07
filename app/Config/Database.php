@@ -44,6 +44,14 @@ class Database extends Config
         'port'         => 3306,
         'numberNative' => false,
         'foundRows'    => false,
+        // SQLite 전용. 운영은 .env 로 DBDriver 만 SQLite3 로 바꾸므로 나머지 키는
+        // 여기서 온다. 이게 없으면 SQLite3\Connection 의 기본값 null 이 남아
+        // busyTimeout() 이 호출되지 않고(is_int 검사), 쓰기 잠금과 겹친 요청이
+        // 곧바로 "database is locked" 로 죽는다(#175).
+        //
+        // MySQLi\Connection 에는 이 속성이 없어 개발 MySQL 은 영향받지 않는다 —
+        // BaseConnection 은 property_exists 인 키만 반영한다.
+        'busyTimeout'  => 1000,
         'dateFormat'   => [
             'date'     => 'Y-m-d',
             'datetime' => 'Y-m-d H:i:s',
