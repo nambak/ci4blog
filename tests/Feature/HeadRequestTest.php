@@ -95,10 +95,16 @@ final class HeadRequestTest extends CIUnitTestCase
         $head = $this->call('HEAD', 'posts/new');
 
         $this->assertSame(302, $get->response()->getStatusCode(), '비로그인 GET 은 로그인으로 보낸다.');
-        $this->assertSame(
-            302,
-            $head->response()->getStatusCode(),
-            'HEAD 도 GET 과 같은 리소스를 가리켜야 한다 — 와일드카드로 새면 글 상세가 200 으로 열린다.',
+
+        // 상태 코드 값을 그대로 비교하지 않는다. CI4 의 redirect() 는
+        // $_SERVER['REQUEST_METHOD'] 를 보고 GET 이면 302, 그 밖이면 307 을 쓰는데
+        // (ResponseTrait::redirect) FeatureTest 는 그 전역을 채우지 않아 여기서는
+        // 302 가 나온다. 실제 서버에서 HEAD 는 307 이다 — 둘 다 "로그인으로 보냄"
+        // 이고, 와일드카드로 샜을 때의 200 과는 Location 유무로 갈린다.
+        $this->assertTrue(
+            $head->response()->hasHeader('Location'),
+            'HEAD 도 로그인으로 보내야 한다 — 와일드카드로 새면 글 상세가 200 으로 열린다.',
         );
+        $this->assertNotSame(200, $head->response()->getStatusCode());
     }
 }
