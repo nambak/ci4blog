@@ -47,8 +47,11 @@ final class SqliteConcurrencyTest extends CIUnitTestCase
     {
         $busyTimeout = (new DatabaseConfig())->default['busyTimeout'] ?? null;
 
-        $this->assertIsInt($busyTimeout, 'busyTimeout 은 int 여야 한다 — SQLite3\Connection 은 is_int 일 때만 적용한다.');
-        $this->assertGreaterThan(0, $busyTimeout);
+        // 문자열 '1000' 이어도 실제로는 동작한다 — BaseConnection 이 typed property
+        // (?int)에 맞춰 캐스팅하기 때문이다. 그래도 int 로 못 박는 이유는 설정의
+        // 의도를 분명히 하기 위해서다. 실제 대기가 생기는지는 아래 테스트가 잰다.
+        $this->assertIsInt($busyTimeout);
+        $this->assertGreaterThan(0, $busyTimeout, '0 이면 잠금과 겹친 요청이 곧바로 죽는다.');
     }
 
     /**
