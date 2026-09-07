@@ -44,7 +44,10 @@ $routes->group('api', ['filter' => ['tokens', 'api-admin']], static function ($r
 // 로그인(세션 인증)이 필요한 쓰기 라우트는 이 그룹 안에 둔다.
 // 글 작성/수정/삭제 라우트가 ep12~ep15에서 여기에 채워진다.
 $routes->group('', ['filter' => 'session'], static function ($routes) {
-    $routes->get('posts/new', 'Posts::new');            // 글 작성 폼
+    // HEAD 를 함께 등록한다. 빼면 HEAD /posts/new 가 아래 posts/(:segment) 로
+    // 흘러 Posts::show('new') 에 닿는다 — 같은 URL 이 메서드에 따라 다른
+    // 리소스를 가리키게 된다. 여기 두면 session 필터가 그대로 적용된다.
+    $routes->match(['GET', 'HEAD'], 'posts/new', 'Posts::new'); // 글 작성 폼
     $routes->post('posts', 'Posts::create');            // 글 저장
     $routes->get('posts/(:num)/edit', 'Posts::edit/$1');     // 글 수정 폼
     $routes->post('posts/(:num)', 'Posts::update/$1');       // 글 수정 저장

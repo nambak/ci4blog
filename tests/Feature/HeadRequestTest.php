@@ -75,8 +75,30 @@ final class HeadRequestTest extends CIUnitTestCase
 
     public static function guardedPathProvider(): iterable
     {
-        yield 'write form' => ['posts/new'];
-        yield 'profile'    => ['profile'];
-        yield 'admin'      => ['admin'];
+        yield 'profile' => ['profile'];
+        yield 'admin'   => ['admin'];
+    }
+
+    /**
+     * posts/new 는 posts/(:segment) 와 같은 자리를 놓고 다툰다. HEAD 를 등록하지
+     * 않으면 HEAD /posts/new 가 와일드카드로 흘러 Posts::show('new') 에 닿는다.
+     * slug 가 'new' 인 글이 있으면 GET 은 로그인 화면, HEAD 는 그 글이 되어
+     * 같은 URL 이 메서드에 따라 다른 리소스를 가리킨다.
+     */
+    public function testHeadOnWriteFormDoesNotFallThroughToPostDetail(): void
+    {
+        $db  = db_connect();
+        $row = $db->table('posts')->get(1)->getRowArray();
+        $db->table('posts')->where('id', $row['id'])->update(['slug' => 'new']);
+
+        $get  = $this->call('GET', 'posts/new');
+        $head = $this->call('HEAD', 'posts/new');
+
+        $this->assertSame(302, $get->response()->getStatusCode(), '비로그인 GET 은 로그인으로 보낸다.');
+        $this->assertSame(
+            302,
+            $head->response()->getStatusCode(),
+            'HEAD 도 GET 과 같은 리소스를 가리켜야 한다 — 와일드카드로 새면 글 상세가 200 으로 열린다.',
+        );
     }
 }
