@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use CodeIgniter\Exceptions\PageNotFoundException;
+use CodeIgniter\HTTP\Method;
 use CodeIgniter\HTTP\ResponseInterface;
 
 /**
@@ -71,9 +72,19 @@ class Uploads extends BaseController
             return $this->response->setStatusCode(304)->setBody('');
         }
 
-        return $this->response
+        // Content-Length 는 GET·HEAD 양쪽에 붙인다. HEAD 에만 붙이면 "HEAD 응답의
+        // 헤더는 GET 이 줬을 헤더와 같아야 한다"(RFC 9110)는 계약이 깨진다.
+        $this->response
             ->setHeader('Content-Type', $type)
-            ->setBody((string) file_get_contents($path));
+            ->setHeader('Content-Length', (string) $size);
+
+        // HEAD 에는 본문이 없다. 여기서 걸러 내지 않으면 크롤러가 이미지를 훑을
+        // 때마다 파일을 통째로 읽어 버리는데, 그 바이트는 어디에도 쓰이지 않는다.
+        if ($this->request->getMethod() === Method::HEAD) {
+            return $this->response->setBody('');
+        }
+
+        return $this->response->setBody((string) file_get_contents($path));
     }
 
     /**

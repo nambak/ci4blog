@@ -346,4 +346,33 @@ final class UploadServingTest extends CIUnitTestCase
         $result->assertStatus(200);
         $this->assertNotSame('', $result->response()->getBody(), 'ETag 불일치가 우선이므로 바디를 보내야 한다.');
     }
+
+    /**
+     * HEAD 는 GET 과 같은 헤더를 주되 본문을 만들지 않아야 한다. 크롤러가 이미지를
+     * HEAD 로 훑을 때 파일을 통째로 읽어 버리면 그만큼이 순수한 낭비다.
+     */
+    public function testHeadSendsHeadersWithoutReadingTheBody(): void
+    {
+        $name = $this->makeUpload('png');
+        $size = filesize($this->pathOf($name));
+
+        $result = $this->call('HEAD', 'uploads/' . $name);
+
+        $result->assertStatus(200);
+        $result->assertHeader('Content-Type', 'image/png');
+        $result->assertHeader('Content-Length', (string) $size);
+        $this->assertSame('', $result->response()->getBody(), 'HEAD 응답은 본문을 만들지 않아야 한다.');
+    }
+
+    /**
+     * RFC 9110: HEAD 응답의 헤더는 GET 이 줬을 헤더와 같아야 한다. HEAD 에만
+     * Content-Length 를 붙이면 그 계약이 깨진다.
+     */
+    public function testGetAdvertisesTheSameContentLengthAsHead(): void
+    {
+        $name = $this->makeUpload('png');
+        $size = filesize($this->pathOf($name));
+
+        $this->call('GET', 'uploads/' . $name)->assertHeader('Content-Length', (string) $size);
+    }
 }
