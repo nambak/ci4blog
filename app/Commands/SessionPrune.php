@@ -50,8 +50,9 @@ class SessionPrune extends BaseCommand
             return EXIT_ERROR;
         }
 
-        // 재확인에 쓸 기준선은 스캔 시작 시각으로 고정한다. 삭제 시점에 다시
-        // 계산하면 기준이 밀려 "그 사이에 갱신된 세션" 을 가려내지 못한다.
+        // 재확인에 쓸 기준선. 삭제 시점에 다시 계산해도 판정은 같다 — 스캔에
+        // 걸린 파일은 그때 이미 만료였고, 기준선은 시간이 갈수록 넓어지기만
+        // 한다. 한 번만 재서 "무엇을 기준으로 골랐는지" 를 분명히 해 둔다.
         $cutoff = time() - $ttl;
         $stale  = $this->staleFiles($ttl);
 
