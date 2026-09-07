@@ -3,21 +3,27 @@
 use CodeIgniter\Router\RouteCollection;
 
 /** @var RouteCollection $routes */
-$routes->get('/', 'Home::index');
-$routes->get('about', 'Pages::about');
-$routes->get('health', 'Health::index');   // 헬스체크(#112) — 공개, session 그룹 밖
+
+// 공개 라우트는 GET 과 HEAD 를 함께 등록한다. CI4 는 HEAD 요청을 GET 라우트로
+// 폴백하지 않아서(RouteCollection::getRoutes() 가 요청 verb 배열과 '*' 만 본다)
+// get() 으로만 두면 업타임 감시 봇·크롤러의 HEAD 요청이 전부 404 가 된다(#174).
+// 로그인이 필요한 라우트는 HEAD 를 열지 않는다 — 봇이 두드릴 일이 없고,
+// 열어 둘수록 필터를 빠뜨렸을 때 새어 나갈 곳만 늘어난다.
+$routes->match(['GET', 'HEAD'], '/', 'Home::index');
+$routes->match(['GET', 'HEAD'], 'about', 'Pages::about');
+$routes->match(['GET', 'HEAD'], 'health', 'Health::index');   // 헬스체크(#112) — 공개, session 그룹 밖
 // 검색엔진용 사이트맵(#124) — 공개, session 그룹 밖. 점을 이스케이프하는 이유는
 // CI4 가 라우트 문자열을 정규식에 그대로 넣어(Router::handle) '.' 이 임의 문자가 되기 때문.
-$routes->get('sitemap\.xml', 'Sitemap::index');
+$routes->match(['GET', 'HEAD'], 'sitemap\.xml', 'Sitemap::index');
 // 구독자용 RSS 2.0 피드(#113) — 공개, session 그룹 밖. 리더는 로그인하지 않는다.
-$routes->get('feed', 'Feed::index');
-$routes->get('posts', 'Posts::index');
+$routes->match(['GET', 'HEAD'], 'feed', 'Feed::index');
+$routes->match(['GET', 'HEAD'], 'posts', 'Posts::index');
 // 카테고리별 글 목록. 목록 화면(index)을 슬러그로 거른다.
-$routes->get('categories/(:segment)', 'Posts::index/$1');
+$routes->match(['GET', 'HEAD'], 'categories/(:segment)', 'Posts::index/$1');
 // 태그 목록(#114). 카테고리와 같은 자리에 둔다 — 둘 다 공개 글 목록의 필터다.
-$routes->get('tags/(:segment)', 'Posts::byTag/$1');
+$routes->match(['GET', 'HEAD'], 'tags/(:segment)', 'Posts::byTag/$1');
 // 업로드 이미지 서빙(writable/uploads 는 웹 루트 밖이라 컨트롤러로 내보낸다).
-$routes->get('uploads/(:segment)', 'Uploads::show/$1');
+$routes->match(['GET', 'HEAD'], 'uploads/(:segment)', 'Uploads::show/$1');
 
 // 발행 API. 원고 파일을 posts 테이블에 반영하는 창구다(#발행API).
 //
@@ -57,7 +63,7 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
 
 // 글 상세는 slug 기반(:segment). 위의 (:num) 쓰기 라우트보다 아래에 둬
 // 'posts/5' 같은 숫자 경로가 먼저 매칭되도록 한다.
-$routes->get('posts/(:segment)', 'Posts::show/$1');
+$routes->match(['GET', 'HEAD'], 'posts/(:segment)', 'Posts::show/$1');
 
 $routes->group('admin', ['filter' => 'group:admin,superadmin'], static function ($routes) {
     $routes->get('/', 'Admin::index'); // 관리자 대시보드
