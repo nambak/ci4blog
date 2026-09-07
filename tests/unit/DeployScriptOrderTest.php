@@ -94,4 +94,36 @@ final class DeployScriptOrderTest extends CIUnitTestCase
         $this->assertLessThan($logsPrune, $cacheClear, '캐시 정리가 로그 정리보다 앞서야 한다.');
         $this->assertLessThan($chown, $logsPrune, '로그 정리는 권한 보정보다 앞서야 한다.');
     }
+
+    public function testRunsSessionPruneWithForce(): void
+    {
+        // 세션 정리도 로그 정리와 같은 하우스키핑이다. --force 없이 걸면
+        // 배포 로그에 개수만 찍히고 아무것도 지워지지 않는다(#179).
+        $this->assertStringContainsString(
+            'spark session:prune --force',
+            $this->script,
+            'deploy.sh 가 session:prune 을 --force 로 실행해야 한다.',
+        );
+    }
+
+    public function testSessionPruneDoesNotBlockDeploy(): void
+    {
+        // set -euo pipefail 아래에서는 || 가드가 없으면 세션 정리 실패가
+        // 배포를 통째로 멈춘다. 세션 정리는 서비스 동작과 무관하다.
+        $this->assertMatchesRegularExpression(
+            '/spark session:prune --force[^\n]*(\\\\\n[^\n]*)?\|\|/',
+            $this->script,
+            'session:prune 실패가 배포를 막아서는 안 된다.',
+        );
+    }
+
+    public function testSessionPruneRunsBeforePermissionFix(): void
+    {
+        $sessionPrune = strpos($this->script, 'spark session:prune');
+        $chown        = strpos($this->script, 'chown -R');
+
+        $this->assertNotFalse($sessionPrune, 'deploy.sh 가 session:prune 을 실행해야 한다.');
+        $this->assertNotFalse($chown, 'deploy.sh 가 writable 권한을 보정해야 한다.');
+        $this->assertLessThan($chown, $sessionPrune, '세션 정리는 권한 보정보다 앞서야 한다.');
+    }
 }

@@ -25,7 +25,11 @@ class Filters extends BaseFilters
      * or [filter_name => [classname1, classname2, ...]]
      */
     public array $aliases = [
-        'csrf'          => CSRF::class,
+        // 프레임워크 CSRF 를 그대로 쓰지 않는다. 전역 before 라 404·400 까지
+        // 타는데, 기본 필터는 매번 service('security') 를 만들어 세션 파일을
+        // 남긴다(#179). App\Filters\Csrf 는 검사 대상 메서드가 아니면 아예
+        // 건드리지 않는다 — Security::verify() 가 어차피 검사하지 않는 요청이다.
+        'csrf'          => \App\Filters\Csrf::class,
         'toolbar'       => DebugToolbar::class,
         'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
