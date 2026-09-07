@@ -161,6 +161,22 @@ php spark logs:prune --force --keep-days 14 # 보관 일수 조정
 - 배포에서는 실패해도 배포를 멈추지 않습니다(백업과 반대 — 로그 정리는 서비스 동작과 무관합니다).
 - 배포가 뜸한 환경이라면 크론으로도 돌릴 수 있습니다: `0 4 * * * cd /var/www/ci4blog && sudo -u www-data php spark logs:prune --force`
 
+## 운영 — 세션 정리
+
+배포(`scripts/deploy.sh`)가 끝머리에서 만료된 파일 세션을 지웁니다.
+
+```bash
+php spark session:prune          # 몇 개가 지워질지만 본다
+php spark session:prune --force  # 실제로 지운다
+```
+
+- 대상: `writable/session/ci_session*` 중 마지막으로 쓴 지 `app/Config/Session.php` 의 `$expiration`(기본 7200초)이 지난 것. 같은 디렉터리의 `index.html` 같은 파일은 건드리지 않습니다.
+- `$expiration` 이 0이면 파일 나이로 만료를 판정할 수 없으므로 **아무것도 지우지 않고 오류로 끝냅니다** — 그대로 계산하면 살아 있는 세션까지 지웁니다.
+- 되돌릴 수 없는 삭제이므로 기본 동작은 **개수 보고**이고, `--force` 를 줘야 지웁니다.
+- 배포에서는 실패해도 배포를 멈추지 않습니다(로그 정리와 같습니다).
+
+왜 필요한가: Ubuntu 의 PHP 는 `session.gc_probability` 가 0이라 요청 도중 GC 가 돌지 않고, 배포판이 넣어 주는 세션 정리 크론은 `php.ini` 의 기본 `save_path` 만 봅니다. CI4 는 `writable/session` 을 쓰므로 아무도 지우지 않아 파일이 계속 쌓입니다.
+
 ## 운영 — 배포와 롤백
 
 `main` 에 push 하면 GitHub Actions 가 다음 순서로 움직입니다.
