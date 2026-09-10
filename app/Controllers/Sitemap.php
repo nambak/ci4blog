@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Libraries\SitemapXml;
-use App\Models\CategoryModel;
 use App\Models\PostModel;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\I18n\Time;
@@ -20,6 +19,15 @@ use CodeIgniter\I18n\Time;
  *
  * URL 조립은 absolute_url() 헬퍼가 한다(#113 에서 승격) — RSS 피드와 규칙을
  * 공유해야 <loc> 과 <link> 가 갈라지지 않는다.
+ *
+ * 카테고리 URL 은 싣지 않는다(#GSC 중복 목록). 카테고리 목록은 noindex 로 나가는데
+ * (Posts::listRobots), sitemap 은 "이걸 색인해 달라" 는 목록이라 둘을 함께 두면
+ * 정반대 신호를 같이 보내게 된다. 크롤러는 그 URL 을 받아 본 뒤에야 noindex 를
+ * 발견하므로 크롤 예산도 그대로 샌다.
+ *
+ * 카테고리가 늘어 각각 다른 글 묶음을 보여 주게 되면 noindex 와 **함께** 되돌린다.
+ * 슬러그 조회는 CategoryModel::visibleWithPublishedPosts() 가 하고 있었다 —
+ * 지금은 호출처가 없어 지웠으므로 git 이력에서 되살릴 것.
  */
 class Sitemap extends BaseController
 {
@@ -28,8 +36,7 @@ class Sitemap extends BaseController
 
     public function index(): ResponseInterface
     {
-        $posts      = model(PostModel::class)->publishedForSitemap();
-        $categories = model(CategoryModel::class)->visibleWithPublishedPosts();
+        $posts = model(PostModel::class)->publishedForSitemap();
 
         // 목록이 updated_at DESC 라 첫 글이 곧 사이트 전체의 최신 시각이다.
         // 글이 하나도 없으면 근거가 없으므로 홈·목록의 lastmod 도 비운다.
@@ -48,13 +55,6 @@ class Sitemap extends BaseController
             $entries[] = [
                 'loc'     => absolute_url('posts/' . $post->slug),
                 'lastmod' => $this->formatDate($post->updated_at),
-            ];
-        }
-
-        foreach ($categories as $category) {
-            $entries[] = [
-                'loc'     => absolute_url('categories/' . $category['slug']),
-                'lastmod' => $this->formatDate($category['last_updated']),
             ];
         }
 

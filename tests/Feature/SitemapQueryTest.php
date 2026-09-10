@@ -10,10 +10,13 @@ use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\DatabaseTestTrait;
 
 /**
- * sitemap 이 쓰는 두 조회 메서드. (#124)
+ * sitemap 이 쓰는 글 조회. (#124)
  *
  * 컨트롤러를 거치지 않고 모델만 본다 — 무엇이 sitemap 에 실리는가는
- * 이 두 쿼리가 결정하므로, 규칙을 여기서 못 박는다.
+ * 이 쿼리가 결정하므로, 규칙을 여기서 못 박는다.
+ *
+ * 카테고리 조회(visibleWithPublishedPosts)도 여기서 함께 다뤘으나, 카테고리
+ * URL 을 sitemap 에서 빼면서(#GSC 중복 목록) 메서드와 함께 지웠다.
  *
  * @internal
  */
@@ -24,12 +27,8 @@ final class SitemapQueryTest extends CIUnitTestCase
     protected $namespace = null;
     protected $refresh   = true;
 
-    /**
-     * 공개 1 · 숨김 1 · 빈 카테고리 1 을 만들고 글을 상태별로 뿌린다.
-     *
-     * @return array{visible: int, hidden: int, empty: int}
-     */
-    private function seed(): array
+    /** 공개 1 · 숨김 1 카테고리를 만들고 글을 상태별로 뿌린다. */
+    private function seed(): void
     {
         $categories = model(CategoryModel::class);
 
@@ -38,9 +37,6 @@ final class SitemapQueryTest extends CIUnitTestCase
 
         $categories->insert(['name' => '숨김분류', 'is_visible' => 0]);
         $hiddenId = $categories->getInsertID();
-
-        $categories->insert(['name' => '빈분류']);
-        $emptyId = $categories->getInsertID();
 
         $posts = model(PostModel::class);
 
@@ -59,8 +55,6 @@ final class SitemapQueryTest extends CIUnitTestCase
                 'status'      => $status,
             ]);
         }
-
-        return ['visible' => $visibleId, 'hidden' => $hiddenId, 'empty' => $emptyId];
     }
 
     /** @return list<string> */
@@ -138,111 +132,5 @@ final class SitemapQueryTest extends CIUnitTestCase
         $this->seed();
 
         $this->assertInstanceOf(Time::class, model(PostModel::class)->publishedForSitemap()[0]->updated_at);
-    }
-
-    /** @return list<string> */
-    private function sitemapCategorySlugs(): array
-    {
-        return array_column(model(CategoryModel::class)->visibleWithPublishedPosts(), 'slug');
-    }
-
-    /** 발행글이 있는 공개 카테고리는 실린다. */
-    public function testVisibleCategoryWithPublishedPostIsIncluded(): void
-    {
-        $ids  = $this->seed();
-        $slug = model(CategoryModel::class)->find($ids['visible'])->slug;
-
-        $this->assertContains($slug, $this->sitemapCategorySlugs());
-    }
-
-    /**
-     * 발행글이 하나도 없는 공개 카테고리는 빠진다.
-     *
-     * 빈 목록 페이지는 검색엔진이 thin content 로 보는 전형이라 색인 대상에서 뺀다.
-     *
-     * 이 규칙은 쿼리에서 INNER JOIN 과 WHERE p.status 두 겹으로 지켜지고, 둘 중
-     * 하나만 남아도 결과가 같다(LEFT JOIN + 우측 테이블 WHERE 는 INNER 와 동치).
-     * 그래서 한쪽만 없애는 뮤테이션으로는 이 테스트가 죽지 않는다 — 둘을 함께
-     * 없애야 죽는 것을 실측으로 확인했다. 두 겹이 동시에 무너지는 것을 막는 단언이다.
-     */
-    public function testEmptyCategoryIsExcluded(): void
-    {
-        $ids  = $this->seed();
-        $slug = model(CategoryModel::class)->find($ids['empty'])->slug;
-
-        $this->assertNotContains($slug, $this->sitemapCategorySlugs());
-    }
-
-    /** 숨김 카테고리는 글이 있어도 빠진다. */
-    public function testHiddenCategoryIsExcluded(): void
-    {
-        $ids  = $this->seed();
-        $slug = model(CategoryModel::class)->find($ids['hidden'])->slug;
-
-        $this->assertNotContains($slug, $this->sitemapCategorySlugs());
-    }
-
-    /**
-     * 임시저장 글만 있는 카테고리도 빠진다.
-     *
-     * 위의 '빈분류' 만으로는 status 조건이 없어도 통과한다(글 자체가 없으므로).
-     * 이 테스트가 status 필터를 특정한다.
-     */
-    public function testCategoryWithOnlyDraftPostsIsExcluded(): void
-    {
-        $categories = model(CategoryModel::class);
-        $categories->insert(['name' => '초안만분류']);
-        $draftOnlyId = $categories->getInsertID();
-
-        model(PostModel::class)->insert([
-            'user_id'     => null,
-            'category_id' => $draftOnlyId,
-            'title'       => '초안만분류 글',
-            'body'        => '본문',
-            'status'      => Post::STATUS_DRAFT,
-        ]);
-
-        $slug = $categories->find($draftOnlyId)->slug;
-
-        $this->assertNotContains($slug, $this->sitemapCategorySlugs());
-    }
-
-    /** 카테고리의 last_updated 는 그 카테고리 발행글 중 가장 최근 값이다. */
-    public function testCategoryLastUpdatedIsMaxOfItsPublishedPosts(): void
-    {
-        $categories = model(CategoryModel::class);
-        $categories->insert(['name' => '두글분류']);
-        $categoryId = $categories->getInsertID();
-
-        $posts = model(PostModel::class);
-
-        foreach (['오래된 글', '최근 글'] as $title) {
-            $posts->insert([
-                'user_id'     => null,
-                'category_id' => $categoryId,
-                'title'       => $title,
-                'body'        => '본문',
-                'status'      => Post::STATUS_PUBLISHED,
-            ]);
-        }
-
-        $newer = $posts->where('title', '최근 글')->first();
-
-        // 기대값을 먼저 고정한다 — 단언 시점에 Time::now() 를 다시 부르면
-        // 그 사이 초가 넘어갔을 때 엉뚱한 이유로 실패한다.
-        $expected = Time::now()->addDays(2)->toDateTimeString();
-
-        db_connect()->table('posts')->where('id', $newer->id)->update(['updated_at' => $expected]);
-
-        $slug = $categories->find($categoryId)->slug;
-        $rows = model(CategoryModel::class)->visibleWithPublishedPosts();
-        $row  = current(array_filter($rows, static fn ($r) => $r['slug'] === $slug));
-
-        $this->assertNotFalse($row, '카테고리를 찾지 못했다.');
-        $this->assertSame(
-            $expected,
-            Time::parse($row['last_updated'])->toDateTimeString(),
-            'MAX(updated_at) 가 아니라 다른 행의 값이 왔다.'
-        );
     }
 }
