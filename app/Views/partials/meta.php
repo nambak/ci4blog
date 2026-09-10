@@ -9,6 +9,7 @@
  *   description 원문 문자열                 기본: Blog->description
  *   image       절대 URL                    없으면 og:image 를 내지 않는다
  *   type        'website' | 'article'       기본: 'website'
+ *   robots      'index,follow' 같은 지시어    기본: 'index,follow'
  *
  * 이스케이프는 여기서 한 번만 한다. 컨트롤러가 esc() 해서 넘기면 이중
  * 이스케이프(`&` → `&amp;amp;`)가 되므로 원문을 받는 것이 계약이다.
@@ -28,7 +29,11 @@ $metaTitle       = $meta['title'] ?? $blog->title;
 $metaDescription = $meta['description'] ?? $blog->description;
 $metaImage       = $meta['image'] ?? null;
 $metaType        = $meta['type'] ?? 'website';
+// 기본값이 'index,follow' 라, robots 를 넘기지 않는 페이지는 동작이 그대로다.
+$metaRobots      = $meta['robots'] ?? 'index,follow';
 ?>
+<?php // 색인 지시어(#GSC). 로그인 화면은 auth/layout 이 따로 내므로 여기로 오지 않는다. ?>
+<meta name="robots" content="<?= esc($metaRobots) ?>">
 <meta name="description" content="<?= esc($metaDescription) ?>">
 <meta property="og:type" content="<?= esc($metaType) ?>">
 <meta property="og:site_name" content="<?= esc($blog->title) ?>">

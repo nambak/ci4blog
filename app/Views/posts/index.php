@@ -1,6 +1,9 @@
 <?= $this->extend('layouts/default') ?>
 
-<?= $this->section('title') ?>글 목록<?= $this->endSection() ?>
+<?php // 문서 제목은 og:title 과 같은 값($meta['title'])에서 나온다. 상수로 박아 두면
+      // 카테고리·태그·2페이지가 전부 '글 목록' 으로 나가고, og:title 과도 갈라진다.
+      // 두 컨트롤러 메서드(Posts::index · Posts::byTag)가 항상 채워 주는 값이다. ?>
+<?= $this->section('title') ?><?= esc($meta['title']) ?><?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
     <h1 class="page-title">

@@ -174,17 +174,33 @@ final class SitemapTest extends CIUnitTestCase
         $this->assertStringNotContainsString('<loc>' . $this->baseUrl() . '/posts/' . rawurlencode($draft->slug) . '</loc>', $body);
     }
 
-    /** 발행글이 있는 공개 카테고리 URL 이 들어 있다. */
-    public function testIncludesCategoryUrl(): void
+    /**
+     * 카테고리 URL 은 싣지 않는다. (#GSC 중복 목록)
+     *
+     * 카테고리 목록은 noindex 로 나간다(IndexingSignalsTest). sitemap 은 "이걸
+     * 색인해 달라" 는 목록이므로, 둘을 함께 두면 정반대 신호를 같이 보내는 셈이다.
+     * 크롤러는 그 URL 을 가져와 본 뒤에야 noindex 를 발견하므로 예산도 그대로 샌다.
+     *
+     * 카테고리가 늘어 각각 다른 글 묶음을 보여 주게 되면 noindex 와 함께 되돌린다.
+     */
+    public function testExcludesCategoryUrls(): void
     {
         $this->seed();
 
         $slug = model(CategoryModel::class)->where('name', '공개분류')->first()->slug;
 
-        $this->assertStringContainsString(
+        $body = $this->sitemapBody();
+
+        // 전제 고정 — 카테고리가 실제로 있고 발행글도 달려 있다. 이게 깨지면
+        // "없어서 통과" 한 것이라 아무것도 증명하지 못한다.
+        $this->assertNotEmpty($slug, '카테고리 픽스처가 없다.');
+
+        $this->assertStringNotContainsString(
             '<loc>' . $this->baseUrl() . '/categories/' . rawurlencode($slug) . '</loc>',
-            $this->sitemapBody()
+            $body
         );
+        // slug 가 달라져도 카테고리 경로 자체가 새면 잡아낸다.
+        $this->assertStringNotContainsString('/categories/', $body);
     }
 
     /**

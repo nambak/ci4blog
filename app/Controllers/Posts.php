@@ -79,9 +79,15 @@ class Posts extends BaseController
             'activeTag'      => null,
             // 같은 메서드가 /posts 와 /categories/{slug} 를 모두 처리한다(#113).
             'meta'           => [
-                'title'       => $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
+                'title'       => $this->pagedTitle(
+                    $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
+                    $model->pager
+                ),
                 'description' => $this->listDescription($activeCategory, $search, $model->pager->getTotal()),
                 'jsonld'      => $this->listBreadcrumb($activeCategory),
+                // 카테고리로 좁힌 화면은 1페이지도 접는다 — 카테고리가 하나뿐인
+                // 동안은 /posts 와 글 묶음이 완전히 같다. 자세한 근거는 listRobots().
+                'robots'      => $this->listRobots($activeCategory !== null, $model->pager),
             ],
         ]);
     }
@@ -133,13 +139,15 @@ class Posts extends BaseController
             // 태그로 좁힌 화면에는 전체 색인을 싣지 않는다. 같은 뷰를 쓰므로 키는 넘긴다.
             'archive'        => [],
             'meta'           => [
-                'title'       => $tag->name . ' 태그 글',
+                'title'       => $this->pagedTitle($tag->name . ' 태그 글', $model->pager),
                 'description' => sprintf(
                     "'%s' 태그가 붙은 글 %d편입니다. %s",
                     $tag->name,
                     $model->pager->getTotal(),
                     config('Blog')->description
                 ),
+                // 태그 목록은 언제나 접는다 — /posts 의 부분집합이라 새 내용이 없다.
+                'robots'      => $this->listRobots(true, $model->pager),
             ],
         ]);
     }
@@ -679,6 +687,47 @@ class Posts extends BaseController
      * 애초에 비지 않는다는 것이고, 다른 하나는 글이 하나도 없는 사이트의 첫 페이지가
      * 404 가 되어 목록이 통째로 사라진다는 것이다 — 없는 것은 페이지가 아니라 글이다.
      */
+    /**
+     * 목록 제목에 몇 페이지인지를 덧붙인다. 1페이지에는 붙이지 않는다.
+     *
+     * 라이브에서 여섯 개 목록 URL(/posts · ?page=2,3 · /categories/{slug} · 그
+     * 페이지네이션)의 <title> 이 전부 '글 목록' 이었다. 제목이 같으면 검색엔진이
+     * 서로 다른 페이지라고 볼 근거가 없다 — GSC 의 "발견됨 - 색인 생성 안 됨" 이
+     * 여기서 쌓였다.
+     *
+     * 페이지 번호는 Pager 에서 가져온다. 쿼리스트링을 다시 파싱하면 guardPageRange()
+     * 가 이미 걸러 낸 값(0 · 음수 · 문자)을 두 번째로 해석하게 되고, 그러다 두
+     * 해석이 어긋나면 제목만 조용히 틀린다.
+     */
+    private function pagedTitle(string $base, Pager $pager): string
+    {
+        $page = $pager->getCurrentPage();
+
+        return $page > 1 ? sprintf('%s (%d페이지)', $base, $page) : $base;
+    }
+
+    /**
+     * 목록 화면의 색인 지시어. (#GSC 중복 목록)
+     *
+     * 목록은 그 자체로 새 내용이 없다. 색인 가치는 개별 글에 있고, 목록의 역할은
+     * 크롤러를 그 글로 보내는 것이다. 그래서 접더라도 **follow 는 남긴다** —
+     * nofollow 로 막으면 목록에만 걸려 있는 글로 가는 길이 끊긴다.
+     *
+     * 접는 기준은 둘이다.
+     *  - 2페이지 이후: 1페이지와 제목·구조가 같고, 실린 글은 어차피 sitemap 에 있다.
+     *  - 필터로 좁힌 목록($narrowed): 카테고리·태그. 지금 카테고리는 하나뿐이라
+     *    /categories/{slug} 가 /posts 와 글 묶음이 100% 같고, 태그는 /posts 의
+     *    부분집합이다. 어느 쪽도 전체 목록에 없는 것을 보여 주지 않는다.
+     *
+     * ⚠️ 카테고리가 서너 개로 늘어 각각 다른 글 묶음을 보여 주게 되면, 그때
+     * 카테고리 1페이지를 'index,follow' 로 되돌린다. sitemap 의 카테고리 URL
+     * (Sitemap::index 에서 뺐다)도 함께 되살려야 신호가 갈라지지 않는다.
+     */
+    private function listRobots(bool $narrowed, Pager $pager): string
+    {
+        return $narrowed || $pager->getCurrentPage() > 1 ? 'noindex,follow' : 'index,follow';
+    }
+
     private function guardPageRange(Pager $pager): void
     {
         $raw = $this->request->getGet('page');
