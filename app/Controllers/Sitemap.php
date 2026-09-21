@@ -49,6 +49,10 @@ class Sitemap extends BaseController
             // 적어 둔 값을 쓴다(Config\Blog::$aboutUpdatedAt). 파일 mtime 은 배포마다
             // 흔들려서 "매번 바뀐 문서" 로 보이게 만든다.
             ['loc' => absolute_url('about'), 'lastmod' => $this->formatDate(config('Blog')->aboutUpdatedAt)],
+            // 개인정보처리방침도 같은 이유로 설정에 적어 둔 날짜를 쓴다(#182).
+            // 광고는 싣지 않지만 색인은 되어야 한다 — 애드센스 심사와 이용자가
+            // 검색으로 찾아올 수 있어야 하는 문서다.
+            ['loc' => absolute_url('privacy'), 'lastmod' => $this->formatDate(config('Blog')->privacyUpdatedAt)],
         ];
 
         foreach ($posts as $post) {

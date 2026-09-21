@@ -41,7 +41,7 @@ class Home extends BaseController
             // 않으면 같은 프로세스에서 앞서 렌더된 페이지의 meta 가 `$meta ?? []`
             // 의 `??` 를 통과해 살아남는다(#113 실측: about → 홈 순서로 렌더하면
             // 홈의 og:title 이 '소개' 로 나왔다).
-            'meta'         => [],
+            'meta'         => ['ads' => true],
         ]);
     }
 }
