@@ -147,6 +147,28 @@ final class AdSensePlacementTest extends CIUnitTestCase
         $this->assertStringNotContainsString(self::AD_SCRIPT, $body);
     }
 
+    /**
+     * 글이 하나도 없는 홈에도 광고를 싣지 않는다. (CodeRabbit, PR #183)
+     *
+     * 이때 홈이 그리는 것은 "아직 작성된 글이 없습니다" 한 줄뿐이다(home/index.php:86).
+     * 목록 화면에는 $posts !== [] 규칙을 적용해 놓고 홈만 true 로 박아 두면
+     * 같은 상황에서 홈만 위반이 된다. 발행 실패나 import 사고로 실제로 생길 수 있다.
+     */
+    public function testEmptyHomeCarriesNoAds(): void
+    {
+        db_connect()->table('posts')->where('id >', 0)->delete();
+        Services::resetSingle('renderer');
+
+        $body = $this->bodyOf('/');
+
+        // 음성 단언만 두면 홈이 500 이어도 통과한다. 빈 화면이 그려졌음을 먼저 고정한다.
+        $this->assertStringContainsString(
+            '아직 작성된 글이 없습니다',
+            html_entity_decode($body, ENT_QUOTES | ENT_HTML5, 'UTF-8')
+        );
+        $this->assertStringNotContainsString(self::AD_SCRIPT, $body);
+    }
+
     /** 404 오류 페이지에는 광고를 싣지 않는다. 정책이 오류 페이지를 명시적으로 든다. */
     public function testNotFoundPageCarriesNoAds(): void
     {
