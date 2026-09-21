@@ -11,6 +11,7 @@ use CodeIgniter\Router\RouteCollection;
 // 열어 둘수록 필터를 빠뜨렸을 때 새어 나갈 곳만 늘어난다.
 $routes->match(['GET', 'HEAD'], '/', 'Home::index');
 $routes->match(['GET', 'HEAD'], 'about', 'Pages::about');
+$routes->match(['GET', 'HEAD'], 'privacy', 'Pages::privacy'); // 개인정보처리방침(#182) — 애드센스 필수 고지
 $routes->match(['GET', 'HEAD'], 'health', 'Health::index');   // 헬스체크(#112) — 공개, session 그룹 밖
 // 검색엔진용 사이트맵(#124) — 공개, session 그룹 밖. 점을 이스케이프하는 이유는
 // CI4 가 라우트 문자열을 정규식에 그대로 넣어(Router::handle) '.' 이 임의 문자가 되기 때문.

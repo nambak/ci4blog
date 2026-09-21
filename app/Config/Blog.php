@@ -38,4 +38,12 @@ class Blog extends BaseConfig
      * 것보다 있는 변경을 늦게 알리는 편이 낫다.
      */
     public string $aboutUpdatedAt = '2026-08-13';
+
+    /**
+     * 개인정보처리방침 본문을 마지막으로 고친 날짜(sitemap 의 lastmod).
+     *
+     * $aboutUpdatedAt 과 같은 규칙이다 — 손으로 적고, 본문을 고치면 함께 고친다.
+     * 방침은 언제 바뀌었는지가 고지 의무의 일부라 날짜가 특히 중요하다.
+     */
+    public string $privacyUpdatedAt = '2026-09-21';
 }

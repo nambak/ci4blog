@@ -20,9 +20,11 @@
     <?php // End Google Tag Manager ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <?php // Google AdSense ?>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3760455502657641"
-         crossorigin="anonymous"></script>
+    <?php // 광고는 콘텐츠가 있는 화면에만 싣는다(#182). 기본값이 '싣지 않음' 인
+          // 이유는 partials/adsense.php 와 AdSensePlacementTest 머리말에. ?>
+    <?php if ($meta['ads'] ?? false): ?>
+    <?= $this->include('partials/adsense') ?>
+    <?php endif ?>
     <title><?= $this->renderSection('title') ?> · <?= esc(config('Blog')->title) ?></title>
     <?php // 파비콘: SVG 우선, PNG 폴백, iOS 홈화면용 apple-touch-icon. ?>
     <link rel="icon" href="<?= base_url('favicon/favicon.svg') ?>" type="image/svg+xml">

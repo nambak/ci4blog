@@ -294,8 +294,26 @@ final class SitemapTest extends CIUnitTestCase
         $parsed = simplexml_load_string($this->sitemapBody());
 
         $this->assertNotFalse($parsed, '글이 없을 때 XML 이 깨졌다.');
-        // 정적 URL 3개는 남는다.
-        $this->assertCount(3, $parsed->children(SitemapXml::NAMESPACE_URI));
+
+        // 개수만 세면 안 된다 — 4개를 유지한 채 엉뚱한 URL 로 바뀌어도 통과한다.
+        // 어떤 정적 문서가 실리는지를 못 박는다. 기대값은 baseUrl() 로 만든다
+        // (컨트롤러가 쓰는 absolute_url() 로 만들면 둘이 함께 틀려도 통과한다).
+        $locs = [];
+
+        foreach ($parsed->children(SitemapXml::NAMESPACE_URI) as $url) {
+            $locs[] = (string) $url->loc;
+        }
+
+        $this->assertSame(
+            [
+                $this->baseUrl() . '/',
+                $this->baseUrl() . '/posts',
+                $this->baseUrl() . '/about',
+                // 개인정보처리방침은 광고를 싣지 않지만 색인은 되어야 한다(#182).
+                $this->baseUrl() . '/privacy',
+            ],
+            $locs
+        );
     }
 
     /** 라우트의 점이 이스케이프돼 임의 문자로 새지 않는다. */

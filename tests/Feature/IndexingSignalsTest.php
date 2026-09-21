@@ -314,6 +314,49 @@ final class IndexingSignalsTest extends CIUnitTestCase
     }
 
     /**
+     * 검색 결과 화면은 결과가 있어도 색인하지 않는다. (#182)
+     *
+     * ?q= 는 값이 무한하다. 자기참조 canonical 은 이미 막아 뒀지만(위 테스트),
+     * canonical 만으로는 크롤러가 그 URL 을 **방문하는 것** 자체를 막지 못한다.
+     * 색인 신호까지 함께 접어야 목록 정리(#181)와 앞뒤가 맞는다.
+     *
+     * 구글도 검색 결과 페이지를 색인 대상으로 두지 말라고 안내한다 — 검색 결과
+     * 안에 또 검색 결과가 나오는 화면은 이용자에게 새 내용이 아니다.
+     */
+    public function testSearchResultListIsNoindex(): void
+    {
+        $result = $this->call('GET', 'posts', ['q' => 'SEO']);
+
+        // 결과가 0건이면 이 테스트는 "빈 화면이 noindex 다" 를 볼 뿐이고,
+        // 결과가 있는 경우를 검증하지 못한다. 먼저 히트를 고정한다.
+        // 특정 slug 를 집지 않는다 — 11건이 10건씩 나뉘어 seo-01 은 2페이지로 밀린다.
+        // 정렬이나 페이지 크기가 바뀌어도 "결과가 하나라도 있다" 는 사실은 그대로다.
+        $this->assertStringContainsString('posts/seo-', $result->response()->getBody());
+        $this->assertSame('noindex,follow', $this->robotsOf($result));
+    }
+
+    /** 결과가 0건인 검색 화면도 마찬가지다 — 오히려 이쪽이 더 비어 있다. */
+    public function testEmptySearchResultListIsNoindex(): void
+    {
+        $this->assertSame(
+            'noindex,follow',
+            $this->robotsOf($this->call('GET', 'posts', ['q' => '존재하지않는검색어zzz']))
+        );
+    }
+
+    /**
+     * 검색어가 붙었을 때만 접는다.
+     *
+     * 위 둘만 있으면 목록을 통째로 noindex 로 만들어도 통과한다. 그건 글 목록이
+     * 검색에서 사라지는 사고다. 같은 경로에 검색어만 뺀 요청이 색인 대상으로
+     * 남는지 대조한다(위 testFirstListPageIsIndexable 과 짝이다).
+     */
+    public function testListWithoutSearchStaysIndexable(): void
+    {
+        $this->assertSame('index,follow', $this->robotsOf($this->call('GET', 'posts', ['q' => ''])));
+    }
+
+    /**
      * 개별 글은 색인 대상이다.
      *
      * 이번 작업의 목적은 목록을 접어 **글로 크롤 예산을 몰아주는 것**이다.

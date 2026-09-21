@@ -79,6 +79,9 @@ class Posts extends BaseController
             'activeTag'      => null,
             // 같은 메서드가 /posts 와 /categories/{slug} 를 모두 처리한다(#113).
             'meta'           => [
+                // 실린 글이 하나도 없으면 콘텐츠가 없는 화면이다 — 광고를 빼야 한다(#182).
+                // 검색은 ?q= 로 그런 화면을 무한히 만들 수 있어서 특히 그렇다.
+                'ads'         => $posts !== [],
                 'title'       => $this->pagedTitle(
                     $activeCategory !== null ? $activeCategory->name . ' 글' : '글 목록',
                     $model->pager
@@ -87,7 +90,10 @@ class Posts extends BaseController
                 'jsonld'      => $this->listBreadcrumb($activeCategory),
                 // 카테고리로 좁힌 화면은 1페이지도 접는다 — 카테고리가 하나뿐인
                 // 동안은 /posts 와 글 묶음이 완전히 같다. 자세한 근거는 listRobots().
-                'robots'      => $this->listRobots($activeCategory !== null, $model->pager),
+                'robots'      => $this->listRobots(
+                    $activeCategory !== null || $search !== '',
+                    $model->pager
+                ),
             ],
         ]);
     }
@@ -139,6 +145,8 @@ class Posts extends BaseController
             // 태그로 좁힌 화면에는 전체 색인을 싣지 않는다. 같은 뷰를 쓰므로 키는 넘긴다.
             'archive'        => [],
             'meta'           => [
+                // 목록 화면과 같은 규칙 — 글이 없으면 광고도 없다(#182).
+                'ads'         => $posts !== [],
                 'title'       => $this->pagedTitle($tag->name . ' 태그 글', $model->pager),
                 'description' => sprintf(
                     "'%s' 태그가 붙은 글 %d편입니다. %s",
@@ -287,6 +295,8 @@ class Posts extends BaseController
             // SNS 미리보기·검색 스니펫용(#113). partial 이 이스케이프하므로 원문을 넘긴다.
             'meta'         => [
                 'type'        => 'article',
+                // 글 본문이 있는 화면이다 — 광고를 싣는다(#182).
+                'ads'         => true,
                 'title'       => $post->title,
                 'description' => $post->getExcerpt(155),
                 // 구조화 데이터(#GSC). 글의 정체와 발행·수정 시각을 선언한다.
@@ -713,8 +723,12 @@ class Posts extends BaseController
      * 크롤러를 그 글로 보내는 것이다. 그래서 접더라도 **follow 는 남긴다** —
      * nofollow 로 막으면 목록에만 걸려 있는 글로 가는 길이 끊긴다.
      *
-     * 접는 기준은 둘이다.
+     * 접는 기준은 셋이다.
      *  - 2페이지 이후: 1페이지와 제목·구조가 같고, 실린 글은 어차피 sitemap 에 있다.
+     *  - 검색 결과(?q=): 검색어는 무한하므로 색인 후보도 무한해진다. canonical 은
+     *    이미 /posts 로 정규화하지만, 그것만으로는 크롤러가 그 URL 을 방문하는
+     *    것 자체를 막지 못한다. 구글도 검색 결과 화면을 색인 대상으로 두지
+     *    말라고 안내한다 — 검색 결과 안의 검색 결과는 새 내용이 아니다.
      *  - 필터로 좁힌 목록($narrowed): 카테고리·태그. 지금 카테고리는 하나뿐이라
      *    /categories/{slug} 가 /posts 와 글 묶음이 100% 같고, 태그는 /posts 의
      *    부분집합이다. 어느 쪽도 전체 목록에 없는 것을 보여 주지 않는다.
