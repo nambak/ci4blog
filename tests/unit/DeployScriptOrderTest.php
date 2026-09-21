@@ -117,6 +117,49 @@ final class DeployScriptOrderTest extends CIUnitTestCase
         );
     }
 
+    public function testAuthPruneRunsWithForce(): void
+    {
+        // 로그인 기록 파기(#184)도 같은 하우스키핑이다. --force 없이 걸면
+        // 배포 로그에 건수만 찍히고 개인정보는 그대로 남는다 — 방침이 약속한
+        // 자동 파기를 하지 않는 상태가 되므로 로그·세션 정리보다 대가가 크다.
+        $this->assertStringContainsString(
+            'spark auth:prune --force',
+            $this->script,
+            'deploy.sh 가 auth:prune 을 --force 로 실행해야 한다.',
+        );
+    }
+
+    public function testAuthPruneDoesNotBlockDeploy(): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/spark auth:prune --force[^\n]*(\\\\\n[^\n]*)?\|\|/',
+            $this->script,
+            'auth:prune 실패가 배포를 막아서는 안 된다.',
+        );
+    }
+
+    /**
+     * auth:prune 은 새로 추가된 커맨드 클래스다.
+     *
+     * 그래서 composer install 보다 앞서면 이전 배포의 최적화된 classmap 에 없어
+     * "command not found" 가 되고, 그 실패를 `|| echo` 가 삼켜 **조용한 무동작**이
+     * 된다. 배포 로그는 초록인데 개인정보는 계속 쌓이는 상태다 — 문자열 존재만
+     * 보는 위 두 테스트로는 못 잡는다(logs:prune 이 같은 이유로 같은 가드를 갖는다).
+     */
+    public function testAuthPruneRunsAfterComposerInstallAndBeforePermissionFix(): void
+    {
+        $composer  = strpos($this->script, 'composer install');
+        $authPrune = strpos($this->script, 'spark auth:prune');
+        $chown     = strpos($this->script, 'chown -R www-data:www-data writable/');
+
+        $this->assertNotFalse($composer, 'deploy.sh 가 composer install 을 실행해야 한다.');
+        $this->assertNotFalse($authPrune, 'deploy.sh 가 auth:prune 을 실행해야 한다.');
+        $this->assertNotFalse($chown, 'deploy.sh 가 writable 권한을 보정해야 한다.');
+
+        $this->assertLessThan($authPrune, $composer, '로그인 기록 정리는 의존성 설치보다 뒤에 있어야 한다.');
+        $this->assertLessThan($chown, $authPrune, '로그인 기록 정리는 권한 보정보다 앞서야 한다.');
+    }
+
     public function testSessionPruneRunsBeforePermissionFix(): void
     {
         $sessionPrune = strpos($this->script, 'spark session:prune');
