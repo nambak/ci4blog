@@ -140,16 +140,40 @@ final class AuthPruneCommandTest extends CIUnitTestCase
         $this->assertSame(['three@example.com'], $this->survivorsIn('auth_logins'));
     }
 
-    public function testRejectsNonNumericKeepDays(): void
+    public static function badKeepDaysProvider(): iterable
     {
-        $this->seedLogin('auth_logins', 999, 'old@example.com');
+        // 'abc' 만으로는 부족하다 — (int)'abc' 가 0 이라 가드가 없어도 같은
+        // 결과가 나온다(뮤테이션으로 실제 확인했다: ctype_digit 을 지워도
+        // 'abc' 테스트는 통과했다). 가드가 진짜로 막는 것은 **조용히 잘려
+        // 들어가는 값**이다.
+        yield '숫자가 아예 아님' => ['abc'];
+        yield '뒤에 글자가 붙음 (int 캐스팅은 3으로 읽는다)' => ['3a'];
+        yield '소수 (int 캐스팅은 1로 읽는다)' => ['1.5'];
+    }
 
-        command('auth:prune --force --keep-days abc');
+    /**
+     * 정수가 아닌 --keep-days 는 거부하고 아무것도 지우지 않는다.
+     *
+     * 10일 전 행을 심어 두는 것이 핵심이다 — 가드가 없으면 '3a' 가 3 으로,
+     * '1.5' 가 1 로 읽혀 이 행이 지워진다. 즉 "잘못된 입력이 조용히 다른
+     * 보관 기간으로 실행되는" 사고를 이 행이 드러낸다.
+     *
+     * @dataProvider badKeepDaysProvider
+     */
+    public function testRejectsNonIntegerKeepDays(string $raw): void
+    {
+        $this->seedLogin('auth_logins', 10, 'ten-days@example.com');
+
+        command('auth:prune --force --keep-days ' . $raw);
 
         // 종료 코드를 직접 볼 수 없으므로 두 가지로 확인한다 —
         // 오류 문구가 나왔고, 그리고 **아무것도 지우지 않았다.**
         $this->assertStringContainsString('--keep-days', $this->getStreamFilterBuffer());
-        $this->assertSame(1, $this->countIn('auth_logins'), '잘못된 옵션인데 지워 버렸다.');
+        $this->assertSame(
+            ['ten-days@example.com'],
+            $this->survivorsIn('auth_logins'),
+            "'{$raw}' 를 보관 기간으로 받아들여 실행해 버렸다."
+        );
     }
 
     public function testReportsNothingToDoWhenAllRowsAreRecent(): void
