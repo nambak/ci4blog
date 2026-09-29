@@ -136,6 +136,35 @@ final class IndexingSignalsTest extends CIUnitTestCase
         $this->assertStringEndsWith('/posts?page=2', $canonical);
     }
 
+    /** 카테고리 목록도 페이지네이션 목록이다 — 2페이지는 2페이지 자신을 가리킨다. */
+    public function testPaginatedCategoryCanonicalKeepsPage(): void
+    {
+        $canonical = $this->canonicalOf($this->call('GET', 'categories/retro', ['page' => '2']));
+
+        $this->assertSame(base_url('categories/retro') . '?page=2', $canonical);
+    }
+
+    /**
+     * 글 상세는 page 를 읽지 않는다. 그러니 ?page= 가 붙어도 대표 URL 은 글 주소 그대로다.
+     *
+     * 예전에는 어느 화면이든 page 를 살려서 /posts/{slug}?page=3 이 스스로를 대표
+     * URL 로 선언했다 — 본문이 같은 주소가 하나 더 색인 후보가 된 셈이다.
+     */
+    public function testPostDetailCanonicalDropsPage(): void
+    {
+        $canonical = $this->canonicalOf($this->call('GET', 'posts/seo-01', ['page' => '3']));
+
+        $this->assertSame(base_url('posts/seo-01'), $canonical);
+    }
+
+    /** 목록이 아닌 고정 페이지도 마찬가지다. */
+    public function testStaticPageCanonicalDropsPage(): void
+    {
+        $canonical = $this->canonicalOf($this->call('GET', 'about', ['page' => '2']));
+
+        $this->assertSame(base_url('about'), $canonical);
+    }
+
     /**
      * 그래도 홈의 정본에는 슬래시가 남는다.
      *

@@ -67,9 +67,38 @@ if (! function_exists('canonical_url')) {
         $path = trim(uri_string(), '/');
         $url  = $path === '' ? base_url() : base_url($path);
 
+        // page 는 **페이지네이션이 있는 목록**에서만 살린다. 글 상세·소개 같은 화면은
+        // page 를 읽지 않아서 /posts/{slug}?page=3 이 본래 글과 같은 내용인데,
+        // 여기서 page 를 붙이면 그 주소가 스스로를 대표 URL 로 선언해 중복이 생긴다.
+        if (! is_paginated_list_path($path)) {
+            return $url;
+        }
+
         $page = (int) (service('request')->getGet('page') ?? 1);
 
         return $page > 1 ? $url . '?page=' . $page : $url;
+    }
+}
+
+if (! function_exists('is_paginated_list_path')) {
+    /**
+     * ?page= 로 나뉘는 공개 목록 경로인가. canonical_url() 이 쓴다.
+     *
+     * Config\Routes 의 목록 라우트(posts · categories/{slug} · tags/{slug})와
+     * 짝을 맞춰야 한다. 목록 라우트를 새로 만들면 여기에도 더한다 — 빠뜨리면
+     * 그 목록의 2페이지 이후가 1페이지를 대표 URL 로 선언하게 된다.
+     *
+     * 세그먼트 수까지 본다. 'posts/{slug}' 는 목록이 아니라 글 상세다.
+     */
+    function is_paginated_list_path(string $path): bool
+    {
+        $segments = explode('/', $path);
+
+        return match (count($segments)) {
+            1       => $segments[0] === 'posts',
+            2       => in_array($segments[0], ['categories', 'tags'], true),
+            default => false,
+        };
     }
 }
 
